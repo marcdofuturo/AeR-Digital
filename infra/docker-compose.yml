@@ -1,0 +1,71 @@
+services:
+  # ── Evolution API (WhatsApp Gateway) ──
+  evolution:
+    image: atendai/evolution-api:latest
+    container_name: ar-evolution
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - DATABASE_ENABLED=false
+      - LANGUAGE=pt-BR
+    volumes:
+      - evolution_data:/evolution/store
+    networks:
+      - ar-net
+
+  # ── Redis (BullMQ) ──
+  redis:
+    image: redis:7-alpine
+    container_name: ar-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - ar-net
+
+  # ── Audio Service (faster-whisper + librosa) ──
+  audio-svc:
+    build:
+      context: ../apps/audio-svc
+      dockerfile: Dockerfile
+    container_name: ar-audio-svc
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - audio_data:/tmp/audio
+    networks:
+      - ar-net
+
+  # ── Caddy (reverse proxy + TLS) ──
+  caddy:
+    image: caddy:2-alpine
+    container_name: ar-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - ar-net
+
+volumes:
+  evolution_data:
+  redis_data:
+  audio_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  ar-net:
+    driver: bridge

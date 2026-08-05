@@ -1,0 +1,15 @@
+# Caddyfile — reverse proxy for A&R Digital
+# Development (no TLS):
+:80 {
+    @wa-api host wa.localhost
+    handle @wa-api {
+        reverse_proxy evolution:8080
+    }
+
+    @audio-svc host audio.localhost
+    handle @audio-svc {
+        reverse_proxy audio-svc:8000
+    }
+
+    respond "AeR Digital — Ok" 200
+}
