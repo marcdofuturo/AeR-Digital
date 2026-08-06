@@ -19,8 +19,8 @@
   },
   "dependencies": {
     "@ar/shared": "workspace:*",
-    "handlebars": "^4.7.0",
-    "@types/handlebars": "^4.1.0"
+    "@types/handlebars": "^4.1.0",
+    "handlebars": "^4.7.9"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

@@ -1,0 +1,57 @@
+Olá, pessoal!
+Espero que estejam bem.
+
+Sou o {{ar.nome}} e neste documento represento a empresa e seus artistas {{artistas_principais}}
+Venho por meio deste solicitar, de forma oficial, a autorização para o lançamento digital da faixa abaixo;
+
+Todos os detalhes do lançamento seguem especificados a seguir:
+
+**Autorização de Distribuição Digital**
+
+| Nome da Faixa: | {{track.titulo}} |
+| :---- | :---- |
+| Artistas: | {{creditos}} |
+| Data de Lançamento: | {{release.data}} |
+| Agregadora: | {{release.distribuidora}} |
+| ISRC: | {{track.isrc}} |
+| ID do Álbum: | {{release.album_id}} |
+| Link da Faixa:  | {{track.link}} |
+
+
+**Obra**
+
+| ID | Artista | Classe | Participação (%) |
+| ----- | ----- | ----- | ----- |
+{{#each splits.obra}}
+| {{this.id}} | {{this.artista}} | {{this.classe}} | {{this.pct}} |
+{{/each}}
+|  |  | ***Total:***  | 100% |
+
+**Fonograma**
+
+| ID | Artista | Classe | Participação (%) |
+| ----- | ----- | ----- | ----- |
+{{#each splits.fonograma}}
+| {{this.id}} | {{this.artista}} | {{this.classe}} | {{this.pct}} |
+{{/each}}
+|  |  | ***Total:***  | 100% |
+
+**Digital**
+
+| ID | Artista | Classe | Participação (%) |
+| ----- | ----- | ----- | ----- |
+{{#each splits.digital}}
+| {{this.id}} | {{this.artista}} | {{this.classe}} | {{this.pct}} |
+{{/each}}
+|  |  | ***Total:***  | 100% |
+
+Caso todos estejam de acordo com o lançamento, por gentileza, responder este e-mail com a seguinte mensagem:
+"Eu, [NOME] sou responsável pelo [ARTISTA], autorizo este lançamento."
+
+Solicito também que seja preenchido o nosso formulário de cadastro:
+
+* CPF
+* E-mails para repasse de royalties e respectivas porcentagens de empresários e agenciadores
+* Telefone para contato (WhatsApp)
+
+Qualquer dúvida, estou à disposição.

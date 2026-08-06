@@ -106,13 +106,8 @@ describe("Intake flow", () => {
 
   it("b) Producer outside list, answering position 3", async () => {
     const ctx = testCtx(new MockProvider());
-    const m = new StepMachine("ask_producers", {
-      title: "Test",
-      artists: [
-        { id: "a1", stage_name: "A", input_name: "A", position: 1, billing_role: "primary", is_producer: false, is_composer: true, is_performer: true, hidden_from_billing: false, match_score: 1, needs_review: false },
-        { id: "a2", stage_name: "B", input_name: "B", position: 2, billing_role: "primary", is_producer: false, is_composer: true, is_performer: true, hidden_from_billing: false, match_score: 1, needs_review: false },
-      ],
-    }, ctx);
+    const a1: ResolvedArtist = { id: "a1", stage_name: "A", input_name: "A", position: 1, billing_role: "primary" as const, is_producer: false, is_composer: true, is_performer: true, hidden_from_billing: false, match_score: 1, needs_review: false };
+    const a2: ResolvedArtist = { id: "a2", stage_name: "B", input_name: "B", position: 2, billing_role: "primary" as const, is_producer: false, is_composer: true, is_performer: true, hidden_from_billing: false, match_score: 1, needs_review: false };
 
     let r = await m.process("ProducerC");
     expect(r.nextStep).toBe("ask_producer_position");
