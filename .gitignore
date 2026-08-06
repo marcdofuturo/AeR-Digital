@@ -48,3 +48,4 @@ venv/
 
 # Docker
 docker-compose.override.yml
+scripts/run-migration*.js

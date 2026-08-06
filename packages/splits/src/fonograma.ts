@@ -19,7 +19,8 @@ export function computeFonograma(
   participants: Participant[],
   labelName: string,
 ): SplitLine[] {
-  const interpretes = participants.filter(p => p.is_performer);
+  // Produtores aparecem como Músicos, não como Intérpretes
+  const interpretes = participants.filter(p => p.is_performer && !p.is_producer);
   const musicos = participants.filter(p => p.is_producer);
 
   let poolProdutor = FONO.produtor;
