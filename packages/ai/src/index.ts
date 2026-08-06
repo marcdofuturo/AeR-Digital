@@ -1,8 +1,15 @@
-// Claude clients + prompts versionados
-// Implementation in Prompt 2
+export { SpotifyClient, buildPitchPrompt, isEligibleForPitch } from "./pitch";
+export type {
+  SpotifyArtist, SpotifyTrack, AudioFeatures, AudioAnalysis, PitchContext, PitchResult,
+} from "./pitch";
 
-export interface AiClient {
-  validate(input: string, prompt: string): Promise<unknown>;
-  classify(input: string, prompt: string): Promise<unknown>;
-  synthesize(context: Record<string, unknown>): Promise<unknown>;
-}
+export {
+  organizeKanban, formatDaysInStage, deadlineColor,
+  validateSplitTotal, redistributeRemainder,
+  computePipelineStats, taskPriorityColor, KANBAN_STAGES,
+  taskStatusLabel,
+} from "./crm";
+export type {
+  KanbanCard, KanbanColumn, SplitEditorLine,
+  Task, TaskStatus, TaskPriority, PipelineStats,
+} from "./crm";

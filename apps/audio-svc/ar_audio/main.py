@@ -1,7 +1,14 @@
-"""Audio analysis service — faster-whisper + librosa (Prompt 6)"""
+"""Audio analysis service — faster-whisper + librosa (Prompt 6)."""
 from fastapi import FastAPI
+from pydantic import BaseModel
+
+from .analyze import download_audio, transcribe, analyze_signal
 
 app = FastAPI(title="AeR Digital — Audio Service", version="0.1.0")
+
+
+class AnalyzeRequest(BaseModel):
+    audio_url: str
 
 
 @app.get("/health")
@@ -10,17 +17,25 @@ async def health():
 
 
 @app.post("/analyze")
-async def analyze_audio():
-    """POST /analyze { audio_url } → { transcript, bpm, key, energy, hook_at_sec }"""
+async def analyze_audio(req: AnalyzeRequest):
+    """Full pipeline: download → transcribe (whisper) → signal (librosa)."""
+    path = await download_audio(req.audio_url)
+
+    transcript_result = transcribe(path)
+    signal_result = analyze_signal(path)
+
+    # Cleanup temp file
+    try:
+        path.unlink()
+    except OSError:
+        pass
+
     return {
-        "transcript": "",
-        "segments": [],
-        "bpm": 0,
-        "key": "C",
-        "mode": "major",
-        "energy": 0.0,
-        "brightness": 0.0,
-        "duration": 0,
-        "hook_at_sec": 0,
-        "status": "not_implemented",
+        "transcript": transcript_result.get("transcript", ""),
+        "segments": transcript_result.get("segments", []),
+        **signal_result,
+        "errors": [
+            e for e in [transcript_result.get("error"), signal_result.get("error")]
+            if e is not None
+        ],
     }

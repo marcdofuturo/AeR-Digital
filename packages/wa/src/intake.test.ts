@@ -105,9 +105,15 @@ describe("Intake flow", () => {
   });
 
   it("b) Producer outside list, answering position 3", async () => {
-    const ctx = testCtx(new MockProvider());
+    const ctx: HandlerContext = {
+      ...testCtx(new MockProvider()),
+      db: testDB([]),
+    };
     const a1: ResolvedArtist = { id: "a1", stage_name: "A", input_name: "A", position: 1, billing_role: "primary" as const, is_producer: false, is_composer: true, is_performer: true, hidden_from_billing: false, match_score: 1, needs_review: false };
     const a2: ResolvedArtist = { id: "a2", stage_name: "B", input_name: "B", position: 2, billing_role: "primary" as const, is_producer: false, is_composer: true, is_performer: true, hidden_from_billing: false, match_score: 1, needs_review: false };
+    const m = new StepMachine("ask_producers", {
+      title: "Test", artists: [a1, a2],
+    }, ctx);
 
     let r = await m.process("ProducerC");
     expect(r.nextStep).toBe("ask_producer_position");
@@ -139,13 +145,13 @@ describe("Intake flow", () => {
   });
 
   it("d) 6 artists — 5th and 6th are featuring", () => {
-    const artists = [
-      { id: "a1", stage_name: "A1", input_name: "A1", position: 0, billing_role: "primary", is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
-      { id: "a2", stage_name: "A2", input_name: "A2", position: 0, billing_role: "primary", is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
-      { id: "a3", stage_name: "A3", input_name: "A3", position: 0, billing_role: "primary", is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
-      { id: "a4", stage_name: "A4", input_name: "A4", position: 0, billing_role: "primary", is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
-      { id: "a5", stage_name: "A5", input_name: "A5", position: 0, billing_role: "primary", is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
-      { id: "a6", stage_name: "A6", input_name: "A6", position: 0, billing_role: "primary", is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
+    const artists: ResolvedArtist[] = [
+      { id: "a1", stage_name: "A1", input_name: "A1", position: 0, billing_role: "primary" as const, is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
+      { id: "a2", stage_name: "A2", input_name: "A2", position: 0, billing_role: "primary" as const, is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
+      { id: "a3", stage_name: "A3", input_name: "A3", position: 0, billing_role: "primary" as const, is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
+      { id: "a4", stage_name: "A4", input_name: "A4", position: 0, billing_role: "primary" as const, is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
+      { id: "a5", stage_name: "A5", input_name: "A5", position: 0, billing_role: "primary" as const, is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
+      { id: "a6", stage_name: "A6", input_name: "A6", position: 0, billing_role: "primary" as const, is_producer: false, is_composer: false, is_performer: true, hidden_from_billing: false, match_score: 0, needs_review: false },
     ];
     const result = assignRoles(artists);
     expect(result[0]!.billing_role).toBe("primary");
