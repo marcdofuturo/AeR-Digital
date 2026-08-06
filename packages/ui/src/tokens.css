@@ -1,0 +1,31 @@
+/* A&R Digital — Design Tokens (dark-first, audiolinkbrasil.com) */
+/* Substituir --color-brand pelo hex real extraído do site */
+
+@theme {
+  --color-bg: #0A0A0B;
+  --color-surface: #131316;
+  --color-surface-2: #1C1C21;
+  --color-border: #26262C;
+  --color-fg: #FAFAFA;
+  --color-fg-muted: #A1A1AA;
+
+  --color-brand: #6D4AFF;
+  --color-brand-hover: #5B3AE0;
+
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #3B82F6;
+
+  --font-sans: 'Inter Tight', Inter, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
+/* Utility: all financial numbers in mono with tabular-nums */
+.financial {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,5 +1,4 @@
-"""FastAPI app for audio analysis — whisper transcription + librosa signal analysis."""
-
+"""Audio analysis service — faster-whisper + librosa (Prompt 6)"""
 from fastapi import FastAPI
 
 app = FastAPI(title="AeR Digital — Audio Service", version="0.1.0")
@@ -12,5 +11,16 @@ async def health():
 
 @app.post("/analyze")
 async def analyze_audio():
-    """Analyze an audio file: transcription, BPM, key, energy, hook detection."""
-    return {"status": "not_implemented"}
+    """POST /analyze { audio_url } → { transcript, bpm, key, energy, hook_at_sec }"""
+    return {
+        "transcript": "",
+        "segments": [],
+        "bpm": 0,
+        "key": "C",
+        "mode": "major",
+        "energy": 0.0,
+        "brightness": 0.0,
+        "duration": 0,
+        "hook_at_sec": 0,
+        "status": "not_implemented",
+    }
