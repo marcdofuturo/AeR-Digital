@@ -7,9 +7,11 @@ initOpenNextCloudflareForDev();
 const nextConfig: NextConfig = {
   output: "standalone",
 
-  // Required for monorepo — OpenNext needs the full monorepo context
-  // to resolve the nested standalone path (apps/web/.next/standalone/apps/web/...).
-  outputFileTracingRoot: path.resolve(__dirname, "../.."),
+  // Restrict to apps/web to avoid EPERM symlink errors on Windows
+  // (pnpm store symlinks require Developer Mode to replicate).
+  // Webpack bundles all @ar/* packages, so cross-directory tracing
+  // isn't needed for them.
+  outputFileTracingRoot: path.resolve(__dirname),
 
   webpack(config) {
     // ===== @ar/* workspace packages =====
