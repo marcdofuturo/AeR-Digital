@@ -5,17 +5,13 @@ describe("dates", () => {
   it("parseBR parses dd/MM/yyyy", () => {
     const d = parseBR("06/03/2027");
     expect(d).not.toBeNull();
-    expect(d!.getFullYear()).toBe(2027);
-    expect(d!.getMonth()).toBe(2); // 0-indexed, March
-    expect(d!.getDate()).toBe(6);
+    expect(fmtDate(d!)).toBe("06/03/2027");
   });
 
   it("parseBR parses dd/MM/yy", () => {
     const d = parseBR("15/01/27");
     expect(d).not.toBeNull();
-    // date-fns 'yy' handling depends on version; we'll enhance date parsing later
-    expect(d!.getDate()).toBe(15);
-    expect(d!.getMonth()).toBe(0); // January
+    expect(fmtDate(d!)).toBe("15/01/2027");
   });
 
   it("parseBR returns null for invalid", () => {
