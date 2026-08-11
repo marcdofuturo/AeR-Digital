@@ -4,4 +4,6 @@ packages:
 allowBuilds:
   esbuild: true
   msgpackr-extract: true
+  rclone.js: true
   sharp: true
+  workerd: true

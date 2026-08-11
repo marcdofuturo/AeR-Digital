@@ -33,7 +33,8 @@
       "@ar/ui": ["./packages/ui/src"],
       "@ar/ui/*": ["./packages/ui/src/*"],
       "@ar/shared": ["./packages/shared/src"],
-      "@ar/shared/*": ["./packages/shared/src/*"]
+      "@ar/shared/*": ["./packages/shared/src/*"],
+      "@/*": ["./apps/web/*"]
     }
   },
   "exclude": ["node_modules", "dist"]
