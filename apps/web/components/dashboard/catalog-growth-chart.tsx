@@ -66,7 +66,7 @@ export function CatalogGrowthChart({ data }: CatalogGrowthChartProps) {
                 color: "#FAFAFA",
               }}
             />
-            <Bar dataKey="total" fill="#6D4AFF" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="total" fill="#1B6B06" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

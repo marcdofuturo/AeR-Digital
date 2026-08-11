@@ -1,5 +1,5 @@
 /* A&R Digital — Design Tokens (dark-first, audiolinkbrasil.com) */
-/* Substituir --color-brand pelo hex real extraído do site */
+/* Brand: Audiolink green extracted from audiolinkbrasil.com */
 
 @theme {
   --color-bg: #0A0A0B;
@@ -9,18 +9,20 @@
   --color-fg: #FAFAFA;
   --color-fg-muted: #A1A1AA;
 
-  --color-brand: #6D4AFF;
-  --color-brand-hover: #5B3AE0;
+  --color-brand: #1B6B06;
+  --color-brand-hover: #2B7519;
+  --color-brand-subtle: #67B054;
 
   --color-success: #22C55E;
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
   --color-info: #3B82F6;
 
-  --font-sans: 'Inter Tight', Inter, system-ui, sans-serif;
+  --font-sans: 'DM Sans', 'Figtree', Inter, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  --radius-md: 12px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
   --radius-lg: 16px;
 }
 
