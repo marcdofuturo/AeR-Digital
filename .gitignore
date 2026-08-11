@@ -20,6 +20,9 @@ build/
 # OpenNext build artifacts
 .open-next/
 
+# Pages deployment bundle (generated)
+pages-dist/
+
 # Wrangler local state
 .wrangler/
 *.wrangler/

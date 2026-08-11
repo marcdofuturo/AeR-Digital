@@ -1,15 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/opennextjs/opennextjs-cloudflare/refs/heads/main/packages/cloudflare/schema/open-next.json",
   "name": "aerdigital",
-  "main": ".open-next/worker.js",
+  "pages_build_output_dir": "pages-dist",
   "compatibility_date": "2025-08-10",
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS"
-  },
   "vars": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://dwqdpumeehcamnrbddad.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3cWRwdW1lZWhjYW1ucmJkZGFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5NTkxNzMsImV4cCI6MjEwMTUzNTE3M30.cjYzyY7rauTUUJwvuOengE5jJQqr9zoOdFdDNJATlrs",
