@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { cache } from "react";
 
 /**
@@ -15,7 +16,8 @@ export const getCurrentTenantId = cache(async (): Promise<string | null> => {
     return user.app_metadata.tenant_id as string;
   }
 
-  const { data: membership } = await supabase
+  const admin = createAdminClient();
+  const { data: membership } = await admin
     .from("memberships")
     .select("tenant_id")
     .eq("user_id", user.id)
@@ -42,8 +44,8 @@ export const getTenant = cache(async (): Promise<Tenant | null> => {
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return null;
 
-  const supabase = await createClient();
-  const { data } = await supabase
+  const admin = createAdminClient();
+  const { data } = await admin
     .from("tenants")
     .select("*")
     .eq("id", tenantId)
@@ -64,8 +66,8 @@ export const getTenantSplitSettings = cache(async (): Promise<TenantSplitSetting
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return null;
 
-  const supabase = await createClient();
-  const { data } = await supabase
+  const admin = createAdminClient();
+  const { data } = await admin
     .from("label_split_settings")
     .select("*")
     .eq("tenant_id", tenantId)

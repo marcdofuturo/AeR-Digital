@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { Users } from "lucide-react";
 
@@ -17,8 +17,8 @@ export default async function EquipeConfigPage() {
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return null;
 
-  const supabase = await createClient();
-  const { data: members } = await supabase
+  const admin = createAdminClient();
+  const { data: members } = await admin
     .from("memberships")
     .select("*, profiles!inner(full_name, email)")
     .eq("tenant_id", tenantId);

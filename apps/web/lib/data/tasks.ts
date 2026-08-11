@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentTenantId } from "@/lib/tenant";
 
 export async function getTasks(tenantId?: string, filters?: {
@@ -8,7 +8,7 @@ export async function getTasks(tenantId?: string, filters?: {
   const tid = tenantId ?? (await getCurrentTenantId());
   if (!tid) return [];
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   let query = supabase
     .from("tasks")
     .select("*, profiles(full_name), releases!inner(title)")
