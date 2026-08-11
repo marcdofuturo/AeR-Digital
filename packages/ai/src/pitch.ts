@@ -162,7 +162,7 @@ export interface PitchResult {
 
 export function buildPitchPrompt(ctx: PitchContext): string {
   const audienceText = ctx.artistAudiences
-    .map(a => `${a.name}: ${a.followers.toLocaleString()} seguidores · ${a.genres.join("/")} · pop ${a.popularity} · relacionados: ${a.related.join(", ")}`)
+    .map(a => `${a.name}: ${a.followers.toLocaleString("pt-BR")} seguidores · ${a.genres.join("/")} · pop ${a.popularity} · relacionados: ${a.related.join(", ")}`)
     .join("\n");
 
   return `Você escreve pitches para playlists editoriais brasileiras.
