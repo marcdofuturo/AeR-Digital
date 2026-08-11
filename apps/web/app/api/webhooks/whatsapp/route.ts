@@ -97,10 +97,14 @@ export async function POST(req: NextRequest) {
   // No tenant → ask for code
   if (!tenant) {
     const provider = getProvider();
-    await provider.sendText(
-      phone,
-      "Oi! Pra começar, me manda o código do seu selo (tipo *\\#A7K9*). Quem te chamou pra lançar consegue te passar.",
-    );
+    try {
+      await provider.sendText(
+        phone,
+        "Oi! Pra começar, me manda o código do seu selo (tipo *\\#A7K9*). Quem te chamou pra lançar consegue te passar.",
+      );
+    } catch (err) {
+      console.error("Failed to send 'ask for code' reply:", err);
+    }
     return NextResponse.json({ status: "asked_for_code" });
   }
 
@@ -113,10 +117,14 @@ export async function POST(req: NextRequest) {
   if (!session && codeMatch) {
     await saveSession(phone, tenant.tenant_id, "ask_title", {});
     const provider = getProvider();
-    await provider.sendText(
-      phone,
-      `Fala! 👋 Aqui é o *${tenant.tenant_name}*.\n\nVou te fazer 5 perguntas rapidinhas e no fim você me manda a música e a capa. Leva 1 minuto.\n\n*1. Qual o nome da música?*`,
-    );
+    try {
+      await provider.sendText(
+        phone,
+        `Fala! 👋 Aqui é o *${tenant.tenant_name}*.\n\nVou te fazer 5 perguntas rapidinhas e no fim você me manda a música e a capa. Leva 1 minuto.\n\n*1. Qual o nome da música?*`,
+      );
+    } catch (err) {
+      console.error("Failed to send greeting reply:", err);
+    }
     return NextResponse.json({ status: "greeted" });
   }
 
