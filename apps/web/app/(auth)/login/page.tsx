@@ -1,6 +1,15 @@
 import { login } from "./actions";
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams: Promise<{
+    error?: string;
+    sent?: string;
+  }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg">
       <div className="w-full max-w-sm mx-auto px-6">
@@ -35,6 +44,18 @@ export default function LoginPage() {
           >
             Enviar link mágico
           </button>
+
+          {params.error ? (
+            <p role="alert" className="text-sm text-red-400" aria-live="polite">
+              {params.error}
+            </p>
+          ) : null}
+
+          {params.sent ? (
+            <p role="status" className="text-sm text-emerald-400" aria-live="polite">
+              Link enviado. Verifique seu email para continuar.
+            </p>
+          ) : null}
 
           <p className="text-xs text-fg-muted text-center">
             Você receberá um email com um link de acesso. Não precisa de senha.
