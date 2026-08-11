@@ -7,3 +7,4 @@ allowBuilds:
   rclone.js: true
   sharp: true
   workerd: true
+nodeLinker: hoisted
