@@ -4,7 +4,6 @@ import { getCurrentTenantId } from "@/lib/tenant";
 /** Raw row from the mv_pipeline materialized view */
 interface PipelineRow {
   stage: string;
-  stage_label: string;
   total: number;
   dias_medio: number | null;
 }
@@ -15,12 +14,28 @@ export async function getDashboardStats() {
 
   const supabase = createAdminClient();
 
-  // Pipeline stats from materialized view
-  const { data: pipeline } = await supabase
-    .from("mv_pipeline")
-    .select("*")
+  const { data: releaseStages } = await supabase
+    .from("releases")
+    .select("stage, stage_since")
     .eq("tenant_id", tenantId)
-    .returns<PipelineRow[]>();
+    .is("deleted_at", null);
+
+  const pipelineMap: Record<string, { total: number; days: number }> = {};
+  const now = Date.now();
+  for (const release of releaseStages ?? []) {
+    const stage = release.stage;
+    if (!pipelineMap[stage]) pipelineMap[stage] = { total: 0, days: 0 };
+    pipelineMap[stage].total += 1;
+    if (release.stage_since) {
+      pipelineMap[stage].days += Math.max(0, (now - new Date(release.stage_since).getTime()) / 86400000);
+    }
+  }
+
+  const pipeline: PipelineRow[] = Object.entries(pipelineMap).map(([stage, value]) => ({
+    stage,
+    total: value.total,
+    dias_medio: value.total > 0 ? value.days / value.total : null,
+  }));
 
   // Count releases
   const { count: totalReleases } = await supabase
