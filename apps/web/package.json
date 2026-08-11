@@ -10,7 +10,7 @@
     "cf-deploy": "pnpm run cf-build && npx wrangler pages deploy pages-dist --project-name aerdigital --branch master",
     "cf-dev": "npx wrangler dev",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
