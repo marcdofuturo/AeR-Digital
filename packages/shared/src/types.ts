@@ -13,13 +13,13 @@ export type SplitScope = "obra" | "fonograma" | "digital";
 
 /** Status de lançamento */
 export type ReleaseStage =
-  | "recebido"
   | "em_analise"
   | "autorizacao_pendente"
-  | "autorizado"
+  | "registrar_obra"
+  | "registrar_fonograma"
   | "pronto_p_distribuir"
   | "distribuido"
-  | "registrado"
+  | "situacao_ecad"
   | "concluido"
   | "arquivado";
 

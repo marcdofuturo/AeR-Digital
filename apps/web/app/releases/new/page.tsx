@@ -125,7 +125,7 @@ async function createRelease(formData: FormData) {
       genre_primary: nullableText(formData.get("genre_primary")),
       genre_secondary: nullableText(formData.get("genre_secondary")),
       distributor: "Audiolink Brasil",
-      stage: "recebido",
+      stage: "em_analise",
     })
     .select("id")
     .single();

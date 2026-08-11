@@ -4,7 +4,6 @@ import { KanbanBoard } from "@/components/releases/kanban-board";
 import { ReleasesTable } from "@/components/releases/releases-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getReleases } from "@/lib/data/releases";
 import { getCurrentTenantId } from "@/lib/tenant";
@@ -15,14 +14,15 @@ const STAGE_LABEL: Record<string, string> = {};
 for (const s of KANBAN_STAGES) STAGE_LABEL[s.id] = s.label;
 
 interface ReleasesPageProps {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; stage?: string }>;
 }
 
-async function ReleasesContent({ view }: { view: string }) {
+async function ReleasesContent({ view, stage }: { view: string; stage?: string }) {
   const tenantId = await getCurrentTenantId();
   const rows = await getReleases(tenantId ?? undefined);
+  const visibleRows = stage ? rows.filter((r: any) => r.stage === stage) : rows;
 
-  const cards = rows.map((r: any) => {
+  const cards = visibleRows.map((r: any) => {
     const daysInStage = r.stage_since
       ? Math.floor((Date.now() - new Date(r.stage_since).getTime()) / 86400000)
       : 0;
@@ -68,8 +68,9 @@ async function ReleasesContent({ view }: { view: string }) {
 }
 
 export default async function ReleasesPage({ searchParams }: ReleasesPageProps) {
-  const { view } = await searchParams;
+  const { view, stage } = await searchParams;
   const isTable = view === "table";
+  const selectedStageLabel = stage ? STAGE_LABEL[stage] ?? stage : null;
 
   return (
     <div className="p-8 max-w-full">
@@ -78,14 +79,14 @@ export default async function ReleasesPage({ searchParams }: ReleasesPageProps) 
         <div>
           <h1 className="text-2xl font-bold text-fg">Lançamentos</h1>
           <p className="text-sm text-fg-muted mt-1">
-            Pipeline de gerenciamento de lançamentos
+            {selectedStageLabel ? `Filtrando: ${selectedStageLabel}` : "Pipeline de gerenciamento de lançamentos"}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {/* View toggle */}
           <div className="flex bg-surface border border-border rounded-md p-0.5 mr-2">
             <Link
-              href="/releases"
+              href={stage ? `/releases?stage=${stage}` : "/releases"}
               className={`p-1.5 rounded-sm transition-colors ${
                 !isTable ? "bg-surface-2 text-fg" : "text-fg-muted hover:text-fg"
               }`}
@@ -93,7 +94,7 @@ export default async function ReleasesPage({ searchParams }: ReleasesPageProps) 
               <LayoutGrid className="h-4 w-4" />
             </Link>
             <Link
-              href="/releases?view=table"
+              href={stage ? `/releases?view=table&stage=${stage}` : "/releases?view=table"}
               className={`p-1.5 rounded-sm transition-colors ${
                 isTable ? "bg-surface-2 text-fg" : "text-fg-muted hover:text-fg"
               }`}
@@ -136,7 +137,7 @@ export default async function ReleasesPage({ searchParams }: ReleasesPageProps) 
           </div>
         }
       >
-        <ReleasesContent view={view ?? "kanban"} />
+        <ReleasesContent view={view ?? "kanban"} stage={stage} />
       </Suspense>
     </div>
   );

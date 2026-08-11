@@ -3,7 +3,7 @@ import { login } from "./actions";
 type LoginPageProps = {
   searchParams: Promise<{
     error?: string;
-    sent?: string;
+    redirect?: string;
   }>;
 };
 
@@ -33,16 +33,33 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               name="email"
               type="email"
               required
-              placeholder="seu@email.com"
+              placeholder="marc@audiolinkbrasil.com"
+              autoComplete="email"
               className="w-full px-3 py-2 bg-bg border border-border rounded-md text-fg placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand"
             />
           </div>
+
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-fg mb-1">
+              Senha
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              className="w-full px-3 py-2 bg-bg border border-border rounded-md text-fg placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand"
+            />
+          </div>
+
+          <input type="hidden" name="redirect" value={params.redirect ?? "/"} />
 
           <button
             type="submit"
             className="w-full py-2 px-4 bg-brand hover:bg-brand-hover text-white font-medium rounded-md transition-colors"
           >
-            Enviar link mágico
+            Entrar
           </button>
 
           {params.error ? (
@@ -51,14 +68,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </p>
           ) : null}
 
-          {params.sent ? (
-            <p role="status" className="text-sm text-emerald-400" aria-live="polite">
-              Link enviado. Verifique seu email para continuar.
-            </p>
-          ) : null}
-
           <p className="text-xs text-fg-muted text-center">
-            Você receberá um email com um link de acesso. Não precisa de senha.
+            Acesso restrito ao painel administrativo da Audiolink Brasil.
           </p>
         </form>
       </div>

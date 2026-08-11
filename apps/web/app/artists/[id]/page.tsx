@@ -3,18 +3,13 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { getArtist } from "@/lib/data/artists";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
+import { KANBAN_STAGES } from "@ar/ai/crm";
 import { ArrowLeft, Music, Mail, Phone, ExternalLink, AlertTriangle } from "lucide-react";
 
-// re-export from @ar/ai/crm for stage labels
-const STAGE_LABEL: Record<string, string> = {
-  recebido: "Recebido", em_analise: "Em Análise", autorizacao_pendente: "Autorização Pendente",
-  autorizado: "Autorizado", pronto_p_distribuir: "Pronto p/ Distribuir", distribuido: "Distribuído",
-  registrado: "Registrado", concluido: "Concluído", arquivado: "Arquivado",
-};
+const STAGE_LABEL = Object.fromEntries(KANBAN_STAGES.map((stage) => [stage.id, stage.label]));
 
 export default async function ArtistDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,7 +23,6 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
   const contacts = a.artist_contacts ?? [];
   const participations = a.track_participants ?? [];
 
-  // Dedup releases
   const releaseMap = new Map<string, { id: string; title: string; release_date: string; stage: string; track_title: string }>();
   for (const tp of participations) {
     const t = tp.tracks;
@@ -37,19 +31,18 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
     if (!rel) continue;
     releaseMap.set(t.release_id ?? t.track_id, {
       id: rel.release_id ?? t.release_id,
-      title: rel.title ?? "—",
+      title: rel.title ?? "-",
       release_date: rel.release_date,
       stage: rel.stage,
       track_title: t.title,
     });
   }
   const releases = Array.from(releaseMap.values()).sort(
-    (a, b) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime()
+    (a, b) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime(),
   );
 
   return (
     <div className="p-8 max-w-[1200px]">
-      {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/artists">
@@ -68,7 +61,6 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Info */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
@@ -113,7 +105,6 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
             </CardContent>
           </Card>
 
-          {/* Contacts */}
           {contacts.length > 0 && (
             <Card>
               <CardHeader>
@@ -139,7 +130,6 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
           )}
         </div>
 
-        {/* Catalog */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">

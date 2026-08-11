@@ -27,6 +27,9 @@ export function PipelineFunnel({ data }: PipelineFunnelProps) {
   const stageOrder = Object.fromEntries(
     KANBAN_STAGES.map((s, i) => [s.id, i]),
   );
+  const stageLabels = Object.fromEntries(
+    KANBAN_STAGES.map((s) => [s.id, s.label]),
+  );
   const sorted = [...data].sort(
     (a, b) => (stageOrder[a.stage] ?? 99) - (stageOrder[b.stage] ?? 99),
   );
@@ -41,7 +44,7 @@ export function PipelineFunnel({ data }: PipelineFunnelProps) {
           {sorted.map((item) => (
             <div key={item.stage} className="flex items-center gap-3">
               <div className="w-28 text-xs text-fg-muted text-right shrink-0">
-                {item.stage}
+                {stageLabels[item.stage] ?? item.stage}
               </div>
               <div className="flex-1 relative h-7">
                 <div
