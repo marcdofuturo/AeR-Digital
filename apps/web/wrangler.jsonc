@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/opennextjs/opennextjs-cloudflare/refs/heads/main/packages/cloudflare/schema/open-next.json",
-  "name": "aer-digital",
+  "name": "aerdigital",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-08-10",
   "compatibility_flags": [
@@ -14,7 +14,7 @@
     "NEXT_PUBLIC_SUPABASE_URL": "https://dwqdpumeehcamnrbddad.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3cWRwdW1lZWhjYW1ucmJkZGFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5NTkxNzMsImV4cCI6MjEwMTUzNTE3M30.cjYzyY7rauTUUJwvuOengE5jJQqr9zoOdFdDNJATlrs",
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_uDXzhOqZPm0GaC6VIA8A6Q_4DUOAyH4",
-    "EVOLUTION_BASE_URL": "http://46.225.220.227:8080",
+    "EVOLUTION_BASE_URL": "http://193.203.182.39:8080",
     "EVOLUTION_INSTANCE": "atendimento"
   }
 }
