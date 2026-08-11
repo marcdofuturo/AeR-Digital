@@ -1,11 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentTenantId } from "@/lib/tenant";
 
 export async function getReleases(tenantId?: string) {
   const tid = tenantId ?? (await getCurrentTenantId());
   if (!tid) return [];
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("releases")
     .select("*, tracks(id, track_participants(position, billing_role, artists(stage_name)))")
@@ -17,7 +17,7 @@ export async function getReleases(tenantId?: string) {
 }
 
 export async function getRelease(tenantId: string, releaseId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("releases")
     .select("*, tracks(*, track_participants(*, artists!inner(*)), registrations(*), splits(*), pitches(*)), authorizations(*, authorization_recipients(*))")
