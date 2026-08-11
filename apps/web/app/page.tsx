@@ -96,7 +96,7 @@ export default async function DashboardPage() {
 
       {/* Intake link */}
       {tenant && (
-        <div className="mt-8 bg-gradient-to-r from-brand/10 to-purple-900/20 border border-brand/20 rounded-lg p-6">
+        <div className="mt-8 bg-gradient-to-r from-brand/10 to-green-900/20 border border-brand/20 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-2">
             <Link2 className="h-5 w-5 text-brand" />
             <h2 className="font-semibold text-fg">Link de Intake</h2>
