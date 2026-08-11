@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentTenantId } from "@/lib/tenant";
 
 /** Raw row from the mv_pipeline materialized view */
@@ -13,7 +13,7 @@ export async function getDashboardStats() {
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return null;
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Pipeline stats from materialized view
   const { data: pipeline } = await supabase
@@ -62,7 +62,7 @@ export async function getCatalogGrowth() {
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return [];
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("releases")
     .select("created_at, stage")
@@ -100,7 +100,7 @@ export async function getUrgentTasks() {
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return [];
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("tasks")
     .select("*, profiles(full_name)")
@@ -117,7 +117,7 @@ export async function getRecentActivity() {
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return [];
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("activity_log")
     .select("*")
