@@ -1,4 +1,4 @@
-import { toZonedTime, format as formatTZ } from "date-fns-tz";
+import { fromZonedTime, toZonedTime, format as formatTZ } from "date-fns-tz";
 import { parse as parseDate } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -20,10 +20,15 @@ export function now(): Date {
 export function parseBR(input: string): Date | null {
   const cleaned = input.trim();
   // dd/MM/yyyy, dd/MM/yy, dd-MM-yyyy
-  const patterns = ["dd/MM/yyyy", "dd/MM/yy", "dd-MM-yyyy"];
+  const patterns = ["dd/MM/yy", "dd/MM/yyyy", "dd-MM-yyyy"];
   for (const p of patterns) {
     const d = parseDate(cleaned, p, new Date(), { locale: ptBR });
-    if (!isNaN(d.getTime())) return toZonedTime(d, TZ);
+    if (!isNaN(d.getTime())) {
+      if (p === "dd/MM/yy" && d.getFullYear() < 100) {
+        d.setFullYear(2000 + d.getFullYear());
+      }
+      return fromZonedTime(d, TZ);
+    }
   }
   return null;
 }
