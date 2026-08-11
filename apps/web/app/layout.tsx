@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Sidebar } from "@/components/nav/sidebar";
-import { UserMenu } from "@/components/nav/user-menu";
+import { AppShell } from "@/components/nav/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,12 +20,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="bg-bg text-fg min-h-screen flex font-sans antialiased">
-        {/* Authenticated shell — sidebar + content */}
-        <Sidebar />
-        <main className="flex-1 min-w-0">
-          {children}
-        </main>
+      <body className="bg-bg text-fg min-h-screen font-sans antialiased">
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

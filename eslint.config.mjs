@@ -5,7 +5,9 @@ export default [
   {
     ignores: [
       "**/.next/**",
+      "**/.next-stale*/**",
       "**/.open-next/**",
+      "**/.playwright-cli/**",
       "**/.turbo/**",
       "**/dist/**",
       "**/node_modules/**",
