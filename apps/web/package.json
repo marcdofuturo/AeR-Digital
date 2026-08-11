@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
-    "cf-build": "next build && npx @opennextjs/cloudflare build && node scripts/prepare-pages-dist.cjs",
+    "cf-build": "next build && npx @opennextjs/cloudflare build --skipNextBuild && node scripts/prepare-pages-dist.cjs",
     "cf-deploy": "pnpm run cf-build && npx wrangler pages deploy pages-dist --project-name aerdigital --branch master",
     "cf-dev": "npx wrangler dev",
     "start": "next start",
