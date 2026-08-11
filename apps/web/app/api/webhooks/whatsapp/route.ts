@@ -1,123 +1,176 @@
-// ─── WhatsApp Webhook Route ──────────────────────────────────
+// ─── WhatsApp Webhook Route (Evolution API) ──────────────────
+// Public endpoint. Receives messages.upsert events from Evolution API,
+// resolves tenant, runs the WhatsApp state machine, and persists
+// sessions/releases/artists to Supabase via service_role.
+//
+// No auth required — this is a webhook receiver. The middleware
+// exempts /api/webhooks/whatsapp from Supabase auth.
+//
+// Security: Evolution API calls from a known internal IP.
+// Future: add HMAC or shared secret validation.
+
 import { NextRequest, NextResponse } from "next/server";
 import { StepMachine } from "@ar/wa/machine";
-import { MockProvider } from "@ar/wa/provider";
-import type { HandlerDB, HandlerContext, ResolvedArtist, Draft } from "@ar/wa/types";
+import { EvolutionProvider } from "@ar/wa/provider";
+import type { Draft, HandlerContext } from "@ar/wa/types";
+import { createHandlerDB } from "@/lib/wa/handler-db";
+import { loadSession, saveSession, expireSession } from "@/lib/wa/session-store";
+import {
+  resolveTenantByPhone,
+  resolveTenantByCode,
+  registerIdentity,
+} from "@/lib/wa/tenant-resolver";
 
-/** In-memory session store. Replace with DB in production. */
-const sessions = new Map<string, { step: string; draft: Draft }>();
+// ─── Provider singleton (cold‑start friendly) ─────────────────
 
-/** Resolve tenant from phone or code. Replace with DB lookup. */
-async function resolveTenant(phone: string, firstMessage: string): Promise<{ tenant_id: string; tenant_name: string } | null> {
-  // TODO: DB lookup — whatsapp_identities or intake_code
-  // For now returns a placeholder
-  return { tenant_id: "mock-tenant", tenant_name: "SuperTime Digital" };
+function getProvider(): EvolutionProvider {
+  const baseUrl = process.env.EVOLUTION_BASE_URL ?? "http://46.225.220.227:8080";
+  const apiKey = process.env.EVOLUTION_API_KEY ?? "";
+  const instance = process.env.EVOLUTION_INSTANCE ?? "atendimento";
+  return new EvolutionProvider(baseUrl, apiKey, instance);
 }
 
-/** Simple HMAC validation placeholder */
-function validateWebhookSignature(req: NextRequest): boolean {
-  // TODO: Implement HMAC-SHA256 validation
-  return true;
-}
+// ─── POST handler ─────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  if (!validateWebhookSignature(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const body = await req.json();
-  const phone = body.data?.key?.remoteJidAlt ?? body.data?.key?.remoteJid ?? body.remoteJid;
-  let message = body.data?.message?.conversation ?? body.data?.message?.extendedTextMessage?.text ?? body.message?.text ?? "";
-  const mediaUrl = body.data?.message?.audioMessage?.url ?? body.data?.message?.imageMessage?.url;
-
-  if (!phone || !message) {
+  // Only process messages.upsert events
+  if (body.event !== "messages.upsert") {
     return NextResponse.json({ status: "ignored" });
   }
 
-  // Resolve tenant
-  const tenant = await resolveTenant(phone, message);
-  if (!tenant) {
-    return NextResponse.json({ reply: "Oi! Pra começar, me manda o código do seu selo (tipo #A7K9). Quem te chamou pra lançar consegue te passar." });
+  const data = body.data as Record<string, unknown> | undefined;
+  if (!data) {
+    return NextResponse.json({ status: "ignored" });
   }
 
-  // Check for intake code in first message
+  // Ignore outgoing messages (prevent echo loop)
+  const fromMe = (data.key as Record<string, unknown>)?.fromMe as boolean | undefined;
+  if (fromMe) {
+    return NextResponse.json({ status: "ignored" });
+  }
+
+  // ── Extract phone ──────────────────────────────────────────
+  // Evolution v2: LID addressing — prefer remoteJidAlt, fall back to remoteJid
+  const key = data.key as Record<string, unknown> | undefined;
+  const rawJid = (key?.remoteJidAlt as string) ?? (key?.remoteJid as string) ?? "";
+  const phone = rawJid.split("@")[0] ?? rawJid;
+
+  if (!phone) {
+    return NextResponse.json({ status: "ignored" });
+  }
+
+  // ── Extract message text ────────────────────────────────────
+  const msg = data.message as Record<string, unknown> | undefined;
+  let message = (msg?.conversation as string) ?? (msg?.extendedTextMessage as { text?: string })?.text ?? "";
+
+  // Detect media (audio / image) — used by ask_audio / ask_cover
+  const hasAudio = !!msg?.audioMessage;
+  const hasImage = !!msg?.imageMessage;
+
+  if (!message && hasAudio) message = "[AUDIO]";
+  if (!message && hasImage) message = "[IMAGE]";
+
+  if (!message) {
+    return NextResponse.json({ status: "ignored" });
+  }
+
+  // ── Tenant resolution ───────────────────────────────────────
+  // R6: known phone → whatsapp_identities; else intake code in message
+  let tenant = await resolveTenantByPhone(phone);
+
   const codeMatch = message.match(/^#([A-Z0-9]{3,8})$/);
-  if (codeMatch) {
-    message = ""; // just the code, no real message
+  if (!tenant && codeMatch) {
+    tenant = await resolveTenantByCode(codeMatch[1]!);
+    if (tenant) {
+      // Remember this phone for next time
+      await registerIdentity(phone, tenant.tenant_id);
+    }
   }
 
-  // Load or create session
-  let session = sessions.get(phone);
+  // No tenant → ask for code
+  if (!tenant) {
+    const provider = getProvider();
+    await provider.sendText(
+      phone,
+      "Oi! Pra começar, me manda o código do seu selo (tipo *\\#A7K9*). Quem te chamou pra lançar consegue te passar.",
+    );
+    return NextResponse.json({ status: "asked_for_code" });
+  }
+
+  // ── Session management ──────────────────────────────────────
+  let session = await loadSession(phone, tenant.tenant_id);
+  let currentStep = session?.step ?? "ask_title";
+  const currentDraft: Draft = session?.draft ?? {};
+
+  // First message is just the intake code → greet without processing
+  if (!session && codeMatch) {
+    await saveSession(phone, tenant.tenant_id, "ask_title", {});
+    const provider = getProvider();
+    await provider.sendText(
+      phone,
+      `Fala! 👋 Aqui é o *${tenant.tenant_name}*.\n\nVou te fazer 5 perguntas rapidinhas e no fim você me manda a música e a capa. Leva 1 minuto.\n\n*1. Qual o nome da música?*`,
+    );
+    return NextResponse.json({ status: "greeted" });
+  }
+
+  // No session yet → create one
   if (!session) {
-    session = { step: "ask_title", draft: {} };
-    sessions.set(phone, session);
+    await saveSession(phone, tenant.tenant_id, "ask_title", currentDraft);
   }
 
-  // Build handler context
-  const db: HandlerDB = {
-    async findArtist(tenantId: string, name: string): Promise<ResolvedArtist | null> {
-      // TODO: query Supabase
-      return null;
-    },
-    async createArtist(tenantId: string, stageName: string): Promise<ResolvedArtist> {
-      return {
-        id: crypto.randomUUID(),
-        stage_name: stageName,
-        input_name: stageName,
-        position: 0,
-        billing_role: "primary",
-        is_producer: false,
-        is_composer: true,
-        is_performer: true,
-        hidden_from_billing: false,
-        match_score: 0,
-        needs_review: true,
-      };
-    },
-    async createRelease(params) {
-      // TODO: insert into Supabase
-      return { releaseId: crypto.randomUUID(), trackId: crypto.randomUUID() };
-    },
-  };
+  // ── State machine ───────────────────────────────────────────
+  const db = createHandlerDB();
+  const provider = getProvider();
 
   const ctx: HandlerContext = {
     tenant_id: tenant.tenant_id,
     tenant_name: tenant.tenant_name,
     phone,
-    provider: new MockProvider(),
+    provider,
     db,
   };
 
-  // Open with greeting if first message is a code
-  if (session.step === "ask_title" && !message && codeMatch) {
-    sessions.set(phone, {
-      step: "ask_title",
-      draft: {},
-    });
-
-    await ctx.provider.sendText(phone, `Fala! 👋 Aqui é o ${ctx.tenant_name}.\n\nVou te fazer 5 perguntas rapidinhas e no fim você me manda a música e a capa. Leva 1 minuto.\n\n*1. Qual o nome da música?*`);
-    return NextResponse.json({ status: "greeted" });
-  }
-
-  // Process message
   const machine = new StepMachine(
-    session.step as any,
-    session.draft as Draft,
+    currentStep as "ask_title",
+    currentDraft,
     ctx,
   );
 
   const start = Date.now();
-  const result = await machine.process(message);
+  let result;
+  try {
+    result = await machine.process(message);
+  } catch (err) {
+    console.error("State machine error:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
   const latency = Date.now() - start;
 
-  // Update session
-  session.step = result.nextStep;
-  session.draft = { ...session.draft, ...result.draft };
-  sessions.set(phone, session);
+  // ── Persist session ─────────────────────────────────────────
+  const nextDraft = { ...currentDraft, ...result.draft };
+  if (result.nextStep === "done") {
+    await expireSession(phone, tenant.tenant_id);
+  } else {
+    await saveSession(phone, tenant.tenant_id, result.nextStep, nextDraft);
+  }
 
-  // Send reply
+  // ── Send reply ──────────────────────────────────────────────
+  // All replies are pre-written templates (R9 — LLM never generates
+  // the message text sent to the artist).
   if (result.reply) {
-    await ctx.provider.sendText(phone, result.reply);
+    try {
+      await provider.sendText(phone, result.reply);
+    } catch (err) {
+      console.error("Failed to send WhatsApp reply:", err);
+      // Don't fail the webhook — Evolution will retry
+    }
   }
 
   return NextResponse.json({
@@ -125,4 +178,10 @@ export async function POST(req: NextRequest) {
     step: result.nextStep,
     latency_ms: latency,
   });
+}
+
+// ─── GET handler (health check / webhook verification) ─────────
+
+export async function GET() {
+  return NextResponse.json({ status: "ok", service: "aer-digital-whatsapp-webhook" });
 }

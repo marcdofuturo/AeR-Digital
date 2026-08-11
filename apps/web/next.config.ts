@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
+initOpenNextCloudflareForDev();
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+
+  // Required for monorepo — OpenNext needs the full monorepo context
+  // to resolve the nested standalone path (apps/web/.next/standalone/apps/web/...).
+  outputFileTracingRoot: path.resolve(__dirname, "../.."),
+
   webpack(config) {
     // ===== @ar/* workspace packages =====
     const arPackages = [
@@ -26,9 +35,6 @@ const nextConfig: NextConfig = {
 
     return config;
   },
-
-  // Required for monorepo file tracing
-  outputFileTracingRoot: path.resolve(__dirname, "../.."),
 };
 
 export default nextConfig;

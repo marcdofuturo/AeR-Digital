@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
-    "cf-build": "next build && npx @cloudflare/next-on-pages",
-    "cf-preview": "npx wrangler pages dev .vercel/output/static",
-    "cf-deploy": "npx wrangler pages deploy .vercel/output/static --project-name=aer-digital",
+    "cf-build": "next build && npx @opennextjs/cloudflare build",
+    "cf-dev": "npx wrangler dev",
+    "cf-deploy": "npx wrangler deploy",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -23,6 +23,7 @@
     "@ar/splits": "workspace:*",
     "@ar/ui": "workspace:*",
     "@ar/wa": "workspace:*",
+    "@opennextjs/cloudflare": "^1.20.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -57,7 +58,6 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "1.13.16",
     "@tailwindcss/postcss": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.3.0",
@@ -68,7 +68,6 @@
     "postcss": "^8.5.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
-    "vercel": "^58.9.0",
     "vitest": "^3.1.0",
     "wrangler": "^4.120.0"
   }
