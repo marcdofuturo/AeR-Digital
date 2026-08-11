@@ -90,7 +90,7 @@ export async function getPipelineFunnel() {
   if (!stats?.pipeline.length) return [];
 
   return stats.pipeline.map((row) => ({
-    stage: row.stage_label ?? row.stage,
+    stage: row.stage,
     count: row.total,
     avgDays: row.dias_medio ? Math.round(row.dias_medio * 10) / 10 : null,
   }));

@@ -20,7 +20,7 @@ export async function getRelease(tenantId: string, releaseId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("releases")
-    .select("*, tracks(*, track_participants(*, artists!inner(*)), registrations(*), splits(*), pitches(*)), authorizations(*)")
+    .select("*, tracks(*, track_participants(*, artists!inner(*)), registrations(*), splits(*), pitches(*)), authorizations(*, authorization_recipients(*))")
     .eq("tenant_id", tenantId)
     .eq("id", releaseId)
     .single();

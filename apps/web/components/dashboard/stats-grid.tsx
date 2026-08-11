@@ -22,7 +22,7 @@ export async function StatsGrid() {
       <StatCard
         label="Pendentes de registro"
         value={stats?.pendingReg ?? "—"}
-        href="/releases?stage=autorizado"
+        href="/releases?stage=registrar_obra"
         icon={ClipboardList}
       />
       <StatCard

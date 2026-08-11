@@ -9,17 +9,17 @@ import type { KanbanCard, SplitEditorLine } from "./crm";
 
 describe("Kanban", () => {
   const mockCards: KanbanCard[] = [
-    { id: "1", title: "Test Song", artists: ["A"], releaseDate: "2027-06-01", stage: "recebido", progress: 1, authorizationPending: "0/2", daysInStage: 2, urgent: false },
-    { id: "2", title: "Another", artists: ["B"], releaseDate: "2027-03-15", stage: "autorizado", progress: 4, authorizationPending: "2/2", daysInStage: 12, urgent: true },
+    { id: "1", title: "Test Song", artists: ["A"], releaseDate: "2027-06-01", stage: "em_analise", progress: 1, authorizationPending: "0/2", daysInStage: 2, urgent: false },
+    { id: "2", title: "Another", artists: ["B"], releaseDate: "2027-03-15", stage: "registrar_obra", progress: 4, authorizationPending: "2/2", daysInStage: 12, urgent: true },
     { id: "3", title: "Archive", artists: ["C"], releaseDate: "2026-01-01", stage: "arquivado", progress: 5, authorizationPending: "2/2", daysInStage: 90, urgent: false },
   ];
 
   it("organizes cards into correct columns", () => {
     const columns = organizeKanban(mockCards);
     expect(columns).toHaveLength(KANBAN_STAGES.length);
-    const recebido = columns.find(c => c.stage === "recebido")!;
-    expect(recebido.cards).toHaveLength(1);
-    expect(recebido.cards[0]!.title).toBe("Test Song");
+    const emAnalise = columns.find(c => c.stage === "em_analise")!;
+    expect(emAnalise.cards).toHaveLength(1);
+    expect(emAnalise.cards[0]!.title).toBe("Test Song");
   });
 
   it("empty stages have empty card arrays", () => {
@@ -82,13 +82,13 @@ describe("Splits Editor", () => {
 describe("Dashboard", () => {
   it("computePipelineStats aggregates correctly", () => {
     const rows = [
-      { stage: "recebido", total: 5, dias_medio: 2.5 },
-      { stage: "autorizado", total: 3, dias_medio: 15.0 },
+      { stage: "em_analise", total: 5, dias_medio: 2.5 },
+      { stage: "registrar_obra", total: 3, dias_medio: 15.0 },
     ];
     const stats = computePipelineStats(rows);
     expect(stats.total).toBe(8);
-    expect(stats.byStage["recebido"]).toBe(5);
-    expect(stats.avgDaysInStage["autorizado"]).toBe(15);
+    expect(stats.byStage["em_analise"]).toBe(5);
+    expect(stats.avgDaysInStage["registrar_obra"]).toBe(15);
   });
 });
 
@@ -101,8 +101,18 @@ describe("Tasks", () => {
 });
 
 describe("KANBAN_STAGES", () => {
-  it("has the correct 9 stages in order", () => {
+  it("has the operational registration pipeline in order", () => {
     const ids = KANBAN_STAGES.map(s => s.id);
-    expect(ids).toEqual(["recebido","em_analise","autorizacao_pendente","autorizado","pronto_p_distribuir","distribuido","registrado","concluido","arquivado"]);
+    expect(ids).toEqual([
+      "em_analise",
+      "autorizacao_pendente",
+      "registrar_obra",
+      "registrar_fonograma",
+      "pronto_p_distribuir",
+      "distribuido",
+      "situacao_ecad",
+      "concluido",
+      "arquivado",
+    ]);
   });
 });

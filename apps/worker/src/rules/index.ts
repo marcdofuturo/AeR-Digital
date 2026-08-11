@@ -38,7 +38,7 @@ export const RULES: Rule[] = [
   {
     id: "cria-tarefas-pos-autorizacao",
     on: "release.stage_changed",
-    when: e => e.data?.to === "autorizado",
+    when: e => e.data?.to === "registrar_obra",
     run: async (e, ctx) => {
       await ctx.tasks.createMany(e.tenantId, e.releaseId!, [
         { title: "Subir na distribuidora", kind: "upload", dueInDays: 2 },
@@ -51,7 +51,7 @@ export const RULES: Rule[] = [
     id: "alerta-prazo-lancamento",
     on: "cron.daily",
     run: async (_e, ctx) => {
-      const risco = await ctx.releases.dueWithin(7, ["recebido", "em_analise", "autorizacao_pendente"]);
+      const risco = await ctx.releases.dueWithin(7, ["em_analise", "autorizacao_pendente"]);
       for (const r of risco) {
         await ctx.tasks.upsertCritical(r.tenantId, r.id, `Lançamento "${r.title}" em risco — ${r.releaseDate}`);
         await ctx.notifications.notifyAR(r.tenantId, `⚠️ Lançamento "${r.title}" está a menos de 7 dias da data (${r.releaseDate}) e ainda está em "${r.title}"`);

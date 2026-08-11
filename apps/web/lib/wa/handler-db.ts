@@ -126,7 +126,7 @@ export function createHandlerDB(): HandlerDB {
           genre_primary: params.genres[0] ?? null,
           genre_secondary: params.genres[1] ?? null,
           cover_url: params.coverUrl ?? null,
-          stage: "recebido",
+          stage: "em_analise",
         })
         .select("id")
         .single();

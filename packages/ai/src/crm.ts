@@ -24,13 +24,13 @@ export type KanbanColumn = {
 // ─── Kanban Logic ───────────────────────────────────────────
 
 export const KANBAN_STAGES: Array<{ id: string; label: string }> = [
-  { id: "recebido", label: "Recebido" },
   { id: "em_analise", label: "Em Análise" },
   { id: "autorizacao_pendente", label: "Autorização Pendente" },
-  { id: "autorizado", label: "Autorizado" },
+  { id: "registrar_obra", label: "Registrar Obra" },
+  { id: "registrar_fonograma", label: "Registrar Fonograma" },
   { id: "pronto_p_distribuir", label: "Pronto p/ Distribuir" },
   { id: "distribuido", label: "Distribuído" },
-  { id: "registrado", label: "Registrado" },
+  { id: "situacao_ecad", label: "Situação ECAD" },
   { id: "concluido", label: "Concluído" },
   { id: "arquivado", label: "Arquivado" },
 ];
