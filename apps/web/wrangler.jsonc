@@ -7,6 +7,7 @@
     "nodejs_compat"
   ],
   "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://aerdigital.pages.dev",
     "NEXT_PUBLIC_SUPABASE_URL": "https://dwqdpumeehcamnrbddad.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3cWRwdW1lZWhjYW1ucmJkZGFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5NTkxNzMsImV4cCI6MjEwMTUzNTE3M30.cjYzyY7rauTUUJwvuOengE5jJQqr9zoOdFdDNJATlrs",
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_uDXzhOqZPm0GaC6VIA8A6Q_4DUOAyH4",
