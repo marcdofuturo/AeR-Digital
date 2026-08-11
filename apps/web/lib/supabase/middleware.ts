@@ -6,7 +6,7 @@ import { type NextRequest, NextResponse } from "next/server";
  * Used in middleware.ts for session refresh.
  */
 export function createMiddlewareClient(req: NextRequest) {
-  let response = NextResponse.next({ request: req });
+  const response = NextResponse.next({ request: req });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

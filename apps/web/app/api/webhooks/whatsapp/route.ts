@@ -109,8 +109,8 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Session management ──────────────────────────────────────
-  let session = await loadSession(phone, tenant.tenant_id);
-  let currentStep = session?.step ?? "ask_title";
+  const session = await loadSession(phone, tenant.tenant_id);
+  const currentStep = session?.step ?? "ask_title";
   const currentDraft: Draft = session?.draft ?? {};
 
   // First message is just the intake code → greet without processing
