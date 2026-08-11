@@ -8,7 +8,7 @@ export async function getReleases(tenantId?: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("releases")
-    .select("*, tracks(count), track_participants(artist_id, artists!inner(stage_name))")
+    .select("*, tracks(id, track_participants(position, billing_role, artists(stage_name)))")
     .eq("tenant_id", tid)
     .is("deleted_at", null)
     .order("release_date", { ascending: true });

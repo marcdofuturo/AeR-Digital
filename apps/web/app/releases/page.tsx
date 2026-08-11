@@ -26,7 +26,8 @@ async function ReleasesContent({ view, stage }: { view: string; stage?: string }
     const daysInStage = r.stage_since
       ? Math.floor((Date.now() - new Date(r.stage_since).getTime()) / 86400000)
       : 0;
-    const artists = (r.track_participants ?? [])
+    const trackParticipants = (r.tracks ?? []).flatMap((track: any) => track.track_participants ?? []);
+    const artists = trackParticipants
       .map((tp: any) => tp.artists?.stage_name)
       .filter(Boolean);
 
