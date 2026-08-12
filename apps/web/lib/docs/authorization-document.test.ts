@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAuthorizationDocumentData,
   buildAuthorizationDocx,
+  buildAuthorizationPdf,
   buildAuthorizationMarkdown,
 } from "./authorization-document";
 
@@ -42,7 +43,22 @@ describe("authorization document", () => {
     expect(markdown).toContain("Autorização de Distribuição Digital");
     expect(markdown).toContain("Minha Música Incrível");
     expect(markdown).toContain("João Silva");
-    expect(markdown).not.toContain("�");
+    expect(markdown).not.toMatch(/[�ÃÂ]/);
+  });
+
+  it("uses LucIA as the responsible person for SuperTime Digital", () => {
+    const supertimeData = buildAuthorizationDocumentData({
+      tenant: { name: "SuperTime Digital", legal_name: "SuperTime Digital" },
+      release: { title: "Teste", release_date: "2026-09-20" },
+      track: {
+        title: "Teste",
+        track_participants: [],
+        splits: [],
+      },
+    });
+
+    expect(supertimeData.representativeName).toBe("LucIA");
+    expect(buildAuthorizationMarkdown(supertimeData)).toContain("Sou o LucIA");
   });
 
   it("builds a valid docx zip header", () => {
@@ -50,5 +66,11 @@ describe("authorization document", () => {
     expect(docx[0]).toBe(0x50);
     expect(docx[1]).toBe(0x4b);
     expect(docx.byteLength).toBeGreaterThan(1000);
+  });
+
+  it("builds a valid pdf header with unicode content", () => {
+    const pdf = buildAuthorizationPdf(data);
+    expect(pdf.subarray(0, 4).toString("ascii")).toBe("%PDF");
+    expect(pdf.byteLength).toBeGreaterThan(1000);
   });
 });

@@ -28,11 +28,12 @@ Este bloco representa o estado atual do produto. Quando houver conflito com seç
 - A aba **Artistas** mostra as músicas em que cada artista participa e usa os dados já existentes no banco.
 - O popup de cada lançamento mostra capa quando houver URL válida, remove placeholders `n/d` de duração, BPM e tom, troca "No estágio" por **Iniciou em:** e abre a ficha operacional.
 - A visão geral de lançamento integra edição dos dados operacionais de distribuição, faixas, participantes, copyright do ano atual + selo, Nome Completo e código ECAD. Esses campos salvam no banco e espelham para autorização, registros, splits e documentos.
-- A autorização gera checklist automático por participante, permite retirar OK, salva email de liberação por artista e disponibiliza documento preenchido para visualização e download DOCX.
-- **Pitch** foi substituído por **Apresentação**. A apresentação usa Claude com web search quando a chave Anthropic está válida, pesquisa relevância pública dos artistas, consome `lyrics_transcript` gerado pelo pipeline de áudio quando disponível, guarda histórico em `pitches`, permite pedir uma segunda versão com instruções do usuário e consome 2 créditos de IA por geração, dentro do limite de 100 créditos por tenant. Se a chave estiver ausente ou inválida, o painel gera uma apresentação base local com aviso em vez de derrubar a ficha.
+- A visão geral também mostra os arquivos recebidos: capa com botões **Ver capa**, **Baixar JPEG** e **Substituir capa**; áudio por faixa com player para ouvir, **Baixar áudio** e **Substituir áudio**. Substituição grava a nova URL/arquivo de referência usado pelas outras abas.
+- A autorização gera checklist automático por participante, permite retirar OK, salva email de liberação por artista e disponibiliza documento preenchido para visualização e download lado a lado em DOCX e PDF. O responsável no texto "Sou o..." vem do responsável do selo; para SuperTime Digital, o responsável operacional é **LucIA**.
+- **Pitch** foi substituído por **Apresentação**. A apresentação usa Claude `claude-sonnet-5` com web search quando a chave Anthropic está válida, pesquisa relevância pública dos artistas, consome `lyrics_transcript` gerado pelo pipeline de áudio quando disponível, guarda histórico em `pitches`, permite pedir uma segunda versão com instruções do usuário e consome 2 créditos de IA por geração, dentro do limite de 100 créditos por tenant. Se a chave estiver ausente ou inválida, o painel gera uma apresentação base local com aviso em vez de derrubar a ficha.
 - **Registros** não exibe YouTube Content ID. Registrar Obra e Registrar Fonograma possuem formulário `+` para adicionar participantes.
 - Splits são automáticos por padrão. Na obra todos os participantes entram como autores/compositores. No fonograma produtores entram como músicos acompanhantes e o selo do usuário entra como produtor fonográfico com 41,70%; se não houver produtor/músico, o pool de 16,60% vai para os intérpretes, não para o selo.
-- O fluxo WhatsApp pergunta se o envio é single ou álbum/EP. Para álbum/EP, pergunta a quantidade de faixas do envio. Todas as perguntas orientam que, para corrigir, basta escrever `voltar`. Ao receber arquivo de áudio com nome legível, o sistema tenta sugerir nome da música e participantes pelo nome do arquivo e pede correção em formato de lista se estiver diferente.
+- O fluxo WhatsApp atual é: (1) pergunta se é single ou álbum/EP; se álbum/EP, pergunta quantidade de faixas; (2) pede áudio; (3) pede capa; depois reconhece título/participantes/cargos pelo nome do arquivo, confirma com o usuário e, se necessário, pede correção em lista; (4) pergunta quem produziu; se produtor não estava na lista, inclui na lista com papel disponível e pede confirmação; (5) pergunta gêneros; (6) pergunta data de lançamento; por fim envia uma revisão única para **ENVIAR/SIM** ou corrigir. Todas as perguntas informam que basta escrever `voltar` para corrigir a etapa anterior.
 - Em configurações, o split digital vale para músicas que chegarem a partir daquele momento. O usuário pode definir percentual fixo do selo e o restante fica pro-rata, ou ativar o modo pro-rata automático para dividir 100% entre participantes + selo.
 - Splits de uma música existente podem ser ajustados manualmente na aba **Splits**, e a alteração só vira vigente depois de confirmar.
 - O login ativo é por email e senha; link mágico permanece fora do fluxo de acesso do painel.
@@ -67,10 +68,10 @@ Este bloco representa o estado atual do produto. Quando houver conflito com seç
 | Fila / Jobs | BullMQ + Redis (Hetzner) — **substitui o n8n integralmente** |
 | Agendamento | `pg_cron` (varreduras SQL) + BullMQ repeatable jobs (lógica) |
 | WhatsApp | Evolution API (Docker, Hetzner) atrás de um adapter |
-| IA | Claude Haiku 4.5 (validação/classificação em tempo real) · Claude Sonnet 4.6 (pitch) |
+| IA | Claude Haiku 4.5 (validação/classificação em tempo real) · Claude Sonnet 5 (`claude-sonnet-5`) para Apresentação |
 | Áudio | FastAPI + faster-whisper + librosa (Hetzner) |
 | E-mail | Resend (envio + inbound webhook) |
-| Documentos | Playwright headless → PDF |
+| Documentos | Gerador DOCX interno + PDF para autorização; Playwright headless reservado para PDFs ricos quando necessário |
 | Observabilidade | Sentry + Better Stack |
 
 ## 1.2 Topologia
@@ -526,7 +527,10 @@ Workers usam `service_role` e filtram tenant explicitamente no código.
 
 ---
 
-# 3. FLUXO WHATSAPP — 5 PERGUNTAS, RESPOSTA INSTANTÂNEA
+# 3. FLUXO WHATSAPP — SINGLE/ÁLBUM, ARQUIVOS PRIMEIRO E RESPOSTA INSTANTÂNEA
+
+> Estado atual implementado: o fluxo abaixo substitui a ordem histórica que perguntava título e artistas antes dos arquivos.
+> A lógica em produção pergunta single/álbum, coleta áudio e capa, reconhece metadados pelo nome do arquivo, confirma/corrige participantes, pergunta produtor, gêneros e data, e só então envia a revisão final.
 
 ## 3.1 O orçamento de latência (R9)
 

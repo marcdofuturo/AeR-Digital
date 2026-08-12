@@ -256,6 +256,12 @@ export default async function AutorizacaoPage({ params }: { params: Promise<{ id
                     Baixar DOCX
                   </a>
                 </Button>
+                <Button asChild size="sm" variant="outline">
+                  <a href={`/api/releases/${id}/authorizations/${auth.id}/document?format=pdf`}>
+                    <Download className="h-4 w-4" />
+                    Baixar PDF
+                  </a>
+                </Button>
               </CardContent>
             </Card>
           ))}

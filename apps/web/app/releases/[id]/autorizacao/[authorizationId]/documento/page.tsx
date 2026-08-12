@@ -37,12 +37,20 @@ export default async function AuthorizationDocumentPage({
             Voltar
           </Link>
         </Button>
-        <Button asChild size="sm">
-          <a href={`/api/releases/${id}/authorizations/${authorizationId}/document`}>
-            <Download className="h-4 w-4" />
-            Baixar DOCX
-          </a>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <a href={`/api/releases/${id}/authorizations/${authorizationId}/document`}>
+              <Download className="h-4 w-4" />
+              Baixar DOCX
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a href={`/api/releases/${id}/authorizations/${authorizationId}/document?format=pdf`}>
+              <Download className="h-4 w-4" />
+              Baixar PDF
+            </a>
+          </Button>
+        </div>
       </div>
 
       <Card>

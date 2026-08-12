@@ -7,7 +7,7 @@ import { getCurrentTenantId, getTenant } from "@/lib/tenant";
 import { KANBAN_STAGES, formatDaysInStage } from "@ar/ai/crm";
 import { fmtDate } from "@ar/shared";
 import { saveArtistMetadata, saveReleaseOverview, saveTrackOverview } from "@/app/releases/actions";
-import { Calendar, Clock, Disc3, FileText, Users, Wrench } from "lucide-react";
+import { Calendar, Clock, Disc3, Download, Eye, FileText, Headphones, Image as ImageIcon, RefreshCw, Users, Wrench } from "lucide-react";
 
 const STAGE_LABEL: Record<string, string> = {};
 for (const s of KANBAN_STAGES) STAGE_LABEL[s.id] = s.label;
@@ -67,9 +67,33 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
             <OverviewField name="distributor" label="Agregadora" defaultValue={r.distributor ?? "Audiolink Brasil"} />
             <OverviewField name="upc" label="UPC" defaultValue={r.upc ?? ""} />
             <OverviewField name="album_id_ext" label="ID do álbum" defaultValue={r.album_id_ext ?? ""} />
-            <OverviewField name="cover_url" label="Capa URL" defaultValue={r.cover_url ?? ""} />
-            <div className="md:col-span-4 flex justify-end">
-              <Button type="submit" size="sm" variant="outline">Salvar lançamento</Button>
+            <OverviewField name="cover_url" label="Capa JPEG URL" defaultValue={r.cover_url ?? ""} />
+            <div className="md:col-span-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/50 bg-bg p-3">
+              <div className="flex min-w-0 items-center gap-3">
+                {isUsableUrl(r.cover_url) ? (
+                  <img
+                    src={r.cover_url}
+                    alt={`Capa de ${r.title ?? "lançamento"}`}
+                    className="h-16 w-16 rounded-md border border-border object-cover"
+                  />
+                ) : (
+                  <div className="grid h-16 w-16 place-items-center rounded-md border border-dashed border-border text-fg-muted">
+                    <ImageIcon className="h-5 w-5" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-fg">Capa do lançamento</p>
+                  <p className="truncate text-xs text-fg-muted">{isUsableUrl(r.cover_url) ? r.cover_url : "Nenhuma capa cadastrada"}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <MediaButton href={r.cover_url} label="Ver capa" icon="eye" />
+                <MediaButton href={r.cover_url} label="Baixar JPEG" icon="download" download />
+                <Button type="submit" size="sm" variant="outline">
+                  <RefreshCw className="h-4 w-4" />
+                  Substituir capa
+                </Button>
+              </div>
             </div>
           </form>
 
@@ -79,12 +103,36 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
               <input type="hidden" name="track_id" value={track.id} />
               <OverviewField name="title" label="Faixa" defaultValue={track.title ?? ""} />
               <OverviewField name="isrc" label="ISRC" defaultValue={track.isrc ?? ""} />
-              <OverviewField name="audio_url" label="Áudio URL" defaultValue={track.audio_url ?? ""} />
+              <OverviewField name="audio_url" label="Áudio MP3/WAV URL" defaultValue={track.audio_url ?? ""} />
               <label className="flex items-center gap-2 self-end text-xs text-fg-muted">
                 <input type="checkbox" name="explicit" defaultChecked={Boolean(track.explicit)} className="accent-brand" />
                 Explícita
               </label>
               <Button type="submit" size="sm" variant="outline" className="self-end">Salvar faixa</Button>
+              <div className="md:col-span-5 flex flex-col gap-3 rounded-md border border-border/40 bg-surface/60 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-md border border-border bg-bg text-fg-muted">
+                      <Headphones className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-fg">{track.title ?? "Faixa"}</p>
+                      <p className="truncate text-xs text-fg-muted">{isUsableUrl(track.audio_url) ? track.audio_url : "Nenhum áudio cadastrado"}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <MediaButton href={track.audio_url} label="Ouvir" icon="headphones" />
+                    <MediaButton href={track.audio_url} label="Baixar áudio" icon="download" download />
+                    <Button type="submit" size="sm" variant="outline">
+                      <RefreshCw className="h-4 w-4" />
+                      Substituir áudio
+                    </Button>
+                  </div>
+                </div>
+                {isUsableUrl(track.audio_url) && (
+                  <audio controls preload="none" src={track.audio_url} className="w-full" />
+                )}
+              </div>
             </form>
           ))}
         </CardContent>
@@ -371,6 +419,45 @@ function OverviewField({
       />
     </label>
   );
+}
+
+function MediaButton({
+  href,
+  label,
+  icon,
+  download = false,
+}: {
+  href?: string | null;
+  label: string;
+  icon: "eye" | "download" | "headphones";
+  download?: boolean;
+}) {
+  const enabled = isUsableUrl(href);
+  const Icon = icon === "eye" ? Eye : icon === "download" ? Download : Headphones;
+
+  if (!enabled) {
+    return (
+      <Button type="button" size="sm" variant="outline" disabled>
+        <Icon className="h-4 w-4" />
+        {label}
+      </Button>
+    );
+  }
+
+  return (
+    <Button asChild size="sm" variant="outline">
+      <a href={href ?? "#"} target="_blank" rel="noreferrer" download={download ? "" : undefined}>
+        <Icon className="h-4 w-4" />
+        {label}
+      </a>
+    </Button>
+  );
+}
+
+function isUsableUrl(value?: string | null) {
+  if (!value) return false;
+  if (value === "received") return false;
+  return /^(https?:\/\/|\/)/i.test(value);
 }
 
 function collectParticipants(tracks: any[]) {
