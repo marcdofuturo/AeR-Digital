@@ -6,21 +6,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getSubmissions } from "@/lib/data/inbox";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
-import { Inbox, Clock, CheckCircle2, ArrowRightCircle } from "lucide-react";
+import { CopyIntakeLink } from "@/components/copy-intake-link";
+import { Inbox, ArrowRightCircle } from "lucide-react";
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "success" | "warning" }> = {
   ativa: { label: "Ativa", variant: "warning" },
   confirmada: { label: "Confirmada", variant: "success" },
   concluida: { label: "Concluída", variant: "default" },
   expirada: { label: "Expirada", variant: "secondary" },
-  convertida: { label: "Convertida", variant: "success" },
 };
 
 const FILTER_TABS = [
   { label: "Todas", value: "" },
   { label: "Ativas", value: "ativa" },
   { label: "Confirmadas", value: "confirmada" },
-  { label: "Convertidas", value: "convertida" },
 ];
 
 interface InboxPageProps {
@@ -142,13 +141,11 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
 
       {/* Intake link */}
       <div className="mt-8 bg-gradient-to-r from-brand/10 to-purple-900/20 border border-brand/20 rounded-lg p-6">
-        <h2 className="font-semibold text-fg mb-2">Link de Intake</h2>
+        <h2 className="font-semibold text-fg mb-2">Envie sua Música pelo WhatsApp</h2>
         <p className="text-sm text-fg-muted mb-3">
           Compartilhe este link com seus artistas:
         </p>
-        <code className="block bg-bg border border-border rounded-lg px-4 py-3 text-sm text-brand font-mono break-all">
-          https://wa.me/5511948059297?text=%23A7K9
-        </code>
+        <CopyIntakeLink value="https://wa.me/5511948059297?text=A7K9" />
       </div>
     </div>
   );

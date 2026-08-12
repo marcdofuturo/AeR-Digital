@@ -75,6 +75,109 @@ export async function markAuthorizationRecipientApproved(formData: FormData) {
   revalidateRelease(releaseId);
 }
 
+export async function setAuthorizationRecipientStatus(formData: FormData) {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) throw new Error("Tenant não encontrado");
+
+  const recipientId = String(formData.get("recipient_id") ?? "");
+  const releaseId = String(formData.get("release_id") ?? "");
+  const status = String(formData.get("status") ?? "pendente");
+  if (!recipientId || !releaseId) throw new Error("Destinatário inválido");
+  if (!["pendente", "aprovado", "recusado"].includes(status)) throw new Error("Status inválido");
+
+  const supabase = createAdminClient();
+  const { data: updated, error } = await supabase
+    .from("authorization_recipients")
+    .update({
+      status,
+      responded_at: status === "pendente" ? null : new Date().toISOString(),
+      response_raw: status === "aprovado"
+        ? "Marcado manualmente como OK no painel"
+        : status === "recusado"
+          ? "Marcado manualmente como recusado no painel"
+          : null,
+      response_class: status === "pendente" ? null : undefined,
+    })
+    .eq("id", recipientId)
+    .eq("tenant_id", tenantId)
+    .select("authorization_id")
+    .single();
+
+  if (error) {
+    console.error("Failed to update authorization recipient:", error);
+    throw new Error("Falha ao atualizar autorização");
+  }
+
+  if (updated?.authorization_id) {
+    await refreshAuthorizationStatus(supabase, tenantId, updated.authorization_id);
+  }
+
+  revalidatePath(`/releases/${releaseId}/autorizacao`);
+  revalidateRelease(releaseId);
+}
+
+export async function saveAuthorizationRecipientEmail(formData: FormData) {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) throw new Error("Tenant não encontrado");
+
+  const releaseId = String(formData.get("release_id") ?? "");
+  const recipientId = String(formData.get("recipient_id") ?? "");
+  const artistId = nullableString(formData.get("artist_id"));
+  const email = nullableString(formData.get("email"));
+  if (!releaseId || !recipientId || !email || !email.includes("@")) {
+    throw new Error("Email de autorização inválido");
+  }
+
+  const supabase = createAdminClient();
+  const { error: recipientError } = await supabase
+    .from("authorization_recipients")
+    .update({ email })
+    .eq("id", recipientId)
+    .eq("tenant_id", tenantId);
+
+  if (recipientError) {
+    console.error("Failed to save authorization recipient email:", recipientError);
+    throw new Error("Falha ao salvar email de autorização");
+  }
+
+  if (artistId) {
+    await supabase
+      .from("artist_contacts")
+      .update({ is_primary: false })
+      .eq("artist_id", artistId)
+      .eq("kind", "email");
+
+    const { data: existing } = await supabase
+      .from("artist_contacts")
+      .select("id")
+      .eq("artist_id", artistId)
+      .eq("kind", "email")
+      .ilike("value", email)
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) {
+      await supabase
+        .from("artist_contacts")
+        .update({ is_primary: true })
+        .eq("id", existing.id);
+    } else {
+      await supabase
+        .from("artist_contacts")
+        .insert({
+          artist_id: artistId,
+          kind: "email",
+          value: email,
+          label: "Liberação",
+          is_primary: true,
+        });
+    }
+  }
+
+  revalidatePath(`/releases/${releaseId}/autorizacao`);
+  revalidateRelease(releaseId);
+}
+
 export async function saveRegistrationStatus(formData: FormData) {
   const tenantId = await getCurrentTenantId();
   if (!tenantId) throw new Error("Tenant não encontrado");
@@ -119,6 +222,65 @@ export async function saveRegistrationStatus(formData: FormData) {
   revalidateRelease(releaseId);
 }
 
+export async function saveReleaseOverview(formData: FormData) {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) throw new Error("Tenant não encontrado");
+
+  const releaseId = String(formData.get("release_id") ?? "");
+  if (!releaseId) throw new Error("Lançamento inválido");
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("releases")
+    .update({
+      title: requiredString(formData.get("title"), "Título obrigatório"),
+      release_date: requiredString(formData.get("release_date"), "Data obrigatória"),
+      genre_primary: nullableString(formData.get("genre_primary")),
+      genre_secondary: nullableString(formData.get("genre_secondary")),
+      distributor: nullableString(formData.get("distributor")) ?? "Audiolink Brasil",
+      upc: nullableString(formData.get("upc")),
+      album_id_ext: nullableString(formData.get("album_id_ext")),
+      cover_url: nullableString(formData.get("cover_url")),
+    })
+    .eq("id", releaseId)
+    .eq("tenant_id", tenantId);
+
+  if (error) {
+    console.error("Failed to save release overview:", error);
+    throw new Error("Falha ao salvar visão geral");
+  }
+
+  revalidateRelease(releaseId);
+}
+
+export async function saveTrackOverview(formData: FormData) {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) throw new Error("Tenant não encontrado");
+
+  const releaseId = String(formData.get("release_id") ?? "");
+  const trackId = String(formData.get("track_id") ?? "");
+  if (!releaseId || !trackId) throw new Error("Faixa inválida");
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("tracks")
+    .update({
+      title: requiredString(formData.get("title"), "Título da faixa obrigatório"),
+      isrc: nullableString(formData.get("isrc")),
+      audio_url: nullableString(formData.get("audio_url")),
+      explicit: formData.get("explicit") === "on",
+    })
+    .eq("id", trackId)
+    .eq("tenant_id", tenantId);
+
+  if (error) {
+    console.error("Failed to save track overview:", error);
+    throw new Error("Falha ao salvar faixa");
+  }
+
+  revalidateRelease(releaseId);
+}
+
 export async function saveArtistMetadata(formData: FormData) {
   const tenantId = await getCurrentTenantId();
   if (!tenantId) throw new Error("Tenant não encontrado");
@@ -133,7 +295,6 @@ export async function saveArtistMetadata(formData: FormData) {
     .update({
       legal_name: nullableString(formData.get("legal_name")),
       ecad_code: nullableString(formData.get("ecad_code")),
-      pro_affiliation: nullableString(formData.get("pro_affiliation")),
       needs_review: false,
     })
     .eq("id", artistId)
@@ -488,7 +649,7 @@ async function ensureAuthorization(
     .single();
 
   if (error) throw new Error(`Falha ao gerar autorização: ${error.message}`);
-  return data.id;
+  return data;
 }
 
 async function findOrCreateArtist(
@@ -638,6 +799,12 @@ function percentToBps(value: FormDataEntryValue | null) {
 function nullableString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
   return text.length ? text : null;
+}
+
+function requiredString(value: FormDataEntryValue | null, message: string) {
+  const text = nullableString(value);
+  if (!text) throw new Error(message);
+  return text;
 }
 
 function revalidateRelease(releaseId: string) {

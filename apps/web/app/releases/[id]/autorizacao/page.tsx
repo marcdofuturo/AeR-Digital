@@ -1,15 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
 import {
   ensureReleaseAuthorizationChecklist,
   markAuthorizationRecipientApproved,
+  saveAuthorizationRecipientEmail,
+  setAuthorizationRecipientStatus,
   setReleaseStageFromForm,
 } from "@/app/releases/actions";
-import { FileText, Mail, CheckCircle, Clock, XCircle, AlertTriangle } from "lucide-react";
+import { FileText, Mail, CheckCircle, Clock, XCircle, AlertTriangle, Download, Eye } from "lucide-react";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -114,6 +118,89 @@ export default async function AutorizacaoPage({ params }: { params: Promise<{ id
         </CardContent>
       </Card>
 
+      {recipients.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Emails de liberação por artista</CardTitle>
+            <CardDescription>
+              Salve o email uma vez para o artista; ele será reutilizado em novos lançamentos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue={recipients[0]?.id} className="space-y-3">
+              <TabsList className="flex h-auto flex-wrap justify-start">
+                {recipients.map((recipient: any) => (
+                  <TabsTrigger key={recipient.id} value={recipient.id} className="text-xs">
+                    {recipient.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {recipients.map((recipient: any) => {
+                const approved = recipient.status === "aprovado";
+                const emailMissing = String(recipient.email).endsWith("@aerdigital.local");
+                return (
+                  <TabsContent key={recipient.id} value={recipient.id}>
+                    <div className="rounded-md border border-border/50 bg-bg p-3">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-fg">{recipient.name}</p>
+                          <p className="text-xs text-fg-muted">
+                            {emailMissing ? "Email não cadastrado" : recipient.email}
+                          </p>
+                        </div>
+                        <Badge variant={RECIPIENT_STATUS_VARIANT[recipient.status] ?? "secondary"} className="text-xs">
+                          {recipient.status}
+                        </Badge>
+                      </div>
+
+                      <form action={saveAuthorizationRecipientEmail} className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <input type="hidden" name="release_id" value={id} />
+                        <input type="hidden" name="recipient_id" value={recipient.id} />
+                        <input type="hidden" name="artist_id" value={recipient.artist_id ?? ""} />
+                        <label className="text-xs text-fg-muted">
+                          Email de liberação
+                          <input
+                            name="email"
+                            type="email"
+                            defaultValue={emailMissing ? "" : recipient.email}
+                            placeholder="artista@email.com"
+                            className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-2 text-sm text-fg"
+                          />
+                        </label>
+                        <Button type="submit" size="sm" variant="outline" className="self-end">
+                          Salvar email
+                        </Button>
+                      </form>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {approved ? (
+                          <form action={setAuthorizationRecipientStatus}>
+                            <input type="hidden" name="release_id" value={id} />
+                            <input type="hidden" name="recipient_id" value={recipient.id} />
+                            <input type="hidden" name="status" value="pendente" />
+                            <Button type="submit" size="sm" variant="outline">
+                              Retirar OK
+                            </Button>
+                          </form>
+                        ) : (
+                          <form action={markAuthorizationRecipientApproved}>
+                            <input type="hidden" name="release_id" value={id} />
+                            <input type="hidden" name="recipient_id" value={recipient.id} />
+                            <Button type="submit" size="sm" variant="outline">
+                              Marcar OK
+                            </Button>
+                          </form>
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+                );
+              })}
+            </Tabs>
+          </CardContent>
+        </Card>
+      )}
+
       {allApproved && (
         <Card>
           <CardHeader>
@@ -156,6 +243,20 @@ export default async function AutorizacaoPage({ params }: { params: Promise<{ id
                   {auth.status}
                 </Badge>
               </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/releases/${id}/autorizacao/${auth.id}/documento`}>
+                    <Eye className="h-4 w-4" />
+                    Visualizar
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <a href={`/api/releases/${id}/authorizations/${auth.id}/document`}>
+                    <Download className="h-4 w-4" />
+                    Baixar DOCX
+                  </a>
+                </Button>
+              </CardContent>
             </Card>
           ))}
         </div>

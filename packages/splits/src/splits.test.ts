@@ -76,6 +76,20 @@ describe("SE SOLTA snapshot", () => {
     expect(muc.bps100).toBe(1660);
   });
 
+  it("Fonograma sem produtor mantem selo em 41,70%", () => {
+    const result = computeFonograma([mcGh, mcJac], labelName);
+    expect(sum(result)).toBe(10_000);
+
+    const label = result.find(l => l.holder_type === "label")!;
+    expect(label.role_label).toBe("Produtor fonográfico");
+    expect(label.bps100).toBe(4170);
+
+    const artistTotal = result
+      .filter(l => l.holder_type === "artist")
+      .reduce((total, line) => total + line.bps100, 0);
+    expect(artistTotal).toBe(5830);
+  });
+
   it("Digital (pro_rata) — 2500 cada (3 artistas + selo)", () => {
     const cfg: DigitalConfig = {
       mode: "pro_rata",

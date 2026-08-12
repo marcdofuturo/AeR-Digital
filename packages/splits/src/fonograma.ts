@@ -14,13 +14,10 @@ export function computeFonograma(
   const interpretes = participants.filter(p => p.is_performer && !p.is_producer);
   const musicos = participants.filter(p => p.is_producer);
 
-  let poolProdutor = FONO.produtor;
-  let poolInterpretes = FONO.interpretes;
-
-  if (musicos.length === 0) {
-    poolProdutor += 830;
-    poolInterpretes += 830;
-  }
+  const poolProdutor = FONO.produtor;
+  const poolInterpretes = musicos.length === 0
+    ? FONO.interpretes + FONO.musicos
+    : FONO.interpretes;
 
   const produtorLine: SplitLine = {
     holder_type: "label",
@@ -49,4 +46,3 @@ export function computeFonograma(
 
   return reconcile([produtorLine, ...interpreteLines, ...musicoLines]);
 }
-

@@ -24,13 +24,15 @@ Este bloco representa o estado atual do produto. Quando houver conflito com seç
 ### Regras atuais de tela e operação
 
 - O painel lateral é recolhível por botão com símbolo de voltar música.
-- O card de intake usa o texto **Envie sua Música pelo WhatsApp** e o link `https://wa.me/5511948059297?text=A7K9`, com cópia em um clique ao passar o mouse.
+- O card de intake usa o texto **Envie sua Música pelo WhatsApp** e o link `https://wa.me/5511948059297?text=A7K9`, com cópia em um clique.
 - A aba **Artistas** mostra as músicas em que cada artista participa e usa os dados já existentes no banco.
 - O popup de cada lançamento mostra capa quando houver URL válida, remove placeholders `n/d` de duração, BPM e tom, troca "No estágio" por **Iniciou em:** e abre a ficha operacional.
-- A visão geral de lançamento integra créditos, participantes, copyright do ano atual + selo, dados artísticos/civis, código ECAD e associação. Dados civis, ECAD e associação podem ser adicionados ali e ficam salvos para uso futuro do artista.
-- **Pitch** foi substituído por **Apresentação**. A apresentação usa Claude quando a chave Anthropic está válida, guarda histórico em `pitches`, permite pedir uma segunda versão com instruções do usuário e consome 2 créditos de IA por geração, dentro do limite de 100 créditos por tenant. Se a chave estiver ausente ou inválida, o painel gera uma apresentação base local com aviso em vez de derrubar a ficha.
+- A visão geral de lançamento integra edição dos dados operacionais de distribuição, faixas, participantes, copyright do ano atual + selo, Nome Completo e código ECAD. Esses campos salvam no banco e espelham para autorização, registros, splits e documentos.
+- A autorização gera checklist automático por participante, permite retirar OK, salva email de liberação por artista e disponibiliza documento preenchido para visualização e download DOCX.
+- **Pitch** foi substituído por **Apresentação**. A apresentação usa Claude com web search quando a chave Anthropic está válida, pesquisa relevância pública dos artistas, consome `lyrics_transcript` gerado pelo pipeline de áudio quando disponível, guarda histórico em `pitches`, permite pedir uma segunda versão com instruções do usuário e consome 2 créditos de IA por geração, dentro do limite de 100 créditos por tenant. Se a chave estiver ausente ou inválida, o painel gera uma apresentação base local com aviso em vez de derrubar a ficha.
 - **Registros** não exibe YouTube Content ID. Registrar Obra e Registrar Fonograma possuem formulário `+` para adicionar participantes.
-- Splits são automáticos por padrão. Na obra todos os participantes entram como autores/compositores. No fonograma produtores entram como músicos acompanhantes e o selo do usuário entra como produtor fonográfico.
+- Splits são automáticos por padrão. Na obra todos os participantes entram como autores/compositores. No fonograma produtores entram como músicos acompanhantes e o selo do usuário entra como produtor fonográfico com 41,70%; se não houver produtor/músico, o pool de 16,60% vai para os intérpretes, não para o selo.
+- O fluxo WhatsApp pergunta se o envio é single ou álbum/EP. Para álbum/EP, pergunta a quantidade de faixas do envio. Todas as perguntas orientam que, para corrigir, basta escrever `voltar`. Ao receber arquivo de áudio com nome legível, o sistema tenta sugerir nome da música e participantes pelo nome do arquivo e pede correção em formato de lista se estiver diferente.
 - Em configurações, o split digital vale para músicas que chegarem a partir daquele momento. O usuário pode definir percentual fixo do selo e o restante fica pro-rata, ou ativar o modo pro-rata automático para dividir 100% entre participantes + selo.
 - Splits de uma música existente podem ser ajustados manualmente na aba **Splits**, e a alteração só vira vigente depois de confirmar.
 - O login ativo é por email e senha; link mágico permanece fora do fluxo de acesso do painel.
