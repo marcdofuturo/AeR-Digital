@@ -337,6 +337,8 @@ export async function generatePresentationForTrack(formData: FormData) {
 
 export async function ensureReleaseAuthorizationChecklist(tenantId: string, releaseId: string) {
   const supabase = createAdminClient();
+  let insertedAny = false;
+
   const { data: release, error } = await supabase
     .from("releases")
     .select(`
@@ -356,7 +358,10 @@ export async function ensureReleaseAuthorizationChecklist(tenantId: string, rele
     .eq("id", releaseId)
     .single();
 
-  if (error || !release) return;
+  if (error || !release) {
+    console.error("Failed to load release for authorization checklist:", error);
+    throw new Error("Falha ao carregar participantes para autorização");
+  }
 
   for (const track of release.tracks ?? []) {
     const participants = [...(track.track_participants ?? [])].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
@@ -389,8 +394,18 @@ export async function ensureReleaseAuthorizationChecklist(tenantId: string, rele
       });
 
     if (recipientsToInsert.length) {
-      await supabase.from("authorization_recipients").insert(recipientsToInsert);
+      const { error: insertError } = await supabase.from("authorization_recipients").insert(recipientsToInsert);
+      if (insertError) {
+        console.error("Failed to create authorization recipients:", insertError);
+        throw new Error("Falha ao gerar checklist de autorização");
+      }
+      insertedAny = true;
     }
+  }
+
+  if (insertedAny) {
+    revalidatePath(`/releases/${releaseId}/autorizacao`);
+    revalidateRelease(releaseId);
   }
 }
 
