@@ -38,12 +38,14 @@ export default async function AutorizacaoPage({ params }: { params: Promise<{ id
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return null;
 
-  await ensureReleaseAuthorizationChecklist(tenantId, id);
+  const ensuredAuthorizations = await ensureReleaseAuthorizationChecklist(tenantId, id);
   const release = await getRelease(tenantId, id);
   if (!release) return null;
 
   const r = release as any;
-  const authorizations = r.authorizations ?? [];
+  const releaseAuthorizations = r.authorizations ?? [];
+  const hasReleaseRecipients = releaseAuthorizations.some((auth: any) => (auth.authorization_recipients ?? []).length > 0);
+  const authorizations = hasReleaseRecipients ? releaseAuthorizations : ensuredAuthorizations;
   const recipients = authorizations.flatMap((auth: any) =>
     (auth.authorization_recipients ?? []).map((recipient: any) => ({
       ...recipient,
