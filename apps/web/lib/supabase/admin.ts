@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
+const noStoreFetch: typeof fetch = (input, init) => fetch(input, { ...init, cache: "no-store" });
+
 /**
  * ⚠️ SERVICE ROLE CLIENT — BYPASSES ROW LEVEL SECURITY ⚠️
  *
@@ -23,6 +25,9 @@ export function createAdminClient() {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
+      },
+      global: {
+        fetch: noStoreFetch,
       },
     },
   );
