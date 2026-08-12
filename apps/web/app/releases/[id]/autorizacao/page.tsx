@@ -11,6 +11,9 @@ import {
 } from "@/app/releases/actions";
 import { FileText, Mail, CheckCircle, Clock, XCircle, AlertTriangle } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const STATUS_ICONS: Record<string, React.ReactNode> = {
   rascunho: <FileText className="h-4 w-4 text-fg-muted" />,
   enviado: <Mail className="h-4 w-4 text-warning" />,
