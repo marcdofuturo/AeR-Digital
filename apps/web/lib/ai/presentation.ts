@@ -39,7 +39,9 @@ export async function generateClaudePresentation({
   apiKey?: string;
   model?: string;
 }) {
-  if (!apiKey) throw new Error("Token Claude não configurado");
+  if (!apiKey) {
+    return buildLocalPresentation(track, userGuidance, "Claude não configurado no ambiente de produção.");
+  }
 
   const prompt = buildPresentationPrompt({
     titulo: track.title,
@@ -53,27 +55,34 @@ export async function generateClaudePresentation({
     userGuidance,
   });
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 900,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 900,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Falha Claude (${response.status})`);
+    if (!response.ok) {
+      return buildLocalPresentation(track, userGuidance, `Claude indisponível (${response.status}).`);
+    }
+
+    const data = await response.json() as { content?: ClaudeMessageContent };
+    const text = (data.content ?? []).map((part) => part.text ?? "").join("\n").trim();
+    if (!text) {
+      return buildLocalPresentation(track, userGuidance, "Claude retornou resposta vazia.");
+    }
+    return parsePresentationResponse(text);
+  } catch {
+    return buildLocalPresentation(track, userGuidance, "Falha de conexão com Claude.");
   }
-
-  const data = await response.json() as { content?: ClaudeMessageContent };
-  const text = (data.content ?? []).map((part) => part.text ?? "").join("\n").trim();
-  return parsePresentationResponse(text);
 }
 
 export function parsePresentationResponse(text: string) {
@@ -106,4 +115,17 @@ function extractJsonObject(text: string) {
   const end = text.lastIndexOf("}");
   if (start === -1 || end === -1 || end <= start) return null;
   return text.slice(start, end + 1);
+}
+
+function buildLocalPresentation(track: PresentationTrack, userGuidance: string | null | undefined, reason: string) {
+  const artists = track.participants.join(", ") || "artistas do projeto";
+  const genres = track.genres.filter(Boolean).join(" / ") || "música brasileira";
+  const releaseDate = track.releaseDate ? ` com lançamento previsto para ${track.releaseDate}` : "";
+  const direction = userGuidance ? ` Direção solicitada: ${userGuidance.trim()}.` : "";
+
+  return {
+    apresentacao: `${track.title} é uma faixa de ${artists}, situada em ${genres}${releaseDate}. A apresentação destaca o potencial comercial da música, seus créditos principais e o contexto necessário para curadoria, parceiros e distribuição.${direction}`,
+    avisos: [reason, "Apresentação base local gerada sem resposta válida do Claude."],
+    raw: JSON.stringify({ fallback: true, reason }),
+  };
 }

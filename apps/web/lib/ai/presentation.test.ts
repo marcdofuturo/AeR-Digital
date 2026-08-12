@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { assertAiCredits, generateClaudePresentation, parsePresentationResponse, remainingAiCredits } from "./presentation";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("presentation ai credits", () => {
   it("uses 2 credits per generated presentation", () => {
@@ -47,5 +51,25 @@ describe("generateClaudePresentation", () => {
       }),
     );
   });
-});
 
+  it("returns a local presentation when Claude credentials fail", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+    }));
+
+    await expect(generateClaudePresentation({
+      apiKey: "invalid-key",
+      model: "claude-test",
+      track: {
+        title: "SE SOLTA",
+        releaseDate: "2027-03-05",
+        genres: ["Funk", "Trap"],
+        participants: ["MC GH", "MC JACARE", "MUCILON"],
+      },
+    })).resolves.toMatchObject({
+      apresentacao: expect.stringContaining("SE SOLTA"),
+      avisos: expect.arrayContaining(["Claude indisponível (401)."]),
+    });
+  });
+});
