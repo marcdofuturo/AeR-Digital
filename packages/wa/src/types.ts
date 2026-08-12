@@ -6,8 +6,11 @@ export type Step =
   | "ask_album_track_count"
   | "ask_title"
   | "ask_artists"
+  | "confirm_file_metadata"
+  | "ask_metadata_correction"
   | "ask_producers"
   | "ask_producer_position"
+  | "confirm_external_producer"
   | "ask_genres"
   | "ask_date"
   | "ask_audio"
@@ -24,9 +27,11 @@ export interface Draft {
   audio_filename?: string;
   filename_title_guess?: string;
   filename_participants_guess?: string[];
+  metadata_roles?: Array<{ name: string; role: string }>;
   corrected_title?: string;
   artists?: ResolvedArtist[];
   producers?: ProducerRef[];
+  pending_external_producers?: string[];
   producer_position_index?: number; // current producer being positioned
   genres?: string[];
   release_date?: string; // ISO

@@ -5,6 +5,7 @@ import {
   buildAuthorizationDocumentData,
   buildAuthorizationDocx,
   buildAuthorizationMarkdown,
+  buildAuthorizationPdf,
 } from "@/lib/docs/authorization-document";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,19 @@ export async function GET(
     return new NextResponse(buildAuthorizationMarkdown(data), {
       headers: {
         "content-type": "text/markdown; charset=utf-8",
+      },
+    });
+  }
+
+  if (url.searchParams.get("format") === "pdf") {
+    const pdf = buildAuthorizationPdf(data);
+    const filename = `Autorizacao_${safeFilename(data.trackTitle)}.pdf`;
+    const body = pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength) as ArrayBuffer;
+    return new NextResponse(body, {
+      headers: {
+        "content-type": "application/pdf",
+        "content-disposition": `attachment; filename="${filename}"`,
+        "cache-control": "no-store",
       },
     });
   }

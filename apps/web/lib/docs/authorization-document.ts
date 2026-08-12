@@ -1,4 +1,5 @@
 import { buildSimpleDocx, type DocxBlock } from "./simple-docx";
+import { buildSimplePdf } from "./simple-pdf";
 
 type SplitLine = {
   scope?: string;
@@ -70,7 +71,7 @@ export function buildAuthorizationDocumentData({
     .join(", ");
 
   return {
-    representativeName: tenant?.legal_name || labelName,
+    representativeName: resolveRepresentativeName(tenant, labelName),
     labelName,
     releaseTitle: release.title ?? track.title ?? "Lançamento",
     trackTitle: track.title ?? release.title ?? "Faixa",
@@ -134,6 +135,10 @@ export function buildAuthorizationDocx(data: AuthorizationDocumentData) {
   return buildSimpleDocx(buildDocxBlocks(data));
 }
 
+export function buildAuthorizationPdf(data: AuthorizationDocumentData) {
+  return buildSimplePdf(buildPdfLines(data));
+}
+
 function buildDocxBlocks(data: AuthorizationDocumentData): DocxBlock[] {
   return [
     { kind: "paragraph", text: "Olá, pessoal!" },
@@ -171,6 +176,40 @@ function buildDocxBlocks(data: AuthorizationDocumentData): DocxBlock[] {
       text: "Solicito também CPF, e-mails para repasse de royalties e telefone para contato (WhatsApp).",
     },
     { kind: "paragraph", text: "Qualquer dúvida, estou à disposição." },
+  ];
+}
+
+function buildPdfLines(data: AuthorizationDocumentData) {
+  const splitLines = (title: string, rows: AuthorizationSplitRow[]) => [
+    { text: title, bold: true },
+    { text: "ID | Artista | Classe | Participação (%)" },
+    ...rows.map((row) => ({ text: `${row.id} | ${row.artist} | ${row.role} | ${row.percent}` })),
+    { text: "Total: 100%" },
+    { text: "" },
+  ];
+
+  return [
+    { text: "Autorização de Distribuição Digital", size: 16, bold: true },
+    { text: "" },
+    { text: "Olá, pessoal!" },
+    { text: "Espero que estejam bem." },
+    { text: `Sou o ${data.representativeName} e neste documento represento a empresa e seus artistas ${data.artists}.` },
+    { text: "Venho por meio deste solicitar, de forma oficial, a autorização para o lançamento digital da faixa abaixo;" },
+    { text: "" },
+    { text: `Nome da Faixa: ${data.trackTitle}` },
+    { text: `Artistas: ${data.artists}` },
+    { text: `Data de Lançamento: ${data.releaseDate}` },
+    { text: `Agregadora: ${data.distributor}` },
+    { text: `ISRC: ${data.isrc}` },
+    { text: `ID do Álbum: ${data.albumId}` },
+    { text: `Link da Faixa: ${data.trackLink || "a inserir"}` },
+    { text: "" },
+    ...splitLines("Obra", data.splits.obra),
+    ...splitLines("Fonograma", data.splits.fonograma),
+    ...splitLines("Digital", data.splits.digital),
+    { text: 'Caso todos estejam de acordo com o lançamento, responder este e-mail com: "Eu, [NOME] sou responsável pelo [ARTISTA], autorizo este lançamento."' },
+    { text: "Solicito também CPF, e-mails para repasse de royalties e telefone para contato (WhatsApp)." },
+    { text: "Qualquer dúvida, estou à disposição." },
   ];
 }
 
@@ -222,6 +261,19 @@ function tableMarkdown(rows: string[][]) {
     "| :---- | :---- |",
     ...rows.map(([key, value]) => `| ${key} | ${value} |`),
   ].join("\n");
+}
+
+function resolveRepresentativeName(tenant: any, labelName: string) {
+  if (normalizeText(labelName) === "supertime digital") return "LucIA";
+  return tenant?.responsible_name
+    || tenant?.representative_name
+    || tenant?.legal_representative
+    || tenant?.legal_name
+    || labelName;
+}
+
+function normalizeText(value: string) {
+  return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 function formatDate(value: string | null | undefined) {
