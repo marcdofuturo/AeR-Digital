@@ -53,12 +53,15 @@
 - Modify: `apps/web/app/releases/actions.ts`
 - Test: `apps/web/app/releases/release-actions.test.ts`
 
-- [ ] Merge Creditos into Visao Geral and remove "Oculto" from displayed credits.
-- [ ] Add current-year copyright with tenant label name.
-- [ ] Add inline save action for legal name and ECAD code.
-- [ ] Ensure authorization checklist rows from every track participant.
-- [ ] Remove YouTube Content ID from UI registration order.
-- [ ] Add compact participant add form for Registrar Obra and Registrar Fonograma.
+- [x] Merge Creditos into Visao Geral and remove "Oculto" from displayed credits.
+- [x] Add current-year copyright with tenant label name.
+- [x] Add inline save action for legal name and ECAD code, renamed to Nome Completo.
+- [x] Ensure authorization checklist rows from every track participant.
+- [x] Remove YouTube Content ID from UI registration order.
+- [x] Add compact participant add form for Registrar Obra and Registrar Fonograma.
+- [x] Generate authorization document per track with panel preview and DOCX download.
+- [x] Add per-artist release email fields and reversible approval status.
+- [x] Make Visao Geral editable for release/track/distribution fields so data mirrors across tabs.
 
 ### Task 4: Splits and WhatsApp Creation
 
@@ -73,10 +76,11 @@
 - Modify: `apps/web/app/config/splits/page.tsx`
 - Modify: `apps/web/app/releases/actions.ts`
 
-- [ ] Update pure split rules and prove sums remain 100%.
-- [ ] Persist generated splits for new WhatsApp releases and for manual regeneration.
-- [ ] Add manual split edit/confirm by creating the next split version.
-- [ ] Update config copy so digital settings apply to future arrivals.
+- [x] Update pure split rules and prove sums remain 100%.
+- [x] Persist generated splits for new WhatsApp releases and for manual regeneration.
+- [x] Add manual split edit/confirm by creating the next split version.
+- [x] Update config copy so digital settings apply to future arrivals.
+- [x] Keep fonograma label at 41,70%; if there is no musician/producer line, the 16,60% musician pool goes to interpreters instead of increasing the label to 50%.
 
 ### Task 5: Apresentacao With Claude
 
@@ -88,10 +92,26 @@
 - Modify: `apps/web/app/releases/[id]/pitch/page.tsx`
 - Modify: `apps/web/app/releases/actions.ts`
 
-- [ ] Rename UI text from Pitch to Apresentacao.
-- [ ] Build one presentation prompt per track and optional improvement prompt.
-- [ ] Call Claude with `ANTHROPIC_API_KEY`, `CLAUDE_SONNET_MODEL`, and JSON parsing fallback.
-- [ ] Enforce 100 tenant AI credits, 2 credits per generation, using `pitches` count.
+- [x] Rename UI text from Pitch to Apresentacao.
+- [x] Build one presentation prompt per track and optional improvement prompt.
+- [x] Call Claude with `ANTHROPIC_API_KEY`, `CLAUDE_SONNET_MODEL`, web search, and JSON parsing fallback.
+- [x] Enforce 100 tenant AI credits, 2 credits per generation, using `pitches` count.
+- [x] Confirm original audio pipeline: `apps/audio-svc` transcribes audio and stores `tracks.lyrics_transcript`; Apresentacao consumes this transcript when available.
+
+### Task 5B: WhatsApp Album/Single and Audio Filename Review
+
+**Files:**
+- Modify: `packages/wa/src/types.ts`
+- Modify: `packages/wa/src/handlers.ts`
+- Modify: `packages/wa/src/machine.ts`
+- Modify: `packages/wa/src/intake.test.ts`
+- Modify: `apps/web/app/api/webhooks/whatsapp/route.ts`
+
+- [x] Ask whether the submission is single or album/EP before title.
+- [x] For album/EP, ask how many tracks are in the submission.
+- [x] Add `voltar` support and append correction guidance to every answer.
+- [x] Read audio filename metadata from Evolution payload and infer title/participants when possible.
+- [x] Ask for corrections in list format when filename-derived title/participants are not correct.
 
 ### Task 6: Pipeline, Verification, Deploy
 
@@ -102,4 +122,3 @@
 - [ ] Update the pipeline document to match the current release stages and presentation terminology.
 - [ ] Run targeted tests, package tests, typecheck, lint, build, Cloudflare deploy, production smoke tests, and git status.
 - [ ] Commit, push to `origin/master`, and report exact evidence.
-

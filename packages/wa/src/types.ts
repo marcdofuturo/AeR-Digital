@@ -2,6 +2,8 @@ import type { WhatsAppProvider } from "./provider";
 
 // ─── Step identifiers ────────────────────────────────────────
 export type Step =
+  | "ask_release_format"
+  | "ask_album_track_count"
   | "ask_title"
   | "ask_artists"
   | "ask_producers"
@@ -15,7 +17,13 @@ export type Step =
 
 // ─── Draft — accumulated answers ─────────────────────────────
 export interface Draft {
+  release_format?: "single" | "album";
+  album_track_count?: number;
+  current_track_index?: number;
   title?: string;
+  audio_filename?: string;
+  filename_title_guess?: string;
+  filename_participants_guess?: string[];
   corrected_title?: string;
   artists?: ResolvedArtist[];
   producers?: ProducerRef[];

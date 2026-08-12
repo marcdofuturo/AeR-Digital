@@ -21,6 +21,27 @@ export function splitNames(input: string): string[] {
     .slice(0, 12);
 }
 
+export function parseAudioFilename(input: string): { title: string | null; participants: string[] } {
+  const cleaned = input
+    .replace(/^\[(?:AUDIO|DOCUMENT)\]\s*/i, "")
+    .replace(/\.(wav|wave|mp3|flac|m4a|aac|ogg)$/i, "")
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned || cleaned.startsWith("[")) return { title: null, participants: [] };
+
+  const dashParts = cleaned.split(/\s+-\s+/).map(part => part.trim()).filter(Boolean);
+  if (dashParts.length >= 2) {
+    return {
+      participants: splitNames(dashParts[0]!),
+      title: dashParts.slice(1).join(" - "),
+    };
+  }
+
+  return { title: cleaned, participants: [] };
+}
+
 // ─── Genre list ──────────────────────────────────────────────
 export const GENEROS = [
   "Funk", "Trap", "Rap", "Hip Hop", "Pagode", "Samba", "Sertanejo", "Forró",
@@ -79,6 +100,45 @@ export function parseReleaseDate(input: string): string | null {
 // ─── Step handlers ──────────────────────────────────────────
 
 export const handlers: Record<Step, StepHandler> = {
+  async ask_release_format(input, _draft, _ctx) {
+    const norm = input.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (norm.includes("album") || norm.includes("ep")) {
+      return {
+        reply: "✅ Álbum/EP.\n\nQuantas faixas vão entrar neste envio?\n\nSe precisar corrigir, escreva *voltar*.",
+        nextStep: "ask_album_track_count",
+        draft: { release_format: "album" },
+      };
+    }
+    if (norm.includes("single") || norm.includes("musica") || norm.includes("faixa") || norm === "1") {
+      return {
+        reply: "✅ Single.\n\n*1. Qual o nome da música?*\n\nSe precisar corrigir, escreva *voltar*.",
+        nextStep: "ask_title",
+        draft: { release_format: "single", album_track_count: 1, current_track_index: 1 },
+      };
+    }
+    return {
+      reply: "É *single* ou *álbum/EP*?\n\nResponda com: Single ou Álbum.\n\nSe precisar corrigir, escreva *voltar*.",
+      nextStep: "ask_release_format",
+      draft: {},
+    };
+  },
+
+  async ask_album_track_count(input, _draft, _ctx) {
+    const count = Number(input.replace(/\D+/g, ""));
+    if (!Number.isInteger(count) || count < 1 || count > 60) {
+      return {
+        reply: "Me diga a quantidade de faixas com um número entre 1 e 60.\n\nSe precisar corrigir, escreva *voltar*.",
+        nextStep: "ask_album_track_count",
+        draft: {},
+      };
+    }
+    return {
+      reply: `✅ ${count} faixa${count > 1 ? "s" : ""}.\n\n*1. Qual o nome da primeira música?*\n\nSe precisar corrigir, escreva *voltar*.`,
+      nextStep: "ask_title",
+      draft: { album_track_count: count, current_track_index: 1 },
+    };
+  },
+
   async ask_title(input, _draft, ctx) {
     const title = input.trim();
     return {
@@ -266,11 +326,21 @@ export const handlers: Record<Step, StepHandler> = {
     };
   },
 
-  async ask_audio(_input, _draft, _ctx) {
+  async ask_audio(input, _draft, _ctx) {
+    const filenameInfo = parseAudioFilename(input);
+    const suggestion = filenameInfo.title
+      ? `\n\nPelo nome do arquivo, identifiquei:\n*Nome:* ${filenameInfo.title}\n*Participantes:* ${filenameInfo.participants.join(", ") || "não identificado"}\n\nSe estiver diferente, responda em lista:\nNome: ...\nParticipantes: Artista 1, Artista 2\nCargos: Artista 1 - intérprete; Artista 2 - produtor`
+      : "";
+
     return {
-      reply: "Perfeito! 🎧\n\nAgora a *capa*. Manda como *ARQUIVO/DOCUMENTO* (no clipe 📎 → Documento), não como foto — senão o WhatsApp estraga a qualidade.\n\nMínimo 3000x3000px, quadrada.",
+      reply: `Perfeito! 🎧${suggestion}\n\nAgora a *capa*. Manda como *ARQUIVO/DOCUMENTO* (no clipe 📎 → Documento), não como foto — senão o WhatsApp estraga a qualidade.\n\nMínimo 3000x3000px, quadrada.`,
       nextStep: "ask_cover",
-      draft: { audio_url: "received" },
+      draft: {
+        audio_url: "received",
+        audio_filename: input,
+        filename_title_guess: filenameInfo.title ?? undefined,
+        filename_participants_guess: filenameInfo.participants,
+      },
     };
   },
 

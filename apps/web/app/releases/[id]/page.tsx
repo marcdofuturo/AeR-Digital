@@ -6,7 +6,7 @@ import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId, getTenant } from "@/lib/tenant";
 import { KANBAN_STAGES, formatDaysInStage } from "@ar/ai/crm";
 import { fmtDate } from "@ar/shared";
-import { saveArtistMetadata } from "@/app/releases/actions";
+import { saveArtistMetadata, saveReleaseOverview, saveTrackOverview } from "@/app/releases/actions";
 import { Calendar, Clock, Disc3, FileText, Users, Wrench } from "lucide-react";
 
 const STAGE_LABEL: Record<string, string> = {};
@@ -53,6 +53,43 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <Card className="lg:col-span-3">
+        <CardHeader>
+          <CardTitle className="text-base">Editar visão geral</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <form action={saveReleaseOverview} className="grid gap-3 md:grid-cols-4">
+            <input type="hidden" name="release_id" value={id} />
+            <OverviewField name="title" label="Lançamento" defaultValue={r.title ?? ""} />
+            <OverviewField name="release_date" label="Data" type="date" defaultValue={String(r.release_date ?? "").slice(0, 10)} />
+            <OverviewField name="genre_primary" label="Gênero principal" defaultValue={r.genre_primary ?? ""} />
+            <OverviewField name="genre_secondary" label="Gênero secundário" defaultValue={r.genre_secondary ?? ""} />
+            <OverviewField name="distributor" label="Agregadora" defaultValue={r.distributor ?? "Audiolink Brasil"} />
+            <OverviewField name="upc" label="UPC" defaultValue={r.upc ?? ""} />
+            <OverviewField name="album_id_ext" label="ID do álbum" defaultValue={r.album_id_ext ?? ""} />
+            <OverviewField name="cover_url" label="Capa URL" defaultValue={r.cover_url ?? ""} />
+            <div className="md:col-span-4 flex justify-end">
+              <Button type="submit" size="sm" variant="outline">Salvar lançamento</Button>
+            </div>
+          </form>
+
+          {tracks.map((track: any) => (
+            <form key={track.id} action={saveTrackOverview} className="grid gap-3 rounded-md border border-border/50 bg-bg p-3 md:grid-cols-5">
+              <input type="hidden" name="release_id" value={id} />
+              <input type="hidden" name="track_id" value={track.id} />
+              <OverviewField name="title" label="Faixa" defaultValue={track.title ?? ""} />
+              <OverviewField name="isrc" label="ISRC" defaultValue={track.isrc ?? ""} />
+              <OverviewField name="audio_url" label="Áudio URL" defaultValue={track.audio_url ?? ""} />
+              <label className="flex items-center gap-2 self-end text-xs text-fg-muted">
+                <input type="checkbox" name="explicit" defaultChecked={Boolean(track.explicit)} className="accent-brand" />
+                Explícita
+              </label>
+              <Button type="submit" size="sm" variant="outline" className="self-end">Salvar faixa</Button>
+            </form>
+          ))}
+        </CardContent>
+      </Card>
+
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -140,9 +177,8 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                     <TableRow>
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>Nome artístico</TableHead>
-                      <TableHead>Nome físico</TableHead>
+                      <TableHead>Nome Completo</TableHead>
                       <TableHead>Código ECAD</TableHead>
-                      <TableHead>Associação</TableHead>
                       <TableHead>Papel</TableHead>
                       <TableHead className="text-right">Salvar</TableHead>
                     </TableRow>
@@ -164,7 +200,7 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                                 form={formId}
                                 name="legal_name"
                                 defaultValue={artist.legal_name ?? ""}
-                                placeholder="Nome físico"
+                                placeholder="Nome completo"
                                 className="w-40 rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-fg"
                               />
                             </TableCell>
@@ -175,15 +211,6 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                                 defaultValue={artist.ecad_code ?? ""}
                                 placeholder="ECAD"
                                 className="w-28 rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-fg"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <input
-                                form={formId}
-                                name="pro_affiliation"
-                                defaultValue={artist.pro_affiliation ?? ""}
-                                placeholder="UBC, Abramus..."
-                                className="w-32 rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-fg"
                               />
                             </TableCell>
                             <TableCell>
@@ -319,6 +346,30 @@ function InfoTile({ label, value, mono = false }: { label: string; value: string
       <span className="text-xs text-fg-muted">{label}</span>
       <p className={`${mono ? "font-mono" : ""} text-fg`}>{value}</p>
     </div>
+  );
+}
+
+function OverviewField({
+  name,
+  label,
+  defaultValue,
+  type = "text",
+}: {
+  name: string;
+  label: string;
+  defaultValue: string;
+  type?: string;
+}) {
+  return (
+    <label className="text-xs text-fg-muted">
+      {label}
+      <input
+        name={name}
+        type={type}
+        defaultValue={defaultValue}
+        className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-2 text-sm text-fg"
+      />
+    </label>
   );
 }
 

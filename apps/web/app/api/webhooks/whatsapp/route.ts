@@ -74,7 +74,11 @@ export async function POST(req: NextRequest) {
   const hasAudio = !!msg?.audioMessage;
   const hasImage = !!msg?.imageMessage;
 
-  if (!message && hasAudio) message = "[AUDIO]";
+  const audioFileName = (msg?.audioMessage as { fileName?: string })?.fileName
+    ?? (msg?.documentMessage as { fileName?: string; mimetype?: string })?.fileName
+    ?? "";
+
+  if (!message && hasAudio) message = audioFileName ? `[AUDIO] ${audioFileName}` : "[AUDIO]";
   if (!message && hasImage) message = "[IMAGE]";
 
   if (!message) {
@@ -110,17 +114,17 @@ export async function POST(req: NextRequest) {
 
   // ── Session management ──────────────────────────────────────
   const session = await loadSession(phone, tenant.tenant_id);
-  const currentStep = session?.step ?? "ask_title";
+  const currentStep = session?.step ?? "ask_release_format";
   const currentDraft: Draft = session?.draft ?? {};
 
   // First message is just the intake code → greet without processing
   if (!session && codeMatch) {
-    await saveSession(phone, tenant.tenant_id, "ask_title", {});
+    await saveSession(phone, tenant.tenant_id, "ask_release_format", {});
     const provider = getProvider();
     try {
       await provider.sendText(
         phone,
-        `Fala! 👋 Aqui é o *${tenant.tenant_name}*.\n\nVou te fazer 5 perguntas rapidinhas e no fim você me manda a música e a capa. Leva 1 minuto.\n\n*1. Qual o nome da música?*`,
+        `Fala! 👋 Aqui é o *${tenant.tenant_name}*.\n\nPrimeiro: esse envio é *single* ou *álbum/EP*?\n\nSe precisar corrigir em qualquer pergunta, escreva *voltar*.`,
       );
     } catch (err) {
       console.error("Failed to send greeting reply:", err);
@@ -130,7 +134,7 @@ export async function POST(req: NextRequest) {
 
   // No session yet → create one
   if (!session) {
-    await saveSession(phone, tenant.tenant_id, "ask_title", currentDraft);
+    await saveSession(phone, tenant.tenant_id, "ask_release_format", currentDraft);
   }
 
   // ── State machine ───────────────────────────────────────────
@@ -146,7 +150,7 @@ export async function POST(req: NextRequest) {
   };
 
   const machine = new StepMachine(
-    currentStep as "ask_title",
+    currentStep as "ask_release_format",
     currentDraft,
     ctx,
   );

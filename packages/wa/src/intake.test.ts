@@ -1,7 +1,7 @@
 // ─── WhatsApp Intake Tests — 10 scenarios ───────────────────
 import { describe, it, expect, beforeAll } from "vitest";
 import { StepMachine } from "./machine";
-import { handlers, assignRoles, splitNames, matchGenre, parseReleaseDate } from "./handlers";
+import { handlers, assignRoles, splitNames, matchGenre, parseReleaseDate, parseAudioFilename } from "./handlers";
 import { MockProvider } from "./provider";
 import type { HandlerContext, HandlerDB, ResolvedArtist, Draft } from "./types";
 import type { Step } from "./types";
@@ -50,6 +50,35 @@ function testCtx(provider?: MockProvider): HandlerContext {
 
 // ─── a) Happy flow: 3 artists, producer in list ──────────────
 describe("Intake flow", () => {
+  it("asks whether the release is single or album before the title", async () => {
+    const ctx = testCtx(new MockProvider());
+    const m = new StepMachine("ask_release_format", {}, ctx);
+
+    let r = await m.process("album");
+    expect(r.nextStep).toBe("ask_album_track_count");
+    expect(r.reply).toContain("Quantas faixas");
+
+    r = await m.process("3 faixas");
+    expect(r.nextStep).toBe("ask_title");
+    expect(r.draft.album_track_count).toBe(3);
+  });
+
+  it("supports voltar to reopen the previous question", async () => {
+    const ctx = testCtx(new MockProvider());
+    const m = new StepMachine("ask_artists", { title: "Teste" }, ctx);
+
+    const r = await m.process("voltar");
+    expect(r.nextStep).toBe("ask_title");
+    expect(r.reply).toContain("Voltamos");
+  });
+
+  it("reads title and participants from an audio filename", () => {
+    expect(parseAudioFilename("[AUDIO] MC GH, MC Jacaré - Minha Música Incrível.mp3")).toEqual({
+      title: "Minha Música Incrível",
+      participants: ["MC GH", "MC Jacaré"],
+    });
+  });
+
   it("a) Happy flow — 3 artists, producer already in list", async () => {
     const prov = new MockProvider();
     const ctx = testCtx(prov);

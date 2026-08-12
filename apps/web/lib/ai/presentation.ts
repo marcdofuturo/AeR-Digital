@@ -66,6 +66,13 @@ export async function generateClaudePresentation({
       body: JSON.stringify({
         model,
         max_tokens: 900,
+        tools: [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+            max_uses: Math.min(6, Math.max(2, track.participants.length + 1)),
+          },
+        ],
         messages: [{ role: "user", content: prompt }],
       }),
     });

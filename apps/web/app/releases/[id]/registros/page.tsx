@@ -8,8 +8,8 @@ import { addTrackParticipant, saveRegistrationStatus, setReleaseStageFromForm } 
 import { AlertTriangle, CheckCheck, Clock, Plus, XCircle } from "lucide-react";
 
 const REG_LABELS: Record<string, string> = {
-  obra_ecad: "Registrar obra",
-  fonograma_ecad: "Registrar fonograma",
+  obra_ecad: "Status da obra",
+  fonograma_ecad: "Status do fonograma",
   isrc: "ISRC",
   distribuicao: "Distribuição",
 };
@@ -96,7 +96,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
                   {participants.map((tp: any) => (
                     <div key={tp.id} className="text-sm text-fg">
                       {tp.artists?.legal_name ?? tp.artists?.stage_name ?? "Autor"}
-                      <span className="ml-2 text-xs text-fg-muted">Autor/compositor · split pro-rata</span>
+                      <span className="ml-2 text-xs text-fg-muted">Autor/compositor</span>
                     </div>
                   ))}
                 </div>
@@ -173,8 +173,8 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
                             <option value="na">N/A</option>
                           </select>
                         </label>
-                        <Field name="entity" label="Associação / entidade" defaultValue={reg?.entity ?? ""} placeholder="UBC, Abramus, Audiolink" />
-                        <Field name="external_id" label="Número externo" defaultValue={reg?.external_id ?? ""} placeholder="ISWC, ISRC, protocolo" />
+                        <Field name="entity" label={kind === "distribuicao" ? "Agregadora" : "Associação / entidade"} defaultValue={reg?.entity ?? ""} placeholder={kind === "distribuicao" ? "Altafonte, ONErpm, Tratore" : "UBC, Abramus, Audiolink"} />
+                        <Field name="external_id" label={kind === "distribuicao" ? "UPC" : "Número externo"} defaultValue={reg?.external_id ?? ""} placeholder={kind === "distribuicao" ? "UPC" : "ISWC, ISRC, protocolo"} />
                         <Field name="notes" label="Observação" defaultValue={reg?.notes ?? ""} placeholder="Detalhes do cadastro" />
                       </div>
 
@@ -235,7 +235,7 @@ function AddParticipantPanel({
         <input type="hidden" name="release_id" value={releaseId} />
         <input type="hidden" name="track_id" value={trackId} />
         <Field name="stage_name" label="Nome artístico" defaultValue="" placeholder="Nome no crédito" />
-        <Field name="legal_name" label="Nome físico" defaultValue="" placeholder="Nome civil" />
+        <Field name="legal_name" label="Nome Completo" defaultValue="" placeholder="Nome civil" />
         <Field name="ecad_code" label="Código ECAD" defaultValue="" placeholder="ECAD" />
         <label className="text-xs text-fg-muted">
           Papel
@@ -263,4 +263,3 @@ function AddParticipantPanel({
     </details>
   );
 }
-

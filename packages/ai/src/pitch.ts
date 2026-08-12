@@ -224,6 +224,7 @@ ${improvement}
 REGRAS
 - Portugues brasileiro.
 - Maximo de 700 caracteres.
+- Pesquise os artistas citados e use somente sinais verificaveis de relevancia publica quando houver.
 - Nao invente streams, premios, playlists, parcerias ou numeros.
 - Explique o som, o momento da faixa e o encaixe comercial.
 - Retorne JSON estrito: {"apresentacao":str,"avisos":[str]}`;

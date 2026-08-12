@@ -48,6 +48,7 @@ describe("generateClaudePresentation", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({ "x-api-key": "test-key" }),
+        body: expect.stringContaining("web_search_20250305"),
       }),
     );
   });
