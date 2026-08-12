@@ -8,7 +8,32 @@ export async function getReleases(tenantId?: string) {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("releases")
-    .select("*, tracks(id, track_participants(position, billing_role, artists(stage_name)))")
+    .select(`
+      *,
+      tracks(
+        id,
+        title,
+        isrc,
+        audio_url,
+        audio_duration_sec,
+        audio_bpm,
+        audio_key,
+        explicit,
+        track_participants(
+          position,
+          billing_role,
+          is_producer,
+          is_composer,
+          is_performer,
+          artists(id, stage_name)
+        ),
+        registrations(kind, status, entity, external_id, due_at)
+      ),
+      authorizations(
+        status,
+        authorization_recipients(status, name, email)
+      )
+    `)
     .eq("tenant_id", tid)
     .is("deleted_at", null)
     .order("release_date", { ascending: true });
