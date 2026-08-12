@@ -35,6 +35,7 @@ export interface KanbanCardData {
   releaseDate: string;
   stage: string;
   daysInStage: number;
+  stageSince?: string | null;
   genrePrimary?: string | null;
   genreSecondary?: string | null;
   coverUrl?: string | null;

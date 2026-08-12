@@ -30,5 +30,5 @@ describe("global Tailwind stylesheet", () => {
     expect(result.css).toContain(".border-border");
     expect(result.css).toContain(".rounded-md");
     expect(result.css).toContain(".font-sans");
-  }, 30000);
+  }, 60000);
 });

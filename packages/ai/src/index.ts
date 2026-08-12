@@ -1,6 +1,6 @@
-export { SpotifyClient, buildPitchPrompt, isEligibleForPitch } from "./pitch";
+export { SpotifyClient, buildPitchPrompt, buildPresentationPrompt, isEligibleForPitch } from "./pitch";
 export type {
-  SpotifyArtist, SpotifyTrack, AudioFeatures, AudioAnalysis, PitchContext, PitchResult,
+  SpotifyArtist, SpotifyTrack, AudioFeatures, AudioAnalysis, PitchContext, PitchResult, PresentationContext,
 } from "./pitch";
 
 export {

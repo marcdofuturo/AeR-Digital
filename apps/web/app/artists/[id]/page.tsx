@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getArtist } from "@/lib/data/artists";
+import { getArtist, mapArtistReleases } from "@/lib/data/artists";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
 import { KANBAN_STAGES } from "@ar/ai/crm";
-import { ArrowLeft, Music, Mail, Phone, ExternalLink, AlertTriangle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ExternalLink, Mail, Music, Phone } from "lucide-react";
 
 const STAGE_LABEL = Object.fromEntries(KANBAN_STAGES.map((stage) => [stage.id, stage.label]));
 
@@ -21,29 +21,11 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
 
   const a = artist as any;
   const contacts = a.artist_contacts ?? [];
-  const participations = a.track_participants ?? [];
-
-  const releaseMap = new Map<string, { id: string; title: string; release_date: string; stage: string; track_title: string }>();
-  for (const tp of participations) {
-    const t = tp.tracks;
-    if (!t) continue;
-    const rel = t.releases;
-    if (!rel) continue;
-    releaseMap.set(t.release_id ?? t.track_id, {
-      id: rel.release_id ?? t.release_id,
-      title: rel.title ?? "-",
-      release_date: rel.release_date,
-      stage: rel.stage,
-      track_title: t.title,
-    });
-  }
-  const releases = Array.from(releaseMap.values()).sort(
-    (a, b) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime(),
-  );
+  const releases = mapArtistReleases(a.track_participants ?? []);
 
   return (
     <div className="p-8 max-w-[1200px]">
-      <div className="flex items-center gap-4 mb-8">
+      <div className="mb-8 flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/artists">
             <ArrowLeft className="h-4 w-4" />
@@ -55,46 +37,26 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
             {a.needs_review && <AlertTriangle className="h-5 w-5 text-warning" />}
           </div>
           {a.legal_name && (
-            <p className="text-fg-muted mt-1">{a.legal_name}</p>
+            <p className="mt-1 text-fg-muted">{a.legal_name}</p>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Informações</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {a.legal_name && (
-                <div>
-                  <span className="text-xs text-fg-muted">Nome civil</span>
-                  <p className="text-sm text-fg">{a.legal_name}</p>
-                </div>
-              )}
-              {a.cpf_cnpj && (
-                <div>
-                  <span className="text-xs text-fg-muted">CPF/CNPJ</span>
-                  <p className="text-sm text-fg font-mono">{a.cpf_cnpj}</p>
-                </div>
-              )}
-              {a.ecad_code && (
-                <div>
-                  <span className="text-xs text-fg-muted">Código ECAD</span>
-                  <p className="text-sm text-fg font-mono">{a.ecad_code}</p>
-                </div>
-              )}
-              {a.pro_affiliation && (
-                <div>
-                  <span className="text-xs text-fg-muted">PRO / Afiliação</span>
-                  <p className="text-sm text-fg">{a.pro_affiliation}</p>
-                </div>
-              )}
+              <Info label="Nome civil" value={a.legal_name} />
+              <Info label="CPF/CNPJ" value={a.cpf_cnpj} mono />
+              <Info label="Código ECAD" value={a.ecad_code} mono />
+              <Info label="PRO / Associação" value={a.pro_affiliation} />
               {a.spotify_url && (
                 <div>
                   <span className="text-xs text-fg-muted">Spotify</span>
-                  <a href={a.spotify_url} target="_blank" rel="noopener noreferrer" className="text-sm text-brand hover:underline flex items-center gap-1">
+                  <a href={a.spotify_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-brand hover:underline">
                     {a.spotify_id ?? "Perfil"} <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
@@ -132,29 +94,29 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Music className="h-4 w-4" />
-              Catálogo ({releases.length})
+              Músicas ({releases.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             {releases.length === 0 ? (
-              <p className="text-sm text-fg-muted py-8 text-center">Nenhum lançamento associado</p>
+              <p className="py-8 text-center text-sm text-fg-muted">Nenhuma música associada</p>
             ) : (
               <div className="space-y-1">
                 {releases.map((rel) => (
-                  <Link key={rel.id} href={`/releases/${rel.id}`}>
-                    <div className="flex items-center justify-between p-3 rounded-md hover:bg-surface-2/50 transition-colors">
+                  <Link key={`${rel.id}-${rel.track_title}`} href={`/releases/${rel.id}`}>
+                    <div className="flex items-center justify-between rounded-md p-3 transition-colors hover:bg-surface-2/50">
                       <div>
-                        <p className="text-sm font-medium text-fg">{rel.title}</p>
-                        <p className="text-xs text-fg-muted">{rel.track_title}</p>
+                        <p className="text-sm font-medium text-fg">{rel.track_title}</p>
+                        <p className="text-xs text-fg-muted">{rel.title}</p>
                       </div>
                       <div className="flex items-center gap-3">
                         <Badge variant="outline" className="text-[10px]">
                           {STAGE_LABEL[rel.stage] ?? rel.stage}
                         </Badge>
                         <span className="text-xs text-fg-muted">
-                          {fmtDate(rel.release_date, "dd/MM/yyyy")}
+                          {rel.release_date ? fmtDate(rel.release_date, "dd/MM/yyyy") : "-"}
                         </span>
                       </div>
                     </div>
@@ -168,3 +130,14 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
     </div>
   );
 }
+
+function Info({ label, value, mono = false }: { label: string; value?: string | null; mono?: boolean }) {
+  if (!value) return null;
+  return (
+    <div>
+      <span className="text-xs text-fg-muted">{label}</span>
+      <p className={`text-sm text-fg ${mono ? "font-mono" : ""}`}>{value}</p>
+    </div>
+  );
+}
+

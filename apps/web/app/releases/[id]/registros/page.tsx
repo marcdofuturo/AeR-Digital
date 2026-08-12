@@ -2,17 +2,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getRelease } from "@/lib/data/releases";
-import { getCurrentTenantId } from "@/lib/tenant";
+import { getCurrentTenantId, getTenant } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
-import { saveRegistrationStatus, setReleaseStageFromForm } from "@/app/releases/actions";
-import { CheckCheck, Clock, AlertTriangle, XCircle } from "lucide-react";
+import { addTrackParticipant, saveRegistrationStatus, setReleaseStageFromForm } from "@/app/releases/actions";
+import { AlertTriangle, CheckCheck, Clock, Plus, XCircle } from "lucide-react";
 
 const REG_LABELS: Record<string, string> = {
   obra_ecad: "Registrar obra",
   fonograma_ecad: "Registrar fonograma",
   isrc: "ISRC",
   distribuicao: "Distribuição",
-  youtube_cid: "YouTube Content ID",
 };
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "success" | "warning" | "danger"> = {
@@ -23,14 +22,14 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "success" | "warn
   na: "secondary",
 };
 
-const REGISTRATION_ORDER = ["obra_ecad", "fonograma_ecad", "isrc", "distribuicao", "youtube_cid"];
+const REGISTRATION_ORDER = ["obra_ecad", "fonograma_ecad", "isrc", "distribuicao"];
 
 export default async function RegistrosPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return null;
 
-  const release = await getRelease(tenantId, id);
+  const [release, tenant] = await Promise.all([getRelease(tenantId, id), getTenant()]);
   if (!release) return null;
 
   const r = release as any;
@@ -48,7 +47,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
         <CardHeader>
           <CardTitle className="text-base">Checklist de registros</CardTitle>
           <CardDescription>
-            Obra registra autores/compositores e splits. Fonograma usa compositores como autores, produtores como músicos acompanhantes e o selo do painel como produtor fonográfico.
+            Obra usa todos os participantes como autores/compositores. Fonograma usa produtores como músicos acompanhantes e o selo como produtor fonográfico.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -78,29 +77,53 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
         const regs = track.registrations ?? [];
         const byKind: Record<string, any> = {};
         for (const reg of regs) byKind[reg.kind] = reg;
-        const participants = track.track_participants ?? [];
-        const composers = participants.filter((tp: any) => tp.is_composer);
+        const participants = [...(track.track_participants ?? [])].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
         const producers = participants.filter((tp: any) => tp.is_producer);
+        const performers = participants.filter((tp: any) => tp.is_performer && !tp.is_producer);
 
         return (
           <Card key={track.id}>
             <CardHeader>
               <CardTitle className="text-base">{track.title}</CardTitle>
               <CardDescription>
-                {composers.length} autor(es) · {producers.length} produtor(es) marcado(s)
+                {participants.length} participante(s) · {producers.length} produtor(es) marcado(s)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-md border border-border/50 bg-bg p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">Autores da obra</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">Registrar obra</p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {composers.map((tp: any) => (
+                  {participants.map((tp: any) => (
                     <div key={tp.id} className="text-sm text-fg">
                       {tp.artists?.legal_name ?? tp.artists?.stage_name ?? "Autor"}
-                      <span className="ml-2 text-xs text-fg-muted">split pro-rata</span>
+                      <span className="ml-2 text-xs text-fg-muted">Autor/compositor · split pro-rata</span>
                     </div>
                   ))}
                 </div>
+                <AddParticipantPanel releaseId={id} trackId={track.id} defaultComposer defaultPerformer />
+              </div>
+
+              <div className="rounded-md border border-border/50 bg-bg p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">Registrar fonograma</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="text-sm text-fg">
+                    {tenant?.name ?? "Audiolink Brasil"}
+                    <span className="ml-2 text-xs text-fg-muted">Produtor fonográfico</span>
+                  </div>
+                  {performers.map((tp: any) => (
+                    <div key={tp.id} className="text-sm text-fg">
+                      {tp.artists?.legal_name ?? tp.artists?.stage_name ?? "Intérprete"}
+                      <span className="ml-2 text-xs text-fg-muted">Intérprete</span>
+                    </div>
+                  ))}
+                  {producers.map((tp: any) => (
+                    <div key={tp.id} className="text-sm text-fg">
+                      {tp.artists?.legal_name ?? tp.artists?.stage_name ?? "Produtor"}
+                      <span className="ml-2 text-xs text-fg-muted">Músico acompanhante</span>
+                    </div>
+                  ))}
+                </div>
+                <AddParticipantPanel releaseId={id} trackId={track.id} defaultProducer />
               </div>
 
               <div className="space-y-3">
@@ -150,18 +173,9 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
                             <option value="na">N/A</option>
                           </select>
                         </label>
-                        <label className="text-xs text-fg-muted">
-                          Associação / entidade
-                          <input name="entity" defaultValue={reg?.entity ?? ""} placeholder="UBC, Abramus, Audiolink" className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-2 text-sm text-fg" />
-                        </label>
-                        <label className="text-xs text-fg-muted">
-                          Número externo
-                          <input name="external_id" defaultValue={reg?.external_id ?? ""} placeholder="ISWC, ISRC, protocolo" className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-2 text-sm text-fg" />
-                        </label>
-                        <label className="text-xs text-fg-muted">
-                          Observação
-                          <input name="notes" defaultValue={reg?.notes ?? ""} placeholder="Detalhes do cadastro" className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-2 text-sm text-fg" />
-                        </label>
+                        <Field name="entity" label="Associação / entidade" defaultValue={reg?.entity ?? ""} placeholder="UBC, Abramus, Audiolink" />
+                        <Field name="external_id" label="Número externo" defaultValue={reg?.external_id ?? ""} placeholder="ISWC, ISRC, protocolo" />
+                        <Field name="notes" label="Observação" defaultValue={reg?.notes ?? ""} placeholder="Detalhes do cadastro" />
                       </div>
 
                       <div className="mt-3 flex justify-end">
@@ -178,3 +192,75 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
     </div>
   );
 }
+
+function Field({
+  name,
+  label,
+  defaultValue,
+  placeholder,
+}: {
+  name: string;
+  label: string;
+  defaultValue: string;
+  placeholder: string;
+}) {
+  return (
+    <label className="text-xs text-fg-muted">
+      {label}
+      <input name={name} defaultValue={defaultValue} placeholder={placeholder} className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-2 text-sm text-fg" />
+    </label>
+  );
+}
+
+function AddParticipantPanel({
+  releaseId,
+  trackId,
+  defaultComposer = false,
+  defaultPerformer = false,
+  defaultProducer = false,
+}: {
+  releaseId: string;
+  trackId: string;
+  defaultComposer?: boolean;
+  defaultPerformer?: boolean;
+  defaultProducer?: boolean;
+}) {
+  return (
+    <details className="mt-3 rounded-md border border-dashed border-border/70 bg-surface/40 p-3">
+      <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-brand">
+        <Plus className="h-4 w-4" />
+        Adicionar participante
+      </summary>
+      <form action={addTrackParticipant} className="mt-3 grid gap-3 md:grid-cols-5">
+        <input type="hidden" name="release_id" value={releaseId} />
+        <input type="hidden" name="track_id" value={trackId} />
+        <Field name="stage_name" label="Nome artístico" defaultValue="" placeholder="Nome no crédito" />
+        <Field name="legal_name" label="Nome físico" defaultValue="" placeholder="Nome civil" />
+        <Field name="ecad_code" label="Código ECAD" defaultValue="" placeholder="ECAD" />
+        <label className="text-xs text-fg-muted">
+          Papel
+          <select name="billing_role" defaultValue="primary" className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-2 text-sm text-fg">
+            <option value="primary">Principal</option>
+            <option value="featuring">Feat.</option>
+          </select>
+        </label>
+        <div className="space-y-1 text-xs text-fg-muted">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" name="is_composer" defaultChecked={defaultComposer} className="accent-brand" />
+            Compositor
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" name="is_performer" defaultChecked={defaultPerformer} className="accent-brand" />
+            Intérprete
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" name="is_producer" defaultChecked={defaultProducer} className="accent-brand" />
+            Produtor
+          </label>
+          <Button type="submit" size="sm" className="mt-2 w-full">Adicionar</Button>
+        </div>
+      </form>
+    </details>
+  );
+}
+

@@ -13,7 +13,6 @@ const REGISTRATION_KINDS = [
   "fonograma_ecad",
   "isrc",
   "distribuicao",
-  "youtube_cid",
 ];
 
 type NewReleasePageProps = {

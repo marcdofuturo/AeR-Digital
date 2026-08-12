@@ -10,12 +10,14 @@ import {
   CheckSquare,
   Settings,
   Menu,
+  SkipBack,
 } from "lucide-react";
 import { cn } from "@ar/ui";
 import { UserMenu } from "./user-menu";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -29,43 +31,93 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
-  const sidebarContent = (
+  useEffect(() => {
+    setCollapsed(window.localStorage.getItem("ar-sidebar-collapsed") === "1");
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((value) => {
+      const next = !value;
+      window.localStorage.setItem("ar-sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
+
+  const sidebarContent = (isCollapsed = false) => (
     <div className="flex flex-col h-full">
       {/* Brand */}
-      <div className="p-6 border-b border-border">
-        <Link href="/" className="text-lg font-bold tracking-tight" onClick={() => setOpen(false)}>
-          AeR Digital
-        </Link>
-        <p className="text-xs text-fg-muted mt-1">Audiolink Brasil</p>
+      <div className={cn("border-b border-border", isCollapsed ? "p-3" : "p-6")}>
+        <div className={cn("flex items-start gap-2", isCollapsed ? "justify-center" : "justify-between")}>
+          {!isCollapsed && (
+            <div className="min-w-0">
+              <Link href="/" className="text-lg font-bold tracking-tight" onClick={() => setOpen(false)}>
+                AeR Digital
+              </Link>
+              <p className="text-xs text-fg-muted mt-1">Audiolink Brasil</p>
+            </div>
+          )}
+          {isCollapsed && (
+            <Link
+              href="/"
+              aria-label="AeR Digital"
+              className="grid h-9 w-9 place-items-center rounded-md bg-surface-2 text-sm font-bold text-fg"
+              onClick={() => setOpen(false)}
+            >
+              AeR
+            </Link>
+          )}
+          {!open && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={isCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+              title={isCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+              onClick={toggleCollapsed}
+              className="hidden h-8 w-8 md:inline-flex"
+            >
+              <SkipBack className={cn("h-4 w-4", isCollapsed && "rotate-180")} />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className={cn("flex-1 space-y-1", isCollapsed ? "p-3" : "p-4")}>
         {NAV_ITEMS.map((item) => {
           const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-          return (
+          const link = (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                "flex items-center rounded-md text-sm transition-colors",
+                isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2",
                 active
                   ? "text-fg bg-surface-2 font-medium"
                   : "text-fg-muted hover:text-fg hover:bg-surface-2/50",
               )}
             >
-              <item.icon className="h-4 w-4" />
-              {item.label}
+              <item.icon className="h-4 w-4 shrink-0" />
+              {!isCollapsed && <span>{item.label}</span>}
             </Link>
+          );
+          if (!isCollapsed) return link;
+          return (
+            <Tooltip key={item.href}>
+              <TooltipTrigger asChild>{link}</TooltipTrigger>
+              <TooltipContent side="right">{item.label}</TooltipContent>
+            </Tooltip>
           );
         })}
       </nav>
 
       {/* User */}
-      <div className="p-4 border-t border-border">
-        <UserMenu />
+      <div className={cn("border-t border-border", isCollapsed ? "p-3" : "p-4")}>
+        <UserMenu collapsed={isCollapsed} />
       </div>
     </div>
   );
@@ -73,8 +125,13 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="w-64 border-r border-border bg-surface flex-shrink-0 hidden md:flex flex-col">
-        {sidebarContent}
+      <aside
+        className={cn(
+          "border-r border-border bg-surface flex-shrink-0 hidden md:flex flex-col transition-[width] duration-200",
+          collapsed ? "w-20" : "w-64",
+        )}
+      >
+        {sidebarContent(collapsed)}
       </aside>
 
       {/* Mobile hamburger */}
@@ -85,7 +142,7 @@ export function Sidebar() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0 bg-surface border-r border-border">
-          {sidebarContent}
+          {sidebarContent(false)}
         </SheetContent>
       </Sheet>
     </>

@@ -5,6 +5,38 @@ Design system: Audiolink Brasil · Escala-alvo: 500+ gravadoras
 
 ---
 
+## Atualização operacional implementada em 2026-08-12
+
+Este bloco representa o estado atual do produto. Quando houver conflito com seções históricas abaixo, esta definição prevalece.
+
+### Fluxo de lançamentos no painel
+
+1. **Em análise** - conferência inicial da música, arquivos, participantes e pendências. O operador marca quais artistas ainda precisam de autorização e então move para autorização pendente.
+2. **Autorização pendente** - checklist automático por participante da faixa. Cada artista precisa ficar como OK. Quando todos estiverem aprovados, o painel pergunta se haverá registro de obra; se sim, vai para Registrar Obra; se não, pula para Registrar Fonograma.
+3. **Registrar Obra** - registra pessoa física, split de obra e associação de cada autor. A obra gera alerta de acompanhamento para 45 dias, quando deve ser verificado se foi aceita, recebeu ISWC ou foi reprovada.
+4. **Registrar Fonograma** - registra o fonograma usando autores como compositores, produtores como músicos acompanhantes e o selo do painel como produtor fonográfico.
+5. **Pronto p/ Distribuir** - lista as músicas com todos os campos necessários para subida de distribuição.
+6. **Distribuído** - acompanhamento pós-subida.
+7. **Situação ECAD** - acompanhamento de cadastro, execução, pendências e retorno de direitos.
+8. **Concluído** - fluxo operacional encerrado.
+9. **Arquivado** - histórico fora da operação ativa.
+
+### Regras atuais de tela e operação
+
+- O painel lateral é recolhível por botão com símbolo de voltar música.
+- O card de intake usa o texto **Envie sua Música pelo WhatsApp** e o link `https://wa.me/5511948059297?text=A7K9`, com cópia em um clique ao passar o mouse.
+- A aba **Artistas** mostra as músicas em que cada artista participa e usa os dados já existentes no banco.
+- O popup de cada lançamento mostra capa quando houver URL válida, remove placeholders `n/d` de duração, BPM e tom, troca "No estágio" por **Iniciou em:** e abre a ficha operacional.
+- A visão geral de lançamento integra créditos, participantes, copyright do ano atual + selo, dados artísticos/civis, código ECAD e associação. Dados civis, ECAD e associação podem ser adicionados ali e ficam salvos para uso futuro do artista.
+- **Pitch** foi substituído por **Apresentação**. A apresentação usa Claude quando a chave Anthropic está configurada, guarda histórico em `pitches`, permite pedir uma segunda versão com instruções do usuário e consome 2 créditos de IA por geração, dentro do limite de 100 créditos por tenant.
+- **Registros** não exibe YouTube Content ID. Registrar Obra e Registrar Fonograma possuem formulário `+` para adicionar participantes.
+- Splits são automáticos por padrão. Na obra todos os participantes entram como autores/compositores. No fonograma produtores entram como músicos acompanhantes e o selo do usuário entra como produtor fonográfico.
+- Em configurações, o split digital vale para músicas que chegarem a partir daquele momento. O usuário pode definir percentual fixo do selo e o restante fica pro-rata, ou ativar o modo pro-rata automático para dividir 100% entre participantes + selo.
+- Splits de uma música existente podem ser ajustados manualmente na aba **Splits**, e a alteração só vira vigente depois de confirmar.
+- O login ativo é por email e senha; link mágico permanece fora do fluxo de acesso do painel.
+
+---
+
 ## REGRAS FIXAS DO PROJETO (definidas pelo cliente — não negociáveis)
 
 | # | Regra |
