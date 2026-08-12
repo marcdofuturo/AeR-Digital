@@ -108,6 +108,11 @@ export default async function SplitsConfigPage() {
               </p>
             </div>
 
+            <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-fg-muted">
+              Esta configuração será aplicada automaticamente somente às músicas que chegarem a partir deste momento.
+              Para lançamentos já cadastrados, ajuste a aba Splits da própria música e confirme manualmente.
+            </div>
+
             <Button type="submit">Salvar configuração</Button>
           </form>
         </CardContent>

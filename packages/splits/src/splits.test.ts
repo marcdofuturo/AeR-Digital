@@ -45,12 +45,13 @@ describe("SE SOLTA snapshot", () => {
   const participants = [mcGh, mcJac, mucilon];
   const labelName = "SuperTime Digital";
 
-  it("Obra — MC GH 5000 + MC JACARÉ 5000 = 10000", () => {
+  it("Obra — todos os participantes entram como autores/compositores", () => {
     const result = computeObra(participants);
     expect(sum(result)).toBe(10_000);
-    expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({ name: "MC GH", bps100: 5000 });
-    expect(result[1]).toMatchObject({ name: "MC JACARÉ", bps100: 5000 });
+    expect(result).toHaveLength(3);
+    expect(result[0]).toMatchObject({ name: "MC GH", role_label: "Autor/compositor", bps100: 3334 });
+    expect(result[1]).toMatchObject({ name: "MC JACARÉ", role_label: "Autor/compositor", bps100: 3333 });
+    expect(result[2]).toMatchObject({ name: "MUCILON", role_label: "Autor/compositor", bps100: 3333 });
   });
 
   it("Fonograma — SuperTime 4170 + GH 2085 + JACARÉ 2085 + MUCILON 1660", () => {
@@ -71,7 +72,7 @@ describe("SE SOLTA snapshot", () => {
     expect(jac.bps100).toBe(2085);
 
     const muc = result.find(l => l.name === "MUCILON")!;
-    expect(muc.role_label).toBe("Músico");
+    expect(muc.role_label).toBe("Músico acompanhante");
     expect(muc.bps100).toBe(1660);
   });
 
@@ -267,7 +268,7 @@ describe("Edge cases", () => {
     // reconcile(5000 + 1660 = 6660): adds 3340 to max(5000) → produtor=8340, musico=1660
     const label = result.find(l => l.holder_type === "label")!;
     expect(label.bps100).toBe(8340);
-    const musico = result.find(l => l.role_label === "Músico")!;
+    const musico = result.find(l => l.role_label === "Músico acompanhante")!;
     expect(musico.bps100).toBe(1660);
   });
 });
@@ -288,7 +289,7 @@ describe("hidden_from_billing", () => {
     // Hidden ainda aparece como músico no fonograma
     const musico = fono.find(l => l.name === "Hidden");
     expect(musico).toBeDefined();
-    expect(musico!.role_label).toBe("Músico");
+    expect(musico!.role_label).toBe("Músico acompanhante");
 
     const dig = computeDigital(
       [visible, hidden],

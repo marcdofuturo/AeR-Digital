@@ -160,6 +160,18 @@ export interface PitchResult {
   avisos: string[];
 }
 
+export interface PresentationContext {
+  titulo: string;
+  creditos: string;
+  generos: string[];
+  data: string;
+  bpm: number | null;
+  key: string | null;
+  energy: number | null;
+  transcript_sample: string;
+  userGuidance?: string | null;
+}
+
 export function buildPitchPrompt(ctx: PitchContext): string {
   const audienceText = ctx.artistAudiences
     .map(a => `${a.name}: ${a.followers.toLocaleString("pt-BR")} seguidores · ${a.genres.join("/")} · pop ${a.popularity} · relacionados: ${a.related.join(", ")}`)
@@ -186,6 +198,35 @@ B) NARRATIVO — momento do artista, cena, audiência
 
 JSON: {"opcao_a":str,"opcao_b":str,"angulo_a":str,"angulo_b":str,
        "playlists_sugeridas":[str],"avisos":[str]}`;
+}
+
+export function buildPresentationPrompt(ctx: PresentationContext): string {
+  const signal = [
+    ctx.bpm ? `${ctx.bpm} BPM` : null,
+    ctx.key ? `tom ${ctx.key}` : null,
+    ctx.energy != null ? `energia ${ctx.energy.toFixed(2)}/1.0` : null,
+  ].filter(Boolean).join(" · ") || "sinal de audio nao informado";
+
+  const improvement = ctx.userGuidance?.trim()
+    ? `\nPEDIDO DO USUARIO PARA ESTA VERSAO:\n${ctx.userGuidance.trim()}\n`
+    : "";
+
+  return `Voce escreve uma apresentação profissional para musicas brasileiras.
+Gere UMA apresentação curta, direta e comercial para a faixa abaixo.
+
+FAIXA: ${ctx.titulo}
+CREDITOS: ${ctx.creditos}
+GENEROS: ${ctx.generos.join(" / ") || "nao informado"}
+DATA DE LANCAMENTO: ${ctx.data}
+SINAL: ${signal}
+TRECHO/LETRA: ${ctx.transcript_sample || "nao informado"}
+${improvement}
+REGRAS
+- Portugues brasileiro.
+- Maximo de 700 caracteres.
+- Nao invente streams, premios, playlists, parcerias ou numeros.
+- Explique o som, o momento da faixa e o encaixe comercial.
+- Retorne JSON estrito: {"apresentacao":str,"avisos":[str]}`;
 }
 
 /** Elegibility check */

@@ -1,6 +1,6 @@
 // ─── Prompt 6 — Pitch tests ────────────────────────────────
 import { describe, it, expect } from "vitest";
-import { buildPitchPrompt, isEligibleForPitch } from "./pitch";
+import { buildPitchPrompt, buildPresentationPrompt, isEligibleForPitch } from "./pitch";
 import type { PitchContext } from "./pitch";
 
 describe("Pitch prompt", () => {
@@ -68,5 +68,26 @@ describe("Character limit", () => {
     });
     expect(prompt).toContain("500");
     expect(prompt).toContain("caracteres");
+  });
+});
+
+describe("Presentation prompt", () => {
+  it("builds a single presentation prompt with optional improvement guidance", () => {
+    const prompt = buildPresentationPrompt({
+      titulo: "Acordei feliz",
+      creditos: "Mc Rick, Mc Lobao",
+      generos: ["Funk"],
+      data: "2026-09-15",
+      bpm: null,
+      key: null,
+      energy: null,
+      transcript_sample: "",
+      userGuidance: "deixe mais direto e cite o refrão",
+    });
+
+    expect(prompt).toContain("apresentação");
+    expect(prompt).toContain("Acordei feliz");
+    expect(prompt).toContain("deixe mais direto");
+    expect(prompt).not.toContain("DUAS OPÇÕES");
   });
 });

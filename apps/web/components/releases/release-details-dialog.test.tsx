@@ -15,6 +15,7 @@ const release: KanbanCardData = {
   releaseDate: "2026-09-15",
   stage: "em_analise",
   daysInStage: 2,
+  stageSince: "2026-08-10T12:00:00.000Z",
   genrePrimary: "Funk",
   coverReceived: true,
   tracks: [
@@ -74,5 +75,40 @@ describe("release details dialog", () => {
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText("1 pendente")).toBeInTheDocument();
     expect(within(dialog).getByRole("link", { name: /abrir ficha completa/i })).toHaveAttribute("href", "/releases/release-1");
+  });
+
+  it("does not render missing audio metadata placeholders", () => {
+    render(
+      <ReleasesTable
+        releases={[
+          {
+            ...release,
+            coverUrl: "received",
+            tracks: [
+              {
+                id: "track-empty",
+                title: "Sem metadados",
+                isrc: null,
+                audioReceived: false,
+                durationSec: null,
+                bpm: null,
+                key: null,
+                participants: ["Mc Rick"],
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /abrir detalhes de acordei feliz/i }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByText(/dura.*n\/d/i)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("BPM n/d")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("tom n/d")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Iniciou em:")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("img")).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/capa recebida/i)).toBeInTheDocument();
   });
 });

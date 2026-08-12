@@ -105,6 +105,7 @@ async function ReleasesContent({ view, stage }: { view: string; stage?: string }
       releaseDate: r.release_date,
       stage: r.stage,
       daysInStage,
+      stageSince: r.stage_since ?? null,
       genrePrimary: r.genre_primary ?? null,
       genreSecondary: r.genre_secondary ?? null,
       coverUrl: r.cover_url ?? null,

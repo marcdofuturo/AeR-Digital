@@ -48,6 +48,11 @@ function formatDuration(seconds?: number | null) {
   return `${min}:${String(sec).padStart(2, "0")}`;
 }
 
+function isRenderableImageUrl(value?: string | null) {
+  if (!value) return false;
+  return /^(https?:\/\/|\/|data:image\/|blob:)/i.test(value);
+}
+
 function summaryPendingText(summary?: ReleaseProgressSummary) {
   if (!summary || summary.total === 0) return "sem checklist";
   if (summary.pending === 0 && summary.rejected === 0) return "tudo OK";
@@ -110,6 +115,7 @@ export function ReleaseDetailsDialog({ release, onOpenChange }: Props) {
   const tracks = release?.tracks ?? [];
   const artists = release?.artists?.join(", ") || "Artistas não informados";
   const genre = [release?.genrePrimary, release?.genreSecondary].filter(Boolean).join(" / ") || "não informado";
+  const coverUrl = isRenderableImageUrl(release?.coverUrl) ? release?.coverUrl : null;
   const coverReceived = Boolean(release?.coverReceived || release?.coverUrl);
   const audioReceived = tracks.some((track) => track.audioReceived);
   const filesText = coverReceived || audioReceived
@@ -125,8 +131,12 @@ export function ReleaseDetailsDialog({ release, onOpenChange }: Props) {
               <DialogHeader className="pr-8">
                 <div className="flex items-start gap-4">
                   <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-bg">
-                    {release.coverUrl ? (
-                      <img src={release.coverUrl} alt="" className="h-full w-full object-cover" />
+                    {coverUrl ? (
+                      <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+                    ) : coverReceived ? (
+                      <span className="px-2 text-center text-[10px] font-medium uppercase tracking-wide text-fg-muted">
+                        capa recebida
+                      </span>
                     ) : (
                       <ImageIcon className="h-6 w-6 text-fg-muted" />
                     )}
@@ -147,7 +157,11 @@ export function ReleaseDetailsDialog({ release, onOpenChange }: Props) {
             <div className="space-y-5 px-5 py-5">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <SummaryTile icon={Calendar} label="Lançamento" value={formatDateOnly(release.releaseDate)} />
-                <SummaryTile icon={Wrench} label="No estágio" value={formatDaysInStage(release.daysInStage)} />
+                <SummaryTile
+                  icon={Wrench}
+                  label="Iniciou em:"
+                  value={release.stageSince ? formatDateOnly(release.stageSince) : formatDaysInStage(release.daysInStage)}
+                />
                 <SummaryTile icon={Music2} label="Gênero" value={genre} />
                 <SummaryTile icon={AudioLines} label="Arquivos" value={filesText} />
               </div>
@@ -163,33 +177,37 @@ export function ReleaseDetailsDialog({ release, onOpenChange }: Props) {
                       Nenhuma faixa cadastrada para este lançamento.
                     </div>
                   ) : (
-                    tracks.map((track, index) => (
-                      <div key={track.id} className="rounded-md border border-border/60 bg-bg p-3">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-fg">
-                              {index + 1}. {track.title}
-                            </p>
-                            <p className="mt-1 flex items-center gap-1 text-xs text-fg-muted">
-                              <Users className="h-3.5 w-3.5 shrink-0" />
-                              <span className="truncate">{track.participants.join(", ") || artists}</span>
-                            </p>
+                    tracks.map((track, index) => {
+                      const duration = formatDuration(track.durationSec);
+
+                      return (
+                        <div key={track.id} className="rounded-md border border-border/60 bg-bg p-3">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-fg">
+                                {index + 1}. {track.title}
+                              </p>
+                              <p className="mt-1 flex items-center gap-1 text-xs text-fg-muted">
+                                <Users className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate">{track.participants.join(", ") || artists}</span>
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap justify-end gap-1.5">
+                              <Badge variant={track.audioReceived ? "success" : "secondary"} className="text-[10px]">
+                                {track.audioReceived ? "áudio OK" : "sem áudio"}
+                              </Badge>
+                              {track.explicit && <Badge variant="warning" className="text-[10px]">explicit</Badge>}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap justify-end gap-1.5">
-                            <Badge variant={track.audioReceived ? "success" : "secondary"} className="text-[10px]">
-                              {track.audioReceived ? "áudio OK" : "sem áudio"}
-                            </Badge>
-                            {track.explicit && <Badge variant="warning" className="text-[10px]">explicit</Badge>}
+                          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-muted">
+                            <span className="truncate font-mono">{track.isrc ?? "ISRC a gerar"}</span>
+                            {duration && <span>{duration}</span>}
+                            {track.bpm ? <span>{track.bpm} BPM</span> : null}
+                            {track.key ? <span>{track.key}</span> : null}
                           </div>
                         </div>
-                        <div className="mt-3 grid gap-2 text-xs text-fg-muted sm:grid-cols-4">
-                          <span className="truncate font-mono">{track.isrc ?? "ISRC a gerar"}</span>
-                          <span>{formatDuration(track.durationSec) ?? "duração n/d"}</span>
-                          <span>{track.bpm ? `${track.bpm} BPM` : "BPM n/d"}</span>
-                          <span>{track.key ?? "tom n/d"}</span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </section>

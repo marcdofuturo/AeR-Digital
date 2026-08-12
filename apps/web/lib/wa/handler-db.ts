@@ -1,5 +1,6 @@
 // ─── HandlerDB Implementation (Supabase) ──────────────────────
 import { createAdminClient } from "@/lib/supabase/admin";
+import { persistAutomaticSplitsForTrack } from "@/lib/splits/persist";
 import type { HandlerDB, ResolvedArtist } from "@ar/wa/types";
 
 /**
@@ -166,6 +167,32 @@ export function createHandlerDB(): HandlerDB {
           .insert(participantRows);
 
         if (partErr) throw new Error(`Failed to create participants: ${partErr.message}`);
+
+        const [{ data: tenant }, { data: settings }] = await Promise.all([
+          supabase.from("tenants").select("name").eq("id", params.tenantId).single(),
+          supabase
+            .from("label_split_settings")
+            .select("digital_mode, digital_label_bps100, digital_weight_primary, digital_weight_featuring")
+            .eq("tenant_id", params.tenantId)
+            .maybeSingle(),
+        ]);
+
+        await persistAutomaticSplitsForTrack(supabase, {
+          tenantId: params.tenantId,
+          trackId: track!.id,
+          participants: params.participants.map((p) => ({
+            id: p.id,
+            stage_name: p.stage_name,
+            billing_role: p.billing_role,
+            position: p.position,
+            is_producer: p.is_producer,
+            is_composer: true,
+            is_performer: p.is_performer,
+            hidden_from_billing: p.hidden_from_billing,
+          })),
+          labelName: tenant?.name ?? "Audiolink Brasil",
+          settings,
+        });
       }
 
       return { releaseId: release!.id, trackId: track!.id };

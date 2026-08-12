@@ -5,6 +5,7 @@ import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
 import {
+  ensureReleaseAuthorizationChecklist,
   markAuthorizationRecipientApproved,
   setReleaseStageFromForm,
 } from "@/app/releases/actions";
@@ -34,6 +35,7 @@ export default async function AutorizacaoPage({ params }: { params: Promise<{ id
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return null;
 
+  await ensureReleaseAuthorizationChecklist(tenantId, id);
   const release = await getRelease(tenantId, id);
   if (!release) return null;
 
@@ -75,7 +77,9 @@ export default async function AutorizacaoPage({ params }: { params: Promise<{ id
                       <CheckCircle className={`mt-0.5 h-4 w-4 ${approved ? "text-success" : "text-fg-muted"}`} />
                       <div>
                         <p className="text-sm font-medium text-fg">{recipient.name}</p>
-                        <p className="text-xs text-fg-muted">{recipient.email}</p>
+                        <p className="text-xs text-fg-muted">
+                          {String(recipient.email).endsWith("@aerdigital.local") ? "Email não cadastrado" : recipient.email}
+                        </p>
                         {recipient.responded_at && (
                           <p className="mt-1 text-[11px] text-fg-muted">
                             OK em {fmtDate(recipient.responded_at, "dd/MM/yyyy HH:mm")}
