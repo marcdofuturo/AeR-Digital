@@ -337,6 +337,7 @@ export async function generatePresentationForTrack(formData: FormData) {
 
 export async function ensureReleaseAuthorizationChecklist(tenantId: string, releaseId: string) {
   const supabase = createAdminClient();
+  const ensuredAuthorizations: any[] = [];
 
   const { data: release, error } = await supabase
     .from("releases")
@@ -366,14 +367,15 @@ export async function ensureReleaseAuthorizationChecklist(tenantId: string, rele
     const participants = [...(track.track_participants ?? [])].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
     if (!participants.length) continue;
 
-    const authorizationId = await ensureAuthorization(supabase, tenantId, releaseId, release.title, track, participants);
+    const authorization = await ensureAuthorization(supabase, tenantId, releaseId, release.title, track, participants);
     const { data: existing } = await supabase
       .from("authorization_recipients")
-      .select("artist_id")
+      .select("id, artist_id, name, email, status, responded_at")
       .eq("tenant_id", tenantId)
-      .eq("authorization_id", authorizationId);
+      .eq("authorization_id", authorization.id);
 
     const existingArtistIds = new Set((existing ?? []).map((recipient: any) => recipient.artist_id).filter(Boolean));
+    const ensuredRecipients = [...(existing ?? [])];
     const recipientsToInsert = participants
       .filter((tp: any) => tp.artist_id && !existingArtistIds.has(tp.artist_id))
       .map((tp: any) => {
@@ -383,7 +385,7 @@ export async function ensureReleaseAuthorizationChecklist(tenantId: string, rele
 
         return {
           tenant_id: tenantId,
-          authorization_id: authorizationId,
+          authorization_id: authorization.id,
           artist_id: tp.artist_id,
           name: artist?.legal_name || artist?.stage_name || "Participante",
           email,
@@ -393,13 +395,24 @@ export async function ensureReleaseAuthorizationChecklist(tenantId: string, rele
       });
 
     if (recipientsToInsert.length) {
-      const { error: insertError } = await supabase.from("authorization_recipients").insert(recipientsToInsert);
+      const { data: inserted, error: insertError } = await supabase
+        .from("authorization_recipients")
+        .insert(recipientsToInsert)
+        .select("id, artist_id, name, email, status, responded_at");
       if (insertError) {
         console.error("Failed to create authorization recipients:", insertError);
         throw new Error("Falha ao gerar checklist de autorização");
       }
+      ensuredRecipients.push(...(inserted ?? []));
     }
+
+    ensuredAuthorizations.push({
+      ...authorization,
+      authorization_recipients: ensuredRecipients,
+    });
   }
+
+  return ensuredAuthorizations;
 }
 
 async function refreshAuthorizationStatus(supabase: any, tenantId: string, authorizationId: string) {
@@ -440,14 +453,14 @@ async function ensureAuthorization(
 ) {
   const { data: existing } = await supabase
     .from("authorizations")
-    .select("id")
+    .select("id, status, created_at, sent_at")
     .eq("tenant_id", tenantId)
     .eq("release_id", releaseId)
     .eq("track_id", track.id)
     .limit(1)
     .maybeSingle();
 
-  if (existing?.id) return existing.id;
+  if (existing?.id) return existing;
 
   const snapshot = {
     release_title: releaseTitle,
@@ -471,7 +484,7 @@ async function ensureAuthorization(
       snapshot,
       status: "rascunho",
     })
-    .select("id")
+    .select("id, status, created_at, sent_at")
     .single();
 
   if (error) throw new Error(`Falha ao gerar autorização: ${error.message}`);
