@@ -337,7 +337,6 @@ export async function generatePresentationForTrack(formData: FormData) {
 
 export async function ensureReleaseAuthorizationChecklist(tenantId: string, releaseId: string) {
   const supabase = createAdminClient();
-  let insertedAny = false;
 
   const { data: release, error } = await supabase
     .from("releases")
@@ -399,13 +398,7 @@ export async function ensureReleaseAuthorizationChecklist(tenantId: string, rele
         console.error("Failed to create authorization recipients:", insertError);
         throw new Error("Falha ao gerar checklist de autorização");
       }
-      insertedAny = true;
     }
-  }
-
-  if (insertedAny) {
-    revalidatePath(`/releases/${releaseId}/autorizacao`);
-    revalidateRelease(releaseId);
   }
 }
 
