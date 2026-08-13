@@ -1,5 +1,7 @@
-# Caddyfile — reverse proxy for A&R Digital
-# Development (no TLS):
+evolution.193-203-182-39.sslip.io {
+    reverse_proxy localhost:8080
+}
+
 :80 {
     @wa-api host wa.localhost
     handle @wa-api {
