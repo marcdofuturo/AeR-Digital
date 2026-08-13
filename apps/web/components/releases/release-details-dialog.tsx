@@ -220,26 +220,26 @@ export function ReleaseDetailsDialog({ release, onOpenChange }: Props) {
 
             <DialogFooter className="border-t border-border bg-bg px-5 py-4 sm:justify-between sm:space-x-0">
               <Button asChild variant="outline" size="sm">
-                <Link href={`/releases/${release.id}`} prefetch={false}>
+                <Link href={`/releases/${release.id}`} onClick={() => onOpenChange(false)}>
                   <ExternalLink className="h-4 w-4" />
                   Abrir ficha completa
                 </Link>
               </Button>
               <div className="flex flex-wrap gap-2">
                 <Button asChild variant="secondary" size="sm">
-                  <Link href={`/releases/${release.id}/autorizacao`} prefetch={false}>
+                  <Link href={`/releases/${release.id}/autorizacao`} onClick={() => onOpenChange(false)}>
                     <FileCheck2 className="h-4 w-4" />
                     Autorizações
                   </Link>
                 </Button>
                 <Button asChild variant="secondary" size="sm">
-                  <Link href={`/releases/${release.id}/registros`} prefetch={false}>
+                  <Link href={`/releases/${release.id}/registros`} onClick={() => onOpenChange(false)}>
                     <Wrench className="h-4 w-4" />
                     Registros
                   </Link>
                 </Button>
                 <Button asChild variant="secondary" size="sm">
-                  <Link href={`/releases/${release.id}/splits`} prefetch={false}>
+                  <Link href={`/releases/${release.id}/splits`} onClick={() => onOpenChange(false)}>
                     <Percent className="h-4 w-4" />
                     Splits
                   </Link>

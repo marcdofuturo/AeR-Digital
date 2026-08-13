@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildAuthorizationDocumentData,
   buildAuthorizationDocx,
-  buildAuthorizationPdf,
   buildAuthorizationMarkdown,
+  buildAuthorizationPdf,
 } from "./authorization-document";
 
 describe("authorization document", () => {
@@ -43,7 +43,26 @@ describe("authorization document", () => {
     expect(markdown).toContain("Autorização de Distribuição Digital");
     expect(markdown).toContain("Minha Música Incrível");
     expect(markdown).toContain("João Silva");
-    expect(markdown).not.toMatch(/[�ÃÂ]/);
+    expect(markdown).not.toMatch(/[�ÃƒÃ‚]/);
+  });
+
+  it("repairs old mojibake values when building document data", () => {
+    const repaired = buildAuthorizationDocumentData({
+      tenant: { name: "Audiolink Brasil" },
+      release: { title: "Minha MÃºsica IncrÃ­vel", release_date: "2026-09-20" },
+      track: {
+        title: "Minha MÃºsica IncrÃ­vel",
+        track_participants: [
+          { artist_id: "a1", position: 1, artists: { id: "a1", stage_name: "MC JoÃ£o", legal_name: "JoÃ£o Silva" } },
+        ],
+        splits: [
+          { scope: "fonograma", holder_type: "label", artist_id: null, role_label: "Produtor fonogrÃ¡fico", bps100: 4170, version: 1 },
+        ],
+      },
+    });
+
+    expect(buildAuthorizationMarkdown(repaired)).toContain("Minha Música Incrível");
+    expect(buildAuthorizationMarkdown(repaired)).toContain("Produtor fonográfico");
   });
 
   it("uses LucIA as the responsible person for SuperTime Digital", () => {

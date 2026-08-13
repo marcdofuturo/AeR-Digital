@@ -5,6 +5,21 @@ Design system: Audiolink Brasil · Escala-alvo: 500+ gravadoras
 
 ---
 
+## Atualização operacional implementada em 2026-08-13
+
+Este bloco prevalece sobre notas históricas anteriores quando houver conflito.
+
+- **Autorização:** o documento agora segue o modelo de liberação enviado pelo cliente, com saudação, dados da faixa, tabelas de Obra/Fonograma/Digital, texto de resposta e cadastro final. A prévia no painel renderiza como uma folha de documento no tema dark, não como markdown cru.
+- **Downloads:** DOCX e PDF usam a mesma estrutura preenchida automaticamente. O PDF foi ajustado para encoding WinAnsi, evitando acentos quebrados como `Produtor fonogr?fico`.
+- **WhatsApp intake:** o webhook aceita `A7K9` e `#A7K9`, com espaços, além de eventos `messages.upsert` e `MESSAGES_UPSERT`. Isso alinha o link `https://wa.me/5511948059297?text=A7K9` ao início real do fluxo.
+- **Popup de lançamento:** os botões **Autorizações**, **Registros**, **Splits** e **Abrir ficha completa** fecham o modal e navegam diretamente para a rota operacional.
+- **Performance:** `getRelease` foi cacheado por request com `React.cache`, removendo consultas duplicadas entre layout e abas internas de lançamento.
+- **Salvar:** botões usam cursor de mão, estado `Salvando...` e animação/estado `Salvo` após retorno da action.
+- **Mídia:** a visão geral permite substituir capa e áudio por upload real para o Storage `release-assets`; as URLs públicas ficam gravadas na ficha para ver/ouvir/baixar quando houver arquivo válido.
+- **Claude/Apresentação:** a geração aceita `ANTHROPIC_API_KEY` ou `CLAUDE_API_KEY`, mantém `claude-sonnet-5` como modelo atual e mostra aviso explícito quando o segredo de produção estiver inválido. O ambiente local foi validado com status 200 na API da Anthropic.
+
+---
+
 ## Atualização operacional implementada em 2026-08-12
 
 Este bloco representa o estado atual do produto. Quando houver conflito com seções históricas abaixo, esta definição prevalece.

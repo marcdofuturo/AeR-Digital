@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentTenantId } from "@/lib/tenant";
+import { cache } from "react";
 
 export async function getReleases(tenantId?: string) {
   const tid = tenantId ?? (await getCurrentTenantId());
@@ -41,7 +42,7 @@ export async function getReleases(tenantId?: string) {
   return data ?? [];
 }
 
-export async function getRelease(tenantId: string, releaseId: string) {
+export const getRelease = cache(async function getRelease(tenantId: string, releaseId: string) {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("releases")
@@ -51,4 +52,4 @@ export async function getRelease(tenantId: string, releaseId: string) {
     .single();
 
   return data;
-}
+});

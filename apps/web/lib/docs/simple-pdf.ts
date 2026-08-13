@@ -93,7 +93,7 @@ function pageContentStream(
     const font = line.bold ? "F2" : "F1";
     commands.push(`/${font} ${size} Tf`);
     commands.push(`${options.marginX} ${y} Td`);
-    commands.push(`${toPdfUtf16Hex(line.text)} Tj`);
+    commands.push(`${toPdfLiteral(line.text)} Tj`);
     commands.push(`${-options.marginX} ${-options.lineGap} Td`);
     y -= line.size && line.size > 14 ? 22 : options.lineGap;
   }
@@ -122,11 +122,42 @@ function wrapLine(line: PdfLine, maxChars: number): PdfLine[] {
   return out;
 }
 
-function toPdfUtf16Hex(text: string) {
-  const bytes = [0xfe, 0xff];
-  for (let index = 0; index < text.length; index++) {
-    const code = text.charCodeAt(index);
-    bytes.push((code >> 8) & 0xff, code & 0xff);
+function toPdfLiteral(text: string) {
+  const bytes: number[] = [];
+  for (const char of text) {
+    bytes.push(winAnsiByte(char));
   }
-  return `<${bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("")}>`;
+  let out = "(";
+  for (const byte of bytes) {
+    if (byte === 0x28 || byte === 0x29 || byte === 0x5c) {
+      out += `\\${String.fromCharCode(byte)}`;
+    } else if (byte < 0x20 || byte > 0x7e) {
+      out += `\\${byte.toString(8).padStart(3, "0")}`;
+    } else {
+      out += String.fromCharCode(byte);
+    }
+  }
+  return `${out})`;
+}
+
+function winAnsiByte(char: string) {
+  const code = char.charCodeAt(0);
+  if (code <= 0x7f) return code;
+  const map: Record<string, number> = {
+    "á": 0xe1, "à": 0xe0, "â": 0xe2, "ã": 0xe3, "ä": 0xe4,
+    "Á": 0xc1, "À": 0xc0, "Â": 0xc2, "Ã": 0xc3, "Ä": 0xc4,
+    "é": 0xe9, "è": 0xe8, "ê": 0xea, "ë": 0xeb,
+    "É": 0xc9, "È": 0xc8, "Ê": 0xca, "Ë": 0xcb,
+    "í": 0xed, "ì": 0xec, "î": 0xee, "ï": 0xef,
+    "Í": 0xcd, "Ì": 0xcc, "Î": 0xce, "Ï": 0xcf,
+    "ó": 0xf3, "ò": 0xf2, "ô": 0xf4, "õ": 0xf5, "ö": 0xf6,
+    "Ó": 0xd3, "Ò": 0xd2, "Ô": 0xd4, "Õ": 0xd5, "Ö": 0xd6,
+    "ú": 0xfa, "ù": 0xf9, "û": 0xfb, "ü": 0xfc,
+    "Ú": 0xda, "Ù": 0xd9, "Û": 0xdb, "Ü": 0xdc,
+    "ç": 0xe7, "Ç": 0xc7, "ñ": 0xf1, "Ñ": 0xd1,
+    "º": 0xba, "ª": 0xaa, "©": 0xa9, "·": 0xb7,
+    "“": 0x93, "”": 0x94, "‘": 0x91, "’": 0x92,
+    "–": 0x96, "—": 0x97, "•": 0x95,
+  };
+  return map[char] ?? 0x3f;
 }

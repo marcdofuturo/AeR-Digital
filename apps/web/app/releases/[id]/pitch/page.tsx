@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SaveButton } from "@/components/forms/save-button";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -69,10 +69,10 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
                   <p className="text-xs text-fg-muted">
                     Sem texto, a IA gera uma primeira apresentação da música. Com texto, gera nova versão seguindo suas dicas.
                   </p>
-                  <Button type="submit" size="sm" disabled={!canGenerate}>
+                  <SaveButton size="sm" disabled={!canGenerate} pendingLabel="Gerando..." savedLabel="Gerado">
                     <Sparkles className="h-4 w-4" />
                     Gerar apresentação
-                  </Button>
+                  </SaveButton>
                 </div>
               </form>
 
@@ -143,4 +143,3 @@ async function countTenantPresentations(tenantId: string) {
 
   return count ?? 0;
 }
-

@@ -70,7 +70,7 @@ describe("generateClaudePresentation", () => {
       },
     })).resolves.toMatchObject({
       apresentacao: expect.stringContaining("SE SOLTA"),
-      avisos: expect.arrayContaining(["Claude indisponível (401)."]),
+      avisos: expect.arrayContaining(["Claude indisponível (401). Verifique o segredo ANTHROPIC_API_KEY no Cloudflare Pages."]),
     });
   });
 });

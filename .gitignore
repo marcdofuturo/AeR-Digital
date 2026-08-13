@@ -7,6 +7,7 @@ node_modules/
 dist/
 out/
 build/
+.next-bad-*/
 .next-stale-*/
 node_modules-stale-*/
 
