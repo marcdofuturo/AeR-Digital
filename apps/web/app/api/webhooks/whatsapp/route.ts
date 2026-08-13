@@ -40,8 +40,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Only process messages.upsert events
-  if (body.event !== "messages.upsert") {
+  // Only process messages.upsert events. Evolution deployments may send
+  // either the canonical lowercase event or the configured uppercase enum.
+  const eventName = String(body.event ?? "").trim().toLowerCase();
+  if (eventName !== "messages.upsert" && eventName !== "messages_upsert") {
     return NextResponse.json({ status: "ignored" });
   }
 
@@ -69,6 +71,7 @@ export async function POST(req: NextRequest) {
   // ── Extract message text ────────────────────────────────────
   const msg = data.message as Record<string, unknown> | undefined;
   let message = (msg?.conversation as string) ?? (msg?.extendedTextMessage as { text?: string })?.text ?? "";
+  message = message.trim();
 
   // Detect media (audio / image) — used by ask_audio / ask_cover
   const hasAudio = !!msg?.audioMessage;
@@ -89,7 +92,7 @@ export async function POST(req: NextRequest) {
   // R6: known phone → whatsapp_identities; else intake code in message
   let tenant = await resolveTenantByPhone(phone);
 
-  const codeMatch = message.match(/^#([A-Z0-9]{3,8})$/);
+  const codeMatch = message.toUpperCase().match(/^#?\s*([A-Z0-9]{3,8})$/);
   if (!tenant && codeMatch) {
     tenant = await resolveTenantByCode(codeMatch[1]!);
     if (tenant) {
@@ -104,7 +107,7 @@ export async function POST(req: NextRequest) {
     try {
       await provider.sendText(
         phone,
-        "Oi! Pra começar, me manda o código do seu selo (tipo *\\#A7K9*). Quem te chamou pra lançar consegue te passar.",
+        "Oi! Pra começar, me manda o código do seu selo (tipo *A7K9*). Quem te chamou pra lançar consegue te passar.",
       );
     } catch (err) {
       console.error("Failed to send 'ask for code' reply:", err);

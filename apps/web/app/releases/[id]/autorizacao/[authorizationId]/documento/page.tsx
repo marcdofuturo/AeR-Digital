@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId, getTenant } from "@/lib/tenant";
-import { buildAuthorizationDocumentData, buildAuthorizationMarkdown } from "@/lib/docs/authorization-document";
+import { buildAuthorizationDocumentData } from "@/lib/docs/authorization-document";
+import { AuthorizationDocumentPreview } from "@/components/docs/authorization-document-preview";
 import { Download, ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +27,6 @@ export default async function AuthorizationDocumentPage({
   if (!auth || !track) return null;
 
   const documentData = buildAuthorizationDocumentData({ release, track, tenant });
-  const markdown = buildAuthorizationMarkdown(documentData);
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -61,9 +60,7 @@ export default async function AuthorizationDocumentPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <pre className="whitespace-pre-wrap rounded-md border border-border bg-bg p-4 text-sm leading-6 text-fg">
-            {markdown}
-          </pre>
+          <AuthorizationDocumentPreview data={documentData} />
         </CardContent>
       </Card>
     </div>

@@ -1,13 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ReplaceFileButton } from "@/components/forms/replace-file-button";
+import { SaveButton } from "@/components/forms/save-button";
+import { EditMetadataButton } from "@/components/forms/edit-metadata-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId, getTenant } from "@/lib/tenant";
 import { KANBAN_STAGES, formatDaysInStage } from "@ar/ai/crm";
 import { fmtDate } from "@ar/shared";
 import { saveArtistMetadata, saveReleaseOverview, saveTrackOverview } from "@/app/releases/actions";
-import { Calendar, Clock, Disc3, Download, Eye, FileText, Headphones, Image as ImageIcon, RefreshCw, Users, Wrench } from "lucide-react";
+import { Calendar, Clock, Disc3, Download, Eye, FileText, Headphones, Image as ImageIcon, Users, Wrench } from "lucide-react";
 
 const STAGE_LABEL: Record<string, string> = {};
 for (const s of KANBAN_STAGES) STAGE_LABEL[s.id] = s.label;
@@ -89,11 +92,11 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
               <div className="flex flex-wrap gap-2">
                 <MediaButton href={r.cover_url} label="Ver capa" icon="eye" />
                 <MediaButton href={r.cover_url} label="Baixar JPEG" icon="download" download />
-                <Button type="submit" size="sm" variant="outline">
-                  <RefreshCw className="h-4 w-4" />
-                  Substituir capa
-                </Button>
+                <ReplaceFileButton name="cover_file" accept="image/jpeg,image/png,image/webp" label="Substituir capa" />
               </div>
+            </div>
+            <div className="md:col-span-4 flex justify-end">
+              <SaveButton size="sm" variant="outline">Salvar visão geral</SaveButton>
             </div>
           </form>
 
@@ -108,7 +111,7 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                 <input type="checkbox" name="explicit" defaultChecked={Boolean(track.explicit)} className="accent-brand" />
                 Explícita
               </label>
-              <Button type="submit" size="sm" variant="outline" className="self-end">Salvar faixa</Button>
+              <SaveButton size="sm" variant="outline" className="self-end">Salvar faixa</SaveButton>
               <div className="md:col-span-5 flex flex-col gap-3 rounded-md border border-border/40 bg-surface/60 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -123,10 +126,7 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                   <div className="flex flex-wrap gap-2">
                     <MediaButton href={track.audio_url} label="Ouvir" icon="headphones" />
                     <MediaButton href={track.audio_url} label="Baixar áudio" icon="download" download />
-                    <Button type="submit" size="sm" variant="outline">
-                      <RefreshCw className="h-4 w-4" />
-                      Substituir áudio
-                    </Button>
+                    <ReplaceFileButton name="audio_file" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/wave" label="Substituir áudio" />
                   </div>
                 </div>
                 {isUsableUrl(track.audio_url) && (
@@ -276,7 +276,10 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                               <form id={formId} action={saveArtistMetadata}>
                                 <input type="hidden" name="release_id" value={id} />
                                 <input type="hidden" name="artist_id" value={artist.id} />
-                                <Button type="submit" size="sm" variant="outline">OK</Button>
+                                <div className="flex justify-end gap-2">
+                                  <EditMetadataButton formId={formId} />
+                                  <SaveButton size="sm" variant="outline" savedLabel="Salvo">OK</SaveButton>
+                                </div>
                               </form>
                             </TableCell>
                           </TableRow>

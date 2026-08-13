@@ -230,6 +230,13 @@ export async function saveReleaseOverview(formData: FormData) {
   if (!releaseId) throw new Error("Lançamento inválido");
 
   const supabase = createAdminClient();
+  const uploadedCoverUrl = await uploadReleaseAsset(supabase, {
+    tenantId,
+    releaseId,
+    file: formData.get("cover_file"),
+    kind: "cover",
+  });
+
   const { error } = await supabase
     .from("releases")
     .update({
@@ -240,7 +247,7 @@ export async function saveReleaseOverview(formData: FormData) {
       distributor: nullableString(formData.get("distributor")) ?? "Audiolink Brasil",
       upc: nullableString(formData.get("upc")),
       album_id_ext: nullableString(formData.get("album_id_ext")),
-      cover_url: nullableString(formData.get("cover_url")),
+      cover_url: uploadedCoverUrl ?? nullableString(formData.get("cover_url")),
     })
     .eq("id", releaseId)
     .eq("tenant_id", tenantId);
@@ -262,12 +269,19 @@ export async function saveTrackOverview(formData: FormData) {
   if (!releaseId || !trackId) throw new Error("Faixa inválida");
 
   const supabase = createAdminClient();
+  const uploadedAudioUrl = await uploadReleaseAsset(supabase, {
+    tenantId,
+    releaseId,
+    file: formData.get("audio_file"),
+    kind: "audio",
+  });
+
   const { error } = await supabase
     .from("tracks")
     .update({
       title: requiredString(formData.get("title"), "Título da faixa obrigatório"),
       isrc: nullableString(formData.get("isrc")),
-      audio_url: nullableString(formData.get("audio_url")),
+      audio_url: uploadedAudioUrl ?? nullableString(formData.get("audio_url")),
       explicit: formData.get("explicit") === "on",
     })
     .eq("id", trackId)
@@ -805,6 +819,55 @@ function requiredString(value: FormDataEntryValue | null, message: string) {
   const text = nullableString(value);
   if (!text) throw new Error(message);
   return text;
+}
+
+async function uploadReleaseAsset(
+  supabase: ReturnType<typeof createAdminClient>,
+  {
+    tenantId,
+    releaseId,
+    file,
+    kind,
+  }: {
+    tenantId: string;
+    releaseId: string;
+    file: FormDataEntryValue | null;
+    kind: "cover" | "audio";
+  },
+) {
+  if (!(file instanceof File) || file.size === 0) return null;
+
+  const allowed = kind === "cover"
+    ? ["image/jpeg", "image/png", "image/webp"]
+    : ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/wave"];
+  if (file.type && !allowed.includes(file.type)) {
+    throw new Error(kind === "cover" ? "Formato de capa inválido" : "Formato de áudio inválido");
+  }
+
+  const bucket = "release-assets";
+  await supabase.storage.createBucket(bucket, { public: true }).catch(() => undefined);
+
+  const extension = fileExtension(file.name, file.type, kind);
+  const path = `${tenantId}/${releaseId}/${kind}-${globalThis.crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage.from(bucket).upload(path, file, {
+    contentType: file.type || (kind === "cover" ? "image/jpeg" : "audio/mpeg"),
+    upsert: false,
+  });
+
+  if (error) throw new Error(`Falha ao enviar ${kind === "cover" ? "capa" : "áudio"}: ${error.message}`);
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+function fileExtension(name: string, type: string, kind: "cover" | "audio") {
+  const fromName = name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (fromName && fromName.length <= 5) return fromName;
+  if (type === "image/png") return "png";
+  if (type === "image/webp") return "webp";
+  if (type.includes("wav")) return "wav";
+  if (type.includes("mpeg") || type.includes("mp3")) return "mp3";
+  return kind === "cover" ? "jpg" : "mp3";
 }
 
 function revalidateRelease(releaseId: string) {

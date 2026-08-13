@@ -31,7 +31,7 @@ export function assertAiCredits(generatedCount: number) {
 export async function generateClaudePresentation({
   track,
   userGuidance,
-  apiKey = process.env.ANTHROPIC_API_KEY,
+  apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.CLAUDE_API_KEY,
   model = process.env.CLAUDE_SONNET_MODEL ?? "claude-sonnet-5",
 }: {
   track: PresentationTrack;
@@ -78,7 +78,7 @@ export async function generateClaudePresentation({
     });
 
     if (!response.ok) {
-      return buildLocalPresentation(track, userGuidance, `Claude indisponível (${response.status}).`);
+      return buildLocalPresentation(track, userGuidance, `Claude indisponível (${response.status}). Verifique o segredo ANTHROPIC_API_KEY no Cloudflare Pages.`);
     }
 
     const data = await response.json() as { content?: ClaudeMessageContent };
