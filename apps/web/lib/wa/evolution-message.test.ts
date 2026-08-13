@@ -2,6 +2,39 @@ import { describe, expect, it } from "vitest";
 import { extractIncomingEvolutionMessage } from "./evolution-message";
 
 describe("extractIncomingEvolutionMessage", () => {
+  it("normalizes Brazilian local WhatsApp numbers before tenant lookup", () => {
+    expect(extractIncomingEvolutionMessage({
+      key: {
+        fromMe: false,
+        remoteJid: "11970416135@s.whatsapp.net",
+      },
+      message: {
+        conversation: "oi",
+      },
+    })).toMatchObject({
+      phone: "5511970416135",
+      text: "oi",
+      mediaKind: "text",
+    });
+  });
+
+  it("prefers the sender phone when Evolution sends a LID remoteJid without remoteJidAlt", () => {
+    expect(extractIncomingEvolutionMessage({
+      sender: "5511970416135@s.whatsapp.net",
+      key: {
+        fromMe: false,
+        remoteJid: "101155187220533@lid",
+      },
+      message: {
+        conversation: "oi",
+      },
+    })).toMatchObject({
+      phone: "5511970416135",
+      text: "oi",
+      mediaKind: "text",
+    });
+  });
+
   it("treats audio sent as a WhatsApp document as an audio upload", () => {
     expect(extractIncomingEvolutionMessage({
       key: {

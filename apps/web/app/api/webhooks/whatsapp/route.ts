@@ -3,12 +3,14 @@ import { StepMachine } from "@ar/wa/machine";
 import { EvolutionProvider } from "@ar/wa/provider";
 import type { Draft, HandlerContext, Step } from "@ar/wa/types";
 import { extractIncomingEvolutionMessage } from "@/lib/wa/evolution-message";
+import { isTenantSwitchCommand } from "@/lib/wa/flow-commands";
 import { createHandlerDB } from "@/lib/wa/handler-db";
-import { loadSession, saveSession, expireSession } from "@/lib/wa/session-store";
+import { loadSession, saveSession, expireSession, expireAllSessionsForPhone } from "@/lib/wa/session-store";
 import {
   resolveTenantByPhone,
   resolveTenantByCode,
   registerIdentity,
+  forgetTenantByPhone,
 } from "@/lib/wa/tenant-resolver";
 
 function getProvider(): EvolutionProvider {
@@ -44,6 +46,24 @@ export async function POST(req: NextRequest) {
   const phone = incoming.phone;
   const message = incoming.text;
 
+  if (isTenantSwitchCommand(message)) {
+    await Promise.all([
+      forgetTenantByPhone(phone),
+      expireAllSessionsForPhone(phone),
+    ]);
+
+    const provider = getProvider();
+    try {
+      await provider.sendText(
+        phone,
+        "Combinado. Apaguei o selo vinculado a este WhatsApp. Me manda o número de registro do selo (tipo *A7K9*) para eu associar de novo.",
+      );
+    } catch (err) {
+      console.error("Failed to send tenant switch reply:", err);
+    }
+    return NextResponse.json({ status: "tenant_switch_requested" });
+  }
+
   let tenant = await resolveTenantByPhone(phone);
 
   const codeMatch = message.toUpperCase().match(/^#?\s*([A-Z0-9]{3,8})$/);
@@ -59,7 +79,7 @@ export async function POST(req: NextRequest) {
     try {
       await provider.sendText(
         phone,
-        "Oi! Pra começar, me manda o código do seu selo (tipo *A7K9*). Quem te chamou pra lançar consegue te passar.",
+        "Oi! Pra começar, me manda o número de registro do selo (tipo *A7K9*). Quem te chamou pra lançar consegue te passar.",
       );
     } catch (err) {
       console.error("Failed to send 'ask for code' reply:", err);

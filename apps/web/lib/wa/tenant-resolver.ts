@@ -1,6 +1,7 @@
 // ─── Tenant Resolution for WhatsApp Webhook ──────────────────
 // R6: Route by whatsapp_identities (known phone) or intake_code (#A7K9)
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeWhatsappPhone, whatsappPhoneVariants } from "@/lib/wa/phone";
 
 export interface TenantInfo {
   tenant_id: string;
@@ -17,7 +18,8 @@ export async function resolveTenantByPhone(phone: string): Promise<TenantInfo | 
   const { data } = await supabase
     .from("whatsapp_identities")
     .select("tenant_id, tenants!inner(name)")
-    .eq("phone_e164", phone)
+    .in("phone_e164", whatsappPhoneVariants(phone))
+    .limit(1)
     .maybeSingle();
 
   if (!data) return null;
@@ -63,10 +65,19 @@ export async function registerIdentity(
 
   await supabase.from("whatsapp_identities").upsert(
     {
-      phone_e164: phone,
+      phone_e164: normalizeWhatsappPhone(phone),
       tenant_id: tenantId,
       last_seen: new Date().toISOString(),
     },
     { onConflict: "phone_e164" },
   );
+}
+
+export async function forgetTenantByPhone(phone: string): Promise<void> {
+  const supabase = createAdminClient();
+
+  await supabase
+    .from("whatsapp_identities")
+    .delete()
+    .in("phone_e164", whatsappPhoneVariants(phone));
 }
