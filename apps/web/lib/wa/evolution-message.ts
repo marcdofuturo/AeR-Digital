@@ -1,8 +1,11 @@
+import { normalizeWhatsappPhone } from "./phone";
+
 type EvolutionKey = {
   id?: string;
   fromMe?: boolean;
   remoteJid?: string;
   remoteJidAlt?: string;
+  participant?: string;
 };
 
 type EvolutionMedia = {
@@ -26,8 +29,12 @@ export type IncomingEvolutionMessage = {
 
 export function extractIncomingEvolutionMessage(data: Record<string, unknown>): IncomingEvolutionMessage | null {
   const key = data.key as EvolutionKey | undefined;
-  const rawJid = key?.remoteJidAlt ?? key?.remoteJid ?? "";
-  const phone = rawJid.split("@")[0] ?? rawJid;
+  const sender = typeof data.sender === "string" ? data.sender : undefined;
+  const participant = key?.participant ?? (typeof data.participant === "string" ? data.participant : undefined);
+  const remoteJid = key?.remoteJid;
+  const fallbackJid = sender ?? participant;
+  const rawJid = key?.remoteJidAlt ?? (isLidJid(remoteJid) ? fallbackJid ?? remoteJid : remoteJid) ?? fallbackJid ?? "";
+  const phone = normalizeWhatsappPhone(rawJid);
   if (!phone) return null;
 
   const msg = (data.message ?? {}) as Record<string, unknown>;
@@ -74,6 +81,10 @@ export function extractIncomingEvolutionMessage(data: Record<string, unknown>): 
     messageId: key?.id ?? null,
     mimeType,
   };
+}
+
+function isLidJid(value: string | undefined) {
+  return value?.endsWith("@lid") ?? false;
 }
 
 function isAudioDocument(documentMessage: EvolutionMedia | undefined) {

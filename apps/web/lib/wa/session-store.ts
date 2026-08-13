@@ -1,5 +1,6 @@
 // ─── WhatsApp Session Persistence (Supabase) ─────────────────
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeWhatsappPhone, whatsappPhoneVariants } from "@/lib/wa/phone";
 import type { Draft } from "@ar/wa/types";
 
 export interface SessionRow {
@@ -22,7 +23,7 @@ export async function loadSession(
   const { data } = await supabase
     .from("whatsapp_sessions")
     .select("id, step, draft")
-    .eq("phone_e164", phone)
+    .in("phone_e164", whatsappPhoneVariants(phone))
     .eq("tenant_id", tenantId)
     .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
@@ -51,12 +52,13 @@ export async function saveSession(
 ): Promise<void> {
   const supabase = createAdminClient();
   const now = new Date().toISOString();
+  const normalizedPhone = normalizeWhatsappPhone(phone);
 
   // Try to load existing active session
   const { data: existing } = await supabase
     .from("whatsapp_sessions")
     .select("id")
-    .eq("phone_e164", phone)
+    .in("phone_e164", whatsappPhoneVariants(phone))
     .eq("tenant_id", tenantId)
     .gt("expires_at", now)
     .limit(1)
@@ -75,7 +77,7 @@ export async function saveSession(
     // Insert new session (72h expiry is the DB default)
     await supabase.from("whatsapp_sessions").insert({
       tenant_id: tenantId,
-      phone_e164: phone,
+      phone_e164: normalizedPhone,
       step,
       draft,
       last_message_at: now,
@@ -92,7 +94,17 @@ export async function expireSession(phone: string, tenantId: string): Promise<vo
   await supabase
     .from("whatsapp_sessions")
     .update({ expires_at: new Date().toISOString() })
-    .eq("phone_e164", phone)
+    .in("phone_e164", whatsappPhoneVariants(phone))
     .eq("tenant_id", tenantId)
+    .gt("expires_at", new Date().toISOString());
+}
+
+export async function expireAllSessionsForPhone(phone: string): Promise<void> {
+  const supabase = createAdminClient();
+
+  await supabase
+    .from("whatsapp_sessions")
+    .update({ expires_at: new Date().toISOString() })
+    .in("phone_e164", whatsappPhoneVariants(phone))
     .gt("expires_at", new Date().toISOString());
 }
