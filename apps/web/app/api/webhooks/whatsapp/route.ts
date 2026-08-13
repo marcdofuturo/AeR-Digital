@@ -11,6 +11,7 @@ import {
   resolveTenantByCode,
   registerIdentity,
   forgetTenantByPhone,
+  type TenantInfo,
 } from "@/lib/wa/tenant-resolver";
 
 function getProvider(): EvolutionProvider {
@@ -18,6 +19,53 @@ function getProvider(): EvolutionProvider {
   const apiKey = process.env.EVOLUTION_API_KEY ?? "";
   const instance = process.env.EVOLUTION_INSTANCE ?? "atendimento";
   return new EvolutionProvider(baseUrl, apiKey, instance);
+}
+
+type ReplyFailureCode = "unauthorized" | "forbidden" | "not_found" | "rate_limited" | "fetch_failed" | "send_failed";
+
+function classifyReplyError(err: unknown): ReplyFailureCode {
+  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+
+  if (message.includes("401")) return "unauthorized";
+  if (message.includes("403")) return "forbidden";
+  if (message.includes("404")) return "not_found";
+  if (message.includes("429")) return "rate_limited";
+  if (
+    message.includes("fetch failed") ||
+    message.includes("network") ||
+    message.includes("econn") ||
+    message.includes("etimedout") ||
+    message.includes("timeout")
+  ) {
+    return "fetch_failed";
+  }
+
+  return "send_failed";
+}
+
+function firstQuestion(tenantName: string) {
+  return [
+    `Fala! Aqui é o *${tenantName}*.`,
+    "",
+    "Primeiro: esse envio é *single* ou *álbum/EP*?",
+    "",
+    "Se precisar corrigir em qualquer pergunta, escreva *voltar*.",
+  ].join("\n");
+}
+
+async function startIntake(phone: string, tenant: TenantInfo) {
+  await expireAllSessionsForPhone(phone);
+  await registerIdentity(phone, tenant.tenant_id);
+  await saveSession(phone, tenant.tenant_id, "ask_release_format", {});
+
+  const provider = getProvider();
+  try {
+    await provider.sendText(phone, firstQuestion(tenant.tenant_name));
+    return { ok: true as const };
+  } catch (err) {
+    console.error("Failed to send greeting reply:", err);
+    return { ok: false as const, error_code: classifyReplyError(err) };
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -64,15 +112,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: "tenant_switch_requested" });
   }
 
-  let tenant = await resolveTenantByPhone(phone);
-
   const codeMatch = message.toUpperCase().match(/^#?\s*([A-Z0-9]{3,8})$/);
-  if (!tenant && codeMatch) {
-    tenant = await resolveTenantByCode(codeMatch[1]!);
-    if (tenant) {
-      await registerIdentity(phone, tenant.tenant_id);
+  if (codeMatch) {
+    const tenantByCode = await resolveTenantByCode(codeMatch[1]!);
+    if (tenantByCode) {
+      const reply = await startIntake(phone, tenantByCode);
+      if (!reply.ok) {
+        return NextResponse.json({ status: "reply_failed", error_code: reply.error_code }, { status: 502 });
+      }
+      return NextResponse.json({ status: "greeted", reply_sent: true });
     }
   }
+
+  const tenant = await resolveTenantByPhone(phone);
 
   if (!tenant) {
     const provider = getProvider();
@@ -90,20 +142,6 @@ export async function POST(req: NextRequest) {
   const session = await loadSession(phone, tenant.tenant_id);
   const currentStep = session?.step ?? "ask_release_format";
   const currentDraft: Draft = session?.draft ?? {};
-
-  if (!session && codeMatch) {
-    await saveSession(phone, tenant.tenant_id, "ask_release_format", {});
-    const provider = getProvider();
-    try {
-      await provider.sendText(
-        phone,
-        `Fala! Aqui é o *${tenant.tenant_name}*.\n\nPrimeiro: esse envio é *single* ou *álbum/EP*?\n\nSe precisar corrigir em qualquer pergunta, escreva *voltar*.`,
-      );
-    } catch (err) {
-      console.error("Failed to send greeting reply:", err);
-    }
-    return NextResponse.json({ status: "greeted" });
-  }
 
   if (!session) {
     await saveSession(phone, tenant.tenant_id, "ask_release_format", currentDraft);
