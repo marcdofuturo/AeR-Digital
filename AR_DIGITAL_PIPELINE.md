@@ -12,6 +12,7 @@ Este bloco prevalece sobre notas históricas anteriores quando houver conflito.
 - **Autorização:** o documento agora segue o modelo de liberação enviado pelo cliente, com saudação, dados da faixa, tabelas de Obra/Fonograma/Digital, texto de resposta e cadastro final. A prévia no painel renderiza como uma folha de documento no tema dark, não como markdown cru.
 - **Downloads:** DOCX e PDF usam a mesma estrutura preenchida automaticamente. O PDF foi ajustado para encoding WinAnsi, evitando acentos quebrados como `Produtor fonogr?fico`.
 - **WhatsApp intake:** o webhook aceita `A7K9` e `#A7K9`, com espaços, além de eventos `messages.upsert` e `MESSAGES_UPSERT`. Isso alinha o link `https://wa.me/5511948059297?text=A7K9` ao início real do fluxo.
+- **WhatsApp arquivos:** o webhook precisa reconhecer `audioMessage`, `imageMessage`, `documentMessage` e `documentWithCaptionMessage`. Arquivos WAV/MP3/JPEG enviados como documento devem avançar o mesmo fluxo de áudio/capa e gravar a URL recebida no painel para ver/ouvir/baixar; se o banco falhar ao criar o lançamento, a conversa fica aberta na revisão e não responde falso sucesso.
 - **Popup de lançamento:** os botões **Autorizações**, **Registros**, **Splits** e **Abrir ficha completa** fecham o modal e navegam diretamente para a rota operacional.
 - **Performance:** `getRelease` foi cacheado por request com `React.cache`, removendo consultas duplicadas entre layout e abas internas de lançamento.
 - **Salvar:** botões usam cursor de mão, estado `Salvando...` e animação/estado `Salvo` após retorno da action.
