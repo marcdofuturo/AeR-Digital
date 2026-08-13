@@ -40,6 +40,14 @@ export interface Draft {
   urgent?: boolean;
 }
 
+export interface IncomingMedia {
+  kind: "audio" | "image";
+  url?: string | null;
+  fileName?: string | null;
+  messageId?: string | null;
+  mimeType?: string | null;
+}
+
 export interface ResolvedArtist {
   id: string;
   stage_name: string;
@@ -69,6 +77,7 @@ export interface HandlerContext {
   phone: string;
   provider: WhatsAppProvider;
   db: HandlerDB;
+  incomingMedia?: IncomingMedia;
 }
 
 export interface HandlerDB {

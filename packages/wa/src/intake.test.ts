@@ -42,13 +42,14 @@ function testDB(artists: ResolvedArtist[] = []): HandlerDB {
   };
 }
 
-function testCtx(db = testDB()): HandlerContext {
+function testCtx(db = testDB(), incomingMedia?: HandlerContext["incomingMedia"]): HandlerContext {
   return {
     tenant_id: "t-supertime",
     tenant_name: "SuperTime Digital",
     phone: "+5511999999999",
     provider: new MockProvider(),
     db,
+    incomingMedia,
   };
 }
 
@@ -166,6 +167,65 @@ describe("new WhatsApp intake flow", () => {
     expect(created!.title).toBe("Minha Musica Incrivel");
     expect(created!.participants).toHaveLength(2);
     expect(created!.coverUrl).toBe("received");
+  });
+
+  it("stores media urls received by the WhatsApp webhook", async () => {
+    const audioUrl = "https://evolution.example/audio.wav";
+    const audioMachine = new StepMachine(
+      "ask_audio",
+      {},
+      testCtx(testDB(), {
+        kind: "audio",
+        url: audioUrl,
+        fileName: "MC Midia, DJ Arquivo - Faixa com URL.wav",
+      }),
+    );
+
+    const audio = await audioMachine.process("[AUDIO]");
+
+    expect(audio.nextStep).toBe("ask_cover");
+    expect(audio.draft.audio_url).toBe(audioUrl);
+    expect(audio.draft.audio_filename).toBe("MC Midia, DJ Arquivo - Faixa com URL.wav");
+    expect(audio.draft.title).toBe("Faixa com URL");
+
+    const coverUrl = "https://evolution.example/capa.jpg";
+    const coverMachine = new StepMachine(
+      "ask_cover",
+      { title: "Faixa com URL", artists: [artist("MC Midia", 1)] },
+      testCtx(testDB(), {
+        kind: "image",
+        url: coverUrl,
+        fileName: "capa.jpg",
+      }),
+    );
+
+    const cover = await coverMachine.process("[IMAGE]");
+
+    expect(cover.nextStep).toBe("confirm_file_metadata");
+    expect(cover.draft.cover_url).toBe(coverUrl);
+  });
+
+  it("keeps the review open when the release cannot be saved", async () => {
+    const db = testDB();
+    db.createRelease = async () => {
+      throw new Error("database unavailable");
+    };
+    const draft: Draft = {
+      release_format: "single",
+      album_track_count: 1,
+      title: "Teste Falha",
+      release_date: "2027-03-06",
+      genres: ["Funk"],
+      audio_url: "received",
+      cover_url: "received",
+      artists: [artist("Ana", 1)],
+    };
+    const machine = new StepMachine("confirm", draft, testCtx(db));
+
+    const result = await machine.process("sim");
+
+    expect(result.nextStep).toBe("confirm");
+    expect(result.reply).toContain("Nao consegui salvar");
   });
 
   it("supports voltar to reopen the previous question", async () => {

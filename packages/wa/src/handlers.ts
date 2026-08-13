@@ -527,7 +527,9 @@ export const handlers: Record<Step, StepHandler> = {
   },
 
   async ask_audio(input, _draft, ctx) {
-    const filenameInfo = parseAudioFilename(input);
+    const media = ctx.incomingMedia?.kind === "audio" ? ctx.incomingMedia : null;
+    const audioFilename = media?.fileName ?? input;
+    const filenameInfo = parseAudioFilename(audioFilename);
     const artists = filenameInfo.participants.length
       ? await resolveArtists(ctx, filenameInfo.participants)
       : [];
@@ -536,8 +538,8 @@ export const handlers: Record<Step, StepHandler> = {
       reply: "Perfeito! 🎧\n\n*3. Envie a capa.*\nManda como *ARQUIVO/DOCUMENTO* no clipe, não como foto, para manter a qualidade.\n\nMínimo 3000x3000px, quadrada.",
       nextStep: "ask_cover",
       draft: {
-        audio_url: "received",
-        audio_filename: input,
+        audio_url: media?.url ?? "received",
+        audio_filename: audioFilename,
         title: filenameInfo.title ?? undefined,
         artists,
         filename_title_guess: filenameInfo.title ?? undefined,
@@ -547,7 +549,8 @@ export const handlers: Record<Step, StepHandler> = {
   },
 
   async ask_cover(_input, draft, _ctx) {
-    const nextDraft = { cover_url: "received" };
+    const media = _ctx.incomingMedia?.kind === "image" ? _ctx.incomingMedia : null;
+    const nextDraft = { cover_url: media?.url ?? "received" };
     if (!draft.title || !(draft.artists ?? []).length) {
       return {
         reply: `Capa recebida. Preciso confirmar os dados antes de seguir.\n\n${correctionPrompt()}`,
@@ -576,8 +579,13 @@ export const handlers: Record<Step, StepHandler> = {
           participants: draft.artists ?? [],
           producers: draft.producers ?? [],
         });
-      } catch {
-        // DB ops handled by higher layer
+      } catch (err) {
+        console.error("Failed to create WhatsApp release:", err);
+        return {
+          reply: "Nao consegui salvar esse envio no painel agora. Ja fiquei com a revisao aberta; responda *ENVIAR* de novo em alguns minutos ou chame o time da Audiolink.",
+          nextStep: "confirm",
+          draft: {},
+        };
       }
 
       return {
