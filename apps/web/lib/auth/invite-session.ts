@@ -13,5 +13,14 @@ export function parseInviteSession(hash: string): InviteSession | null {
 }
 
 export function safeInviteDestination(value: string | null | undefined): string {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/";
+  if (!value?.startsWith("/")) return "/";
+
+  try {
+    const internalOrigin = "https://aerdigital.internal";
+    const destination = new URL(value, internalOrigin);
+    if (destination.origin !== internalOrigin) return "/";
+    return `${destination.pathname}${destination.search}${destination.hash}`;
+  } catch {
+    return "/";
+  }
 }
