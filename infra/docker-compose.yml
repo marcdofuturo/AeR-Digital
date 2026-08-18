@@ -80,8 +80,12 @@ services:
       - PYTHONUNBUFFERED=1
       - AUDIO_ALLOWED_HOSTS=${AUDIO_ALLOWED_HOSTS:-dwqdpumeehcamnrbddad.supabase.co,evolution.193-203-182-39.sslip.io}
       - AUDIO_MAX_BYTES=${AUDIO_MAX_BYTES:-536870912}
+      - WHISPER_MODEL=${WHISPER_MODEL:-large-v3-turbo}
+      - HF_HOME=/home/app/.cache/huggingface
+      - HF_HUB_DOWNLOAD_TIMEOUT=${HF_HUB_DOWNLOAD_TIMEOUT:-300}
     volumes:
       - audio_data:/tmp/audio
+      - audio_models:/home/app/.cache/huggingface
     networks:
       - ar-net
 
@@ -131,6 +135,7 @@ volumes:
   redis_data:
   worker_redis_data:
   audio_data:
+  audio_models:
   caddy_data:
   caddy_config:
   postgres_data:

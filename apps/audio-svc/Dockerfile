@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 app \
-    && mkdir -p /tmp/audio \
-    && chown app:app /tmp/audio
+    && mkdir -p /tmp/audio /home/app/.cache/huggingface \
+    && chown -R app:app /tmp/audio /home/app/.cache
 
 COPY ar_audio/ ar_audio/
 COPY pyproject.toml ./

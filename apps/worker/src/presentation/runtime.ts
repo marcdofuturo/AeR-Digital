@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { buildPresentationPrompt } from "@ar/ai";
+import { request } from "undici";
 import type {
   AudioAnalysis,
   PresentationInput,
@@ -20,6 +21,25 @@ type RuntimeEnvironment = {
 
 const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-6";
 const RETIRED_CLAUDE_MODELS = new Set(["claude-sonnet-4-20250514"]);
+const AUDIO_ANALYSIS_TIMEOUT_MS = 15 * 60_000;
+
+type AudioServiceRequest = (
+  url: string,
+  options: {
+    method: "POST";
+    headers: Record<string, string>;
+    body: string;
+    signal: AbortSignal;
+    headersTimeout: number;
+    bodyTimeout: number;
+  },
+) => Promise<{
+  statusCode: number;
+  body: {
+    json(): Promise<unknown>;
+    dump?(): Promise<void>;
+  };
+}>;
 
 export function resolveClaudeModel(environment: RuntimeEnvironment): string {
   const model = environment.CLAUDE_SONNET_MODEL?.trim() || DEFAULT_CLAUDE_MODEL;
@@ -106,16 +126,25 @@ async function claimJob(supabase: SupabaseClient): Promise<PresentationJob | nul
   };
 }
 
-async function analyzeAudio(serviceUrl: string, job: PresentationJob): Promise<AudioAnalysis> {
+export async function analyzeAudio(
+  serviceUrl: string,
+  job: PresentationJob,
+  audioRequest: AudioServiceRequest = request as AudioServiceRequest,
+): Promise<AudioAnalysis> {
   if (!job.audioUrl) throw new Error("audio missing");
-  const response = await fetch(`${serviceUrl}/analyze`, {
+  const response = await audioRequest(`${serviceUrl}/analyze`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ audio_url: job.audioUrl }),
-    signal: AbortSignal.timeout(15 * 60_000),
+    signal: AbortSignal.timeout(AUDIO_ANALYSIS_TIMEOUT_MS),
+    headersTimeout: AUDIO_ANALYSIS_TIMEOUT_MS,
+    bodyTimeout: AUDIO_ANALYSIS_TIMEOUT_MS,
   });
-  if (!response.ok) throw new Error("audio service unavailable");
-  const analysis = await response.json() as AudioAnalysis;
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    await response.body.dump?.();
+    throw new Error("audio service unavailable");
+  }
+  const analysis = await response.body.json() as AudioAnalysis;
   if (!analysis.transcript?.trim() && analysis.errors?.length) throw new Error("transcription failed");
   return {
     ...analysis,

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  analyzeAudio,
   generatePresentation,
   markFailedById,
   resolveClaudeModel,
@@ -93,6 +94,37 @@ describe("presentation runtime", () => {
       NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
       SUPABASE_SERVICE_ROLE_KEY: " \t ",
     })).toThrow("Supabase do worker nao configurado");
+  });
+
+  it("allows the audio service to take the full analysis timeout before headers arrive", async () => {
+    const audioRequest = vi.fn().mockResolvedValue({
+      statusCode: 200,
+      body: {
+        json: vi.fn().mockResolvedValue({
+          transcript: "letra transcrita",
+          bpm: 130,
+          key: "F#",
+          mode: "minor",
+          energy: 0.8,
+          brightness: 0.6,
+          duration: 180,
+          hook_at_sec: 42,
+          segments: [],
+          errors: [],
+        }),
+      },
+    });
+
+    await expect(analyzeAudio("http://audio-svc:8000", input, audioRequest as never))
+      .resolves.toMatchObject({ transcript: "letra transcrita" });
+
+    expect(audioRequest).toHaveBeenCalledWith(
+      "http://audio-svc:8000/analyze",
+      expect.objectContaining({
+        headersTimeout: 15 * 60_000,
+        bodyTimeout: 15 * 60_000,
+      }),
+    );
   });
 
   it("rejects a pitch whose research has no verified web-search source", async () => {
