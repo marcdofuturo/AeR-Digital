@@ -15,6 +15,22 @@ const nullableEmail = z.preprocess(
   z.string().email("Email invalido").max(200).nullable(),
 );
 
+function isValidCnpj(value: string | null): boolean {
+  if (!value) return true;
+  const digits = value.replace(/\D/g, "");
+  if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) return false;
+
+  const calculateDigit = (base: string, weights: number[]) => {
+    const sum = base.split("").reduce((total, digit, index) => total + Number(digit) * weights[index]!, 0);
+    const remainder = sum % 11;
+    return remainder < 2 ? 0 : 11 - remainder;
+  };
+
+  const first = calculateDigit(digits.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const second = calculateDigit(`${digits.slice(0, 12)}${first}`, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return digits.endsWith(`${first}${second}`);
+}
+
 export const teamInvitationSchema = z.object({
   full_name: z.string().trim().min(2, "Informe o nome").max(100),
   email: z.string().trim().email("Email invalido").max(200),
@@ -24,10 +40,7 @@ export const teamInvitationSchema = z.object({
 export const labelSettingsSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do selo").max(120),
   legal_name: nullableText,
-  cnpj: nullableText.refine(
-    (value) => !value || value.replace(/\D/g, "").length === 14,
-    "CNPJ deve ter 14 digitos",
-  ),
+  cnpj: nullableText.refine(isValidCnpj, "CNPJ invalido"),
   logo_url: nullableUrl,
   responsible_name: nullableText,
   contact_email: nullableEmail,

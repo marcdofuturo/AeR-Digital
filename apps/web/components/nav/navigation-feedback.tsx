@@ -22,9 +22,9 @@ export function NavigationFeedback() {
       const destination = new URL(target.href, window.location.href);
       if (destination.origin !== window.location.origin) return;
       if (destination.pathname.startsWith("/api/")) return;
-      const destinationLocation = `${destination.pathname}${destination.search}${destination.hash}`;
-      const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      if (destinationLocation === currentLocation) return;
+      const destinationRoute = `${destination.pathname}${destination.search}`;
+      const currentRoute = `${window.location.pathname}${window.location.search}`;
+      if (destinationRoute === currentRoute) return;
       setLoading(true);
     };
 

@@ -15,3 +15,12 @@ def test_hatch_wheel_declares_the_audio_package() -> None:
 
     assert '[tool.hatch.build.targets.wheel]' in pyproject
     assert 'packages = ["ar_audio"]' in pyproject
+
+
+def test_audio_container_runs_as_non_root_with_a_healthcheck() -> None:
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    compose = (ROOT.parents[1] / "infra" / "docker-compose.yml").read_text(encoding="utf-8")
+
+    assert "USER app" in dockerfile
+    assert "HEALTHCHECK" in dockerfile
+    assert "condition: service_healthy" in compose
