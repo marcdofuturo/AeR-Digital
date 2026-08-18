@@ -7,6 +7,12 @@ initOpenNextCloudflareForDev();
 const nextConfig: NextConfig = {
   output: "standalone",
 
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "64mb",
+    },
+  },
+
   // Required for monorepo file tracing — OpenNext reads from
   // .next/standalone/apps/web/.next/server/...
   outputFileTracingRoot: path.resolve(__dirname, "../.."),
