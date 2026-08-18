@@ -37,6 +37,11 @@ export interface Tenant {
   logo_url: string | null;
   intake_code: string;
   plan: string;
+  status: string;
+  responsible_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  created_at: string | null;
 }
 
 /** Fetch the full tenant row. */

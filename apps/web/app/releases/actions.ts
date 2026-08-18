@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertAiCredits, generateClaudePresentation, remainingAiCredits } from "@/lib/ai/presentation";
-import { getCurrentTenantId } from "@/lib/tenant";
+import { requireMembership } from "@/lib/auth/require-membership";
 import { persistAutomaticSplitsForTrack } from "@/lib/splits/persist";
 import type { Participant } from "@ar/splits";
 import type { ReleaseStage } from "@ar/shared";
@@ -12,6 +12,10 @@ import { isRegistrationStatus } from "@/lib/registration-status";
 type SplitScope = "obra" | "fonograma" | "digital";
 
 const REGISTRATION_KINDS = new Set(["obra_ecad", "fonograma_ecad", "isrc", "distribuicao"]);
+
+async function getCurrentTenantId() {
+  return (await requireMembership(["owner", "ar"])).tenantId;
+}
 
 export async function updateReleaseStage(releaseId: string, newStage: ReleaseStage) {
   const tenantId = await getCurrentTenantId();
@@ -513,6 +517,8 @@ export async function generatePresentationForTrack(formData: FormData) {
 }
 
 export async function ensureReleaseAuthorizationChecklist(tenantId: string, releaseId: string) {
+  const authorizedTenantId = await getCurrentTenantId();
+  if (tenantId !== authorizedTenantId) throw new Error("Sem permissao para este tenant");
   const supabase = createAdminClient();
   const ensuredAuthorizations: any[] = [];
 
