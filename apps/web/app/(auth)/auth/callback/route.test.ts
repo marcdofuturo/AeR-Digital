@@ -49,4 +49,18 @@ describe("auth callback", () => {
       type: "invite",
     });
   });
+
+  it.each(["https://evil.example/phishing", "//evil.example/phishing"])(
+    "rejects the external next destination %s",
+    async (destination) => {
+      mocks.verifyOtp.mockResolvedValue({ error: null });
+
+      const url = new URL("https://aerdigital.pages.dev/auth/callback");
+      url.searchParams.set("token_hash", "hash123");
+      url.searchParams.set("next", destination);
+      const response = await GET(new Request(url));
+
+      expect(response.headers.get("location")).toBe("https://aerdigital.pages.dev/");
+    },
+  );
 });

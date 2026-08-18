@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { safeInviteDestination } from "@/lib/auth/invite-session";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
   const otpType = requestedType && EMAIL_OTP_TYPES.has(requestedType as EmailOtpType)
     ? requestedType as EmailOtpType
     : "email";
-  const next = url.searchParams.get("next") ?? "/";
+  const next = safeInviteDestination(url.searchParams.get("next"));
 
   const supabase = await createClient();
 

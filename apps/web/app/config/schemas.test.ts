@@ -22,7 +22,7 @@ describe("configuration schemas", () => {
     const parsed = labelSettingsSchema.parse({
       name: "Audiolink Brasil",
       legal_name: "Audiolink Brasil Ltda",
-      cnpj: "12.345.678/0001-90",
+      cnpj: "12.345.678/0001-95",
       logo_url: "https://example.com/logo.png",
       responsible_name: "Marc",
       contact_email: "contato@example.com",
@@ -55,4 +55,11 @@ describe("configuration schemas", () => {
       contact_phone: null,
     });
   });
+
+  it.each(["11.111.111/1111-11", "12.345.678/0001-91"])(
+    "rejects the invalid CNPJ %s",
+    (cnpj) => {
+      expect(labelSettingsSchema.safeParse({ name: "Audiolink Brasil", cnpj }).success).toBe(false);
+    },
+  );
 });

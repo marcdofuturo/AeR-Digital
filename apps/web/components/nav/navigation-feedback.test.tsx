@@ -54,4 +54,17 @@ describe("NavigationFeedback", () => {
 
     expect(screen.getByRole("progressbar", { name: "Carregando pagina" })).toBeInTheDocument();
   });
+
+  it("does not show page progress for a fragment-only link", () => {
+    render(
+      <>
+        <NavigationFeedback />
+        <a href="/releases#metadados" onClick={(event) => event.preventDefault()}>Metadados</a>
+      </>,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Metadados" }));
+
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
 });

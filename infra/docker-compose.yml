@@ -88,8 +88,10 @@ services:
     networks:
       - ar-net
     depends_on:
-      - redis
-      - audio-svc
+      redis:
+        condition: service_started
+      audio-svc:
+        condition: service_healthy
 
   # ── Caddy (reverse proxy + TLS) ──
   caddy:

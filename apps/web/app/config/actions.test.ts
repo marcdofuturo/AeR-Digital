@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireMembership = vi.fn();
 const inviteUserByEmail = vi.fn();
+const listUsers = vi.fn();
+const deleteUser = vi.fn();
 const profileUpsert = vi.fn();
 const membershipUpsert = vi.fn();
 const tenantUpdate = vi.fn();
@@ -10,7 +12,7 @@ vi.mock("@/lib/auth/require-membership", () => ({ requireMembership }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({
-    auth: { admin: { inviteUserByEmail } },
+    auth: { admin: { inviteUserByEmail, listUsers, deleteUser } },
     from: vi.fn((table: string) => {
       if (table === "profiles") {
         return {
@@ -42,6 +44,8 @@ describe("configuration actions", () => {
       role: "owner",
     });
     inviteUserByEmail.mockReset().mockResolvedValue({ data: { user: { id: "user-2" } }, error: null });
+    listUsers.mockReset().mockResolvedValue({ data: { users: [] }, error: null });
+    deleteUser.mockReset().mockResolvedValue({ error: null });
     profileUpsert.mockReset().mockResolvedValue({ error: null });
     membershipUpsert.mockReset().mockResolvedValue({ error: null });
     tenantUpdate.mockClear();
@@ -72,7 +76,7 @@ describe("configuration actions", () => {
     const formData = new FormData();
     formData.set("name", "Audiolink Atualizado");
     formData.set("legal_name", "Audiolink Ltda");
-    formData.set("cnpj", "12.345.678/0001-90");
+    formData.set("cnpj", "12.345.678/0001-95");
     formData.set("responsible_name", "Marc");
     formData.set("contact_email", "contato@example.com");
     formData.set("contact_phone", "+5511999999999");
@@ -88,6 +92,41 @@ describe("configuration actions", () => {
       responsible_name: "Marc",
     }));
     expect(tenantUpdate.mock.calls[0]?.[0]).not.toHaveProperty("intake_code");
+  });
+
+  it("recovers an existing Auth user left without a profile", async () => {
+    inviteUserByEmail.mockResolvedValue({ data: { user: null }, error: new Error("already exists") });
+    listUsers.mockResolvedValue({
+      data: { users: [{ id: "orphan-user", email: "novo@example.com" }] },
+      error: null,
+    });
+    const formData = new FormData();
+    formData.set("full_name", "Novo Membro");
+    formData.set("email", "novo@example.com");
+    formData.set("role", "viewer");
+
+    const { inviteTeamMember } = await import("./actions");
+    await expect(inviteTeamMember({ status: "idle", message: "" }, formData)).resolves.toMatchObject({
+      status: "success",
+    });
+    expect(membershipUpsert).toHaveBeenCalledWith(
+      { tenant_id: "tenant-1", user_id: "orphan-user", role: "viewer" },
+      { onConflict: "tenant_id,user_id" },
+    );
+  });
+
+  it("removes a newly invited Auth user when profile persistence fails", async () => {
+    profileUpsert.mockResolvedValue({ error: new Error("database unavailable") });
+    const formData = new FormData();
+    formData.set("full_name", "Novo Membro");
+    formData.set("email", "novo@example.com");
+    formData.set("role", "ar");
+
+    const { inviteTeamMember } = await import("./actions");
+    await expect(inviteTeamMember({ status: "idle", message: "" }, formData)).resolves.toMatchObject({
+      status: "error",
+    });
+    expect(deleteUser).toHaveBeenCalledWith("user-2");
   });
 
   it("clears optional label fields when they are submitted blank", async () => {
