@@ -414,9 +414,8 @@ declare
   tbl text;
 begin
   for tbl in
-    select table_name from information_schema.tables
+    select table_name from information_schema.columns
     where table_schema = 'public'
-      and table_type = 'BASE TABLE'
       and column_name = 'tenant_id'
       and table_name in (
         'artists','artist_aliases','artist_contacts',

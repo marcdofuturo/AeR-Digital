@@ -219,6 +219,9 @@ importers:
       '@bull-board/express':
         specifier: ^8.6.0
         version: 8.6.0(bullmq@5.81.3(supports-color@10.2.2))(supports-color@10.2.2)
+      '@supabase/supabase-js':
+        specifier: ^2.112.0
+        version: 2.112.0
       bullmq:
         specifier: ^5.40.0
         version: 5.81.3(supports-color@10.2.2)

@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireMembership } from "@/lib/auth/require-membership";
 import { cache } from "react";
 
 /**
@@ -7,25 +7,11 @@ import { cache } from "react";
  * Cached per-request via React cache().
  */
 export const getCurrentTenantId = cache(async (): Promise<string | null> => {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  // Read tenant_id from app_metadata if stored there, otherwise query memberships
-  if (user.app_metadata?.tenant_id) {
-    return user.app_metadata.tenant_id as string;
+  try {
+    return (await requireMembership()).tenantId;
+  } catch {
+    return null;
   }
-
-  const admin = createAdminClient();
-  const { data: membership } = await admin
-    .from("memberships")
-    .select("tenant_id")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .single();
-
-  return membership?.tenant_id ?? null;
 });
 
 export interface Tenant {
