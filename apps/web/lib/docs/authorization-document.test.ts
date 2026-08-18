@@ -85,11 +85,19 @@ describe("authorization document", () => {
     expect(docx[0]).toBe(0x50);
     expect(docx[1]).toBe(0x4b);
     expect(docx.byteLength).toBeGreaterThan(1000);
+    const packageText = Buffer.from(docx).toString("utf8");
+    expect(packageText).toContain("word/document.xml");
+    expect(packageText).toMatch(/Minha M.sica Incr.vel/);
+    expect(packageText).toContain("CPF");
+    expect(packageText).toContain("Total:");
   });
 
   it("builds a valid pdf header with unicode content", () => {
     const pdf = buildAuthorizationPdf(data);
     expect(pdf.subarray(0, 4).toString("ascii")).toBe("%PDF");
     expect(pdf.byteLength).toBeGreaterThan(1000);
+    const source = pdf.toString("binary");
+    expect(source).toContain("CPF) Tj");
+    expect(source).toContain("Total:");
   });
 });

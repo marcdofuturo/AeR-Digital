@@ -85,16 +85,15 @@ function pageContentStream(
   lines: PdfLine[],
   options: { pageHeight: number; marginX: number; marginTop: number; lineGap: number },
 ) {
-  const commands = ["BT", "1 0 0 1 0 0 Tm"];
+  const commands = ["BT"];
   let y = options.pageHeight - options.marginTop;
 
   for (const line of lines) {
     const size = line.size ?? 11;
     const font = line.bold ? "F2" : "F1";
     commands.push(`/${font} ${size} Tf`);
-    commands.push(`${options.marginX} ${y} Td`);
+    commands.push(`1 0 0 1 ${options.marginX} ${y} Tm`);
     commands.push(`${toPdfLiteral(line.text)} Tj`);
-    commands.push(`${-options.marginX} ${-options.lineGap} Td`);
     y -= line.size && line.size > 14 ? 22 : options.lineGap;
   }
 
