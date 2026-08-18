@@ -1,21 +1,21 @@
-import { Suspense } from "react";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { CatalogGrowthChart } from "@/components/dashboard/catalog-growth-chart";
 import { PipelineFunnel } from "@/components/dashboard/pipeline-funnel";
 import { UrgentTasks } from "@/components/dashboard/urgent-tasks";
 import { IntakeWhatsappLink } from "@/components/dashboard/intake-whatsapp-link";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCatalogGrowth, getPipelineFunnel, getRecentActivity } from "@/lib/data/dashboard";
 import { getTenant } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
 
 export default async function DashboardPage() {
-  const tenant = await getTenant();
-  const [growth, funnel, activity] = await Promise.all([
+  const [tenant, growth, funnel, activity, statsGrid, urgentTasks] = await Promise.all([
+    getTenant(),
     getCatalogGrowth(),
     getPipelineFunnel(),
     getRecentActivity(),
+    StatsGrid(),
+    UrgentTasks(),
   ]);
 
   return (
@@ -30,24 +30,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <Suspense
-        fallback={
-          <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i}>
-                <CardContent className="p-5">
-                  <Skeleton className="mb-2 h-9 w-20" />
-                  <Skeleton className="h-4 w-28" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        }
-      >
-        <div className="mb-8">
-          <StatsGrid />
-        </div>
-      </Suspense>
+      <div className="mb-8">{statsGrid}</div>
 
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <CatalogGrowthChart data={growth} />
@@ -55,7 +38,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <UrgentTasks />
+        {urgentTasks}
 
         <Card>
           <CardHeader>
