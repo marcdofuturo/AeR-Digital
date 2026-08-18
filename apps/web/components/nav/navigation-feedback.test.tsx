@@ -4,6 +4,7 @@ import { NavigationFeedback } from "./navigation-feedback";
 
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/releases"),
+  useSearchParams: vi.fn(() => new URLSearchParams(window.location.search)),
 }));
 
 describe("NavigationFeedback", () => {
@@ -37,5 +38,20 @@ describe("NavigationFeedback", () => {
     fireEvent.click(screen.getByRole("link", { name: "Externo" }));
 
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("shows progress for a query-only navigation", () => {
+    render(
+      <>
+        <NavigationFeedback />
+        <a href="/releases?stage=em_analise" onClick={(event) => event.preventDefault()}>
+          Filtrar em analise
+        </a>
+      </>,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Filtrar em analise" }));
+
+    expect(screen.getByRole("progressbar", { name: "Carregando pagina" })).toBeInTheDocument();
   });
 });

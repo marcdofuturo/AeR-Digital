@@ -8,7 +8,6 @@ import { persistAutomaticSplitsForTrack } from "@/lib/splits/persist";
 import type { Participant } from "@ar/splits";
 import type { ReleaseStage } from "@ar/shared";
 import { isRegistrationStatus } from "@/lib/registration-status";
-import { syncReleaseStageTask } from "@/lib/tasks/sync-stage-task";
 import { enqueuePresentationJob } from "@/lib/presentation/jobs";
 
 type SplitScope = "obra" | "fonograma" | "digital";
@@ -35,12 +34,6 @@ export async function updateReleaseStage(releaseId: string, newStage: ReleaseSta
     console.error("Failed to update release stage:", error);
     throw new Error("Falha ao mover lançamento");
   }
-
-  await syncReleaseStageTask(supabase, {
-    tenantId,
-    releaseId,
-    stage: newStage,
-  });
 
   revalidatePath("/releases");
   revalidateRelease(releaseId);
@@ -135,56 +128,22 @@ export async function saveAuthorizationRecipientEmail(formData: FormData) {
 
   const releaseId = String(formData.get("release_id") ?? "");
   const recipientId = String(formData.get("recipient_id") ?? "");
-  const artistId = nullableString(formData.get("artist_id"));
   const email = nullableString(formData.get("email"));
   if (!releaseId || !recipientId || !email || !email.includes("@")) {
     throw new Error("Email de autorização inválido");
   }
 
   const supabase = createAdminClient();
-  const { error: recipientError } = await supabase
-    .from("authorization_recipients")
-    .update({ email })
-    .eq("id", recipientId)
-    .eq("tenant_id", tenantId);
+  const { error: recipientError } = await supabase.rpc("save_authorization_recipient_email", {
+    p_tenant_id: tenantId,
+    p_release_id: releaseId,
+    p_recipient_id: recipientId,
+    p_email: email,
+  });
 
   if (recipientError) {
     console.error("Failed to save authorization recipient email:", recipientError);
     throw new Error("Falha ao salvar email de autorização");
-  }
-
-  if (artistId) {
-    await supabase
-      .from("artist_contacts")
-      .update({ is_primary: false })
-      .eq("artist_id", artistId)
-      .eq("kind", "email");
-
-    const { data: existing } = await supabase
-      .from("artist_contacts")
-      .select("id")
-      .eq("artist_id", artistId)
-      .eq("kind", "email")
-      .ilike("value", email)
-      .limit(1)
-      .maybeSingle();
-
-    if (existing?.id) {
-      await supabase
-        .from("artist_contacts")
-        .update({ is_primary: true })
-        .eq("id", existing.id);
-    } else {
-      await supabase
-        .from("artist_contacts")
-        .insert({
-          artist_id: artistId,
-          kind: "email",
-          value: email,
-          label: "Liberação",
-          is_primary: true,
-        });
-    }
   }
 
   revalidatePath(`/releases/${releaseId}/autorizacao`);

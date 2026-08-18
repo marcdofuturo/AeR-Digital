@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export function NavigationFeedback() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setLoading(false);
-  }, [pathname]);
+  }, [pathname, search]);
 
   useEffect(() => {
     const handleNavigation = (event: MouseEvent) => {
@@ -20,7 +22,9 @@ export function NavigationFeedback() {
       const destination = new URL(target.href, window.location.href);
       if (destination.origin !== window.location.origin) return;
       if (destination.pathname.startsWith("/api/")) return;
-      if (destination.pathname === window.location.pathname) return;
+      const destinationLocation = `${destination.pathname}${destination.search}${destination.hash}`;
+      const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (destinationLocation === currentLocation) return;
       setLoading(true);
     };
 

@@ -18,12 +18,24 @@ type RuntimeEnvironment = {
   CLAUDE_SONNET_MODEL?: string;
 };
 
+const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-6";
+const RETIRED_CLAUDE_MODELS = new Set(["claude-sonnet-4-20250514"]);
+
+export function resolveClaudeModel(environment: RuntimeEnvironment): string {
+  const model = environment.CLAUDE_SONNET_MODEL?.trim() || DEFAULT_CLAUDE_MODEL;
+  if (RETIRED_CLAUDE_MODELS.has(model)) {
+    throw new Error(`Modelo Claude aposentado: ${model}`);
+  }
+  return model;
+}
+
 export function createPresentationDependencies(
   environment: RuntimeEnvironment = process.env,
 ): PresentationProcessorDependencies {
   const url = environment.SUPABASE_URL ?? environment.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceRoleKey) throw new Error("Supabase do worker nao configurado");
+  resolveClaudeModel(environment);
 
   const supabase = createClient(url, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -144,6 +156,7 @@ export async function generatePresentation(
   const messages: Array<{ role: "user" | "assistant"; content: unknown }> = [
     { role: "user", content: prompt },
   ];
+  const verifiedSources: Array<{ titulo: string; url: string }> = [];
 
   for (let continuation = 0; continuation < 3; continuation += 1) {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -154,7 +167,7 @@ export async function generatePresentation(
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: environment.CLAUDE_SONNET_MODEL ?? "claude-sonnet-4-20250514",
+        model: resolveClaudeModel(environment),
         max_tokens: 1400,
         tools: [{
           type: "web_search_20250305",
@@ -169,8 +182,9 @@ export async function generatePresentation(
 
     const body = await response.json() as {
       stop_reason?: string;
-      content?: Array<{ type?: string; text?: string } | Record<string, unknown>>;
+      content?: Array<Record<string, unknown>>;
     };
+    verifiedSources.push(...extractVerifiedWebSources(body.content ?? []));
     if (body.stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: body.content ?? [] });
       continue;
@@ -180,10 +194,51 @@ export async function generatePresentation(
       .map((part) => part.type === "text" ? String(part.text ?? "") : "")
       .join("\n")
       .trim();
-    return parsePresentation(raw);
+    const parsed = parsePresentation(raw);
+    const fontes = uniqueSources(verifiedSources);
+    if (!fontes.length) throw new Error("Pesquisa sem fontes verificadas");
+    return { ...parsed, fontes };
   }
 
   throw new Error("Claude web search did not complete");
+}
+
+function extractVerifiedWebSources(content: Array<Record<string, unknown>>) {
+  const sources: Array<{ titulo: string; url: string }> = [];
+  for (const block of content) {
+    if (block.type === "text" && Array.isArray(block.citations)) {
+      for (const citation of block.citations) {
+        if (!citation || typeof citation !== "object") continue;
+        const record = citation as Record<string, unknown>;
+        if (record.type !== "web_search_result_location") continue;
+        addSource(sources, record.title, record.url);
+      }
+    }
+
+    if (block.type === "web_search_tool_result" && Array.isArray(block.content)) {
+      for (const result of block.content) {
+        if (!result || typeof result !== "object") continue;
+        const record = result as Record<string, unknown>;
+        if (record.type !== "web_search_result") continue;
+        addSource(sources, record.title, record.url);
+      }
+    }
+  }
+  return sources;
+}
+
+function addSource(
+  sources: Array<{ titulo: string; url: string }>,
+  rawTitle: unknown,
+  rawUrl: unknown,
+) {
+  const titulo = String(rawTitle ?? "").trim();
+  const url = String(rawUrl ?? "").trim();
+  if (titulo && /^https:\/\//i.test(url)) sources.push({ titulo, url });
+}
+
+function uniqueSources(sources: Array<{ titulo: string; url: string }>) {
+  return [...new Map(sources.map((source) => [source.url, source])).values()];
 }
 
 function parsePresentation(raw: string): PresentationResult {
@@ -233,12 +288,17 @@ async function failJob(supabase: SupabaseClient, job: PresentationJob, message: 
   await markFailedById(supabase, job.id, job.tenantId, message);
 }
 
-async function markFailedById(supabase: SupabaseClient, jobId: string, tenantId: string, message: string) {
+export async function markFailedById(
+  supabase: SupabaseClient,
+  jobId: string,
+  tenantId: string,
+  message: string,
+) {
   const { error } = await supabase.from("presentation_jobs").update({
     status: "failed",
     last_error: message.slice(0, 300),
     locked_at: null,
     updated_at: new Date().toISOString(),
-  }).eq("id", jobId).eq("tenant_id", tenantId);
+  }).eq("id", jobId).eq("tenant_id", tenantId).eq("status", "processing");
   if (error) throw new Error("failed job persistence failed");
 }

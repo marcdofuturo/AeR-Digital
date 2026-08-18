@@ -35,6 +35,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 describe("configuration actions", () => {
   beforeEach(() => {
+    process.env.NEXT_PUBLIC_SITE_URL = "https://aerdigital.pages.dev";
     requireMembership.mockReset().mockResolvedValue({
       userId: "owner-1",
       tenantId: "tenant-1",
@@ -57,6 +58,10 @@ describe("configuration actions", () => {
       status: "success",
     });
     expect(requireMembership).toHaveBeenCalledWith(["owner"]);
+    expect(inviteUserByEmail).toHaveBeenCalledWith("novo@example.com", {
+      data: { full_name: "Novo Membro" },
+      redirectTo: "https://aerdigital.pages.dev/auth/invite?next=/config/equipe",
+    });
     expect(membershipUpsert).toHaveBeenCalledWith(
       { tenant_id: "tenant-1", user_id: "user-2", role: "ar" },
       { onConflict: "tenant_id,user_id" },
@@ -83,5 +88,25 @@ describe("configuration actions", () => {
       responsible_name: "Marc",
     }));
     expect(tenantUpdate.mock.calls[0]?.[0]).not.toHaveProperty("intake_code");
+  });
+
+  it("clears optional label fields when they are submitted blank", async () => {
+    const formData = new FormData();
+    formData.set("name", "Audiolink Atualizado");
+    for (const field of [
+      "legal_name", "cnpj", "logo_url", "responsible_name", "contact_email", "contact_phone",
+    ]) formData.set(field, "");
+
+    const { updateLabelSettings } = await import("./actions");
+    await updateLabelSettings({ status: "idle", message: "" }, formData);
+
+    expect(tenantUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      legal_name: null,
+      cnpj: null,
+      logo_url: null,
+      responsible_name: null,
+      contact_email: null,
+      contact_phone: null,
+    }));
   });
 });

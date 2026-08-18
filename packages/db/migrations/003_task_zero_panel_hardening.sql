@@ -22,10 +22,12 @@ using tasks duplicate_task
 where current_task.tenant_id = duplicate_task.tenant_id
   and current_task.release_id = duplicate_task.release_id
   and current_task.kind = duplicate_task.kind
+  and current_task.kind like 'stage:%'
   and current_task.id > duplicate_task.id;
 
-create unique index if not exists tasks_tenant_release_kind_uidx
-  on tasks (tenant_id, release_id, kind);
+create unique index if not exists tasks_tenant_release_stage_kind_uidx
+  on tasks (tenant_id, release_id, kind)
+  where kind like 'stage:%';
 
 create or replace function sync_release_stage_task() returns trigger
 language plpgsql security invoker set search_path = public as $$
@@ -75,7 +77,7 @@ begin
     new.tenant_id, new.id, task_title, task_kind, 'aberta', task_priority,
     now() + make_interval(days => task_due_days), null, true
   )
-  on conflict (tenant_id, release_id, kind) do update
+  on conflict (tenant_id, release_id, kind) where kind like 'stage:%' do update
   set title = excluded.title,
       status = 'aberta',
       priority = excluded.priority,
@@ -126,7 +128,7 @@ where deleted_at is null
     'em_analise', 'autorizacao_pendente', 'registrar_obra',
     'registrar_fonograma', 'pronto_p_distribuir', 'distribuido', 'situacao_ecad'
   )
-on conflict (tenant_id, release_id, kind) do update
+on conflict (tenant_id, release_id, kind) where kind like 'stage:%' do update
 set title = excluded.title,
     priority = excluded.priority,
     auto_generated = true;
