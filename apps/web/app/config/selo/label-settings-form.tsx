@@ -5,7 +5,8 @@ import { SaveButton } from "@/components/forms/save-button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { Tenant } from "@/lib/tenant";
-import { INITIAL_CONFIG_ACTION_STATE, updateLabelSettings } from "../actions";
+import { INITIAL_CONFIG_ACTION_STATE } from "../action-state";
+import { updateLabelSettings } from "../actions";
 
 export function LabelSettingsForm({ tenant }: { tenant: Tenant }) {
   const [state, action] = useActionState(updateLabelSettings, INITIAL_CONFIG_ACTION_STATE);

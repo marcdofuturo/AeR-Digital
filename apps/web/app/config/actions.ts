@@ -3,18 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireMembership } from "@/lib/auth/require-membership";
+import type { ConfigActionState } from "./action-state";
 import { labelSettingsSchema, teamInvitationSchema } from "./schemas";
-
-export type ConfigActionState = {
-  status: "idle" | "success" | "error";
-  message: string;
-  fieldErrors?: Record<string, string[]>;
-};
-
-export const INITIAL_CONFIG_ACTION_STATE: ConfigActionState = {
-  status: "idle",
-  message: "",
-};
 
 export async function inviteTeamMember(
   _previousState: ConfigActionState,
