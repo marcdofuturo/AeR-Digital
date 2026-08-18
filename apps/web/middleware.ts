@@ -5,6 +5,7 @@ import { createMiddlewareClient } from "@/lib/supabase/middleware";
 const PUBLIC_ROUTES = [
   "/login",
   "/auth/callback",
+  "/auth/invite",
   "/api/webhooks/whatsapp",
   "/api/webhooks/email/inbound",
 ];

@@ -36,4 +36,17 @@ describe("auth callback", () => {
     expect(response.headers.get("location")).toBe("https://aerdigital.pages.dev/releases");
     expect(mocks.exchangeCodeForSession).not.toHaveBeenCalled();
   });
+
+  it("preserves the invite OTP type supplied by Supabase", async () => {
+    mocks.verifyOtp.mockResolvedValue({ error: null });
+
+    await GET(new Request(
+      "https://aerdigital.pages.dev/auth/callback?token_hash=invite123&type=invite&next=/config/equipe",
+    ));
+
+    expect(mocks.verifyOtp).toHaveBeenCalledWith({
+      token_hash: "invite123",
+      type: "invite",
+    });
+  });
 });

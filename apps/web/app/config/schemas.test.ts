@@ -34,4 +34,25 @@ describe("configuration schemas", () => {
     expect(parsed).not.toHaveProperty("intake_code");
     expect(parsed).not.toHaveProperty("slug");
   });
+
+  it("normalizes cleared optional label fields to null", () => {
+    const parsed = labelSettingsSchema.parse({
+      name: "Audiolink Brasil",
+      legal_name: "",
+      cnpj: " ",
+      logo_url: "",
+      responsible_name: "",
+      contact_email: "",
+      contact_phone: "",
+    });
+
+    expect(parsed).toMatchObject({
+      legal_name: null,
+      cnpj: null,
+      logo_url: null,
+      responsible_name: null,
+      contact_email: null,
+      contact_phone: null,
+    });
+  });
 });

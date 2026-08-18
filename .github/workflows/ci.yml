@@ -47,6 +47,9 @@ jobs:
         env:
           PYTHONPATH: apps/audio-svc
 
+      - name: Build audio service image
+        run: docker build -f apps/audio-svc/Dockerfile apps/audio-svc
+
       - name: Lint
         run: pnpm lint
 

@@ -35,10 +35,11 @@ export async function inviteTeamMember(
 
     let userId = existingProfile?.id as string | undefined;
     if (!userId) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+      const appUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL)
+        ?.replace(/\/$/, "");
       const options = {
         data: { full_name: parsed.data.full_name },
-        ...(appUrl ? { redirectTo: `${appUrl}/login` } : {}),
+        ...(appUrl ? { redirectTo: `${appUrl}/auth/invite?next=/config/equipe` } : {}),
       };
       const { data, error } = await admin.auth.admin.inviteUserByEmail(parsed.data.email, options);
       if (error || !data.user) throw new Error("Nao foi possivel enviar o convite");

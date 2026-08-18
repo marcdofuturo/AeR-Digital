@@ -1,18 +1,18 @@
 import { z } from "zod";
 
-const optionalText = z.preprocess(
-  (value) => String(value ?? "").trim() || undefined,
-  z.string().max(200).optional(),
+const nullableText = z.preprocess(
+  (value) => String(value ?? "").trim() || null,
+  z.string().max(200).nullable(),
 );
 
-const optionalUrl = z.preprocess(
-  (value) => String(value ?? "").trim() || undefined,
-  z.string().url("URL invalida").max(500).optional(),
+const nullableUrl = z.preprocess(
+  (value) => String(value ?? "").trim() || null,
+  z.string().url("URL invalida").max(500).nullable(),
 );
 
-const optionalEmail = z.preprocess(
-  (value) => String(value ?? "").trim() || undefined,
-  z.string().email("Email invalido").max(200).optional(),
+const nullableEmail = z.preprocess(
+  (value) => String(value ?? "").trim() || null,
+  z.string().email("Email invalido").max(200).nullable(),
 );
 
 export const teamInvitationSchema = z.object({
@@ -23,15 +23,15 @@ export const teamInvitationSchema = z.object({
 
 export const labelSettingsSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do selo").max(120),
-  legal_name: optionalText,
-  cnpj: optionalText.refine(
+  legal_name: nullableText,
+  cnpj: nullableText.refine(
     (value) => !value || value.replace(/\D/g, "").length === 14,
     "CNPJ deve ter 14 digitos",
   ),
-  logo_url: optionalUrl,
-  responsible_name: optionalText,
-  contact_email: optionalEmail,
-  contact_phone: optionalText.refine(
+  logo_url: nullableUrl,
+  responsible_name: nullableText,
+  contact_email: nullableEmail,
+  contact_phone: nullableText.refine(
     (value) => !value || /^\+?[0-9 ()-]{8,20}$/.test(value),
     "Telefone invalido",
   ),

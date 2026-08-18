@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AppShell } from "@/components/nav/app-shell";
 import { NavigationFeedback } from "@/components/nav/navigation-feedback";
 import "./globals.css";
@@ -22,7 +23,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-bg text-fg min-h-screen font-sans antialiased">
-        <NavigationFeedback />
+        <Suspense fallback={null}>
+          <NavigationFeedback />
+        </Suspense>
         <AppShell>{children}</AppShell>
       </body>
     </html>
