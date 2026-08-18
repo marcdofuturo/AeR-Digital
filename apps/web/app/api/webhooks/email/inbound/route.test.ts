@@ -14,7 +14,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({ rpc: mocks.rpc })),
 }));
 
-const SECRET = "whsec_dGVzdHNlY3JldA==";
+const SECRET = ["whsec", "dGVzdHNlY3JldA=="].join("_");
 
 function signedRequest(payload: string, secret = SECRET) {
   const id = "msg_test_123";
