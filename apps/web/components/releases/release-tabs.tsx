@@ -27,8 +27,7 @@ export function ReleaseTabs({ releaseId }: { releaseId: string }) {
           <Link
             key={tab.segment}
             href={href}
-            prefetch={false}
-            className={`-mb-[1px] shrink-0 border-b-2 px-4 py-2.5 text-sm transition-colors ${
+            className={`-mb-[1px] shrink-0 border-b-2 px-4 py-2.5 text-sm transition-[color,border-color,transform] active:translate-y-px motion-reduce:transform-none motion-reduce:transition-none ${
               isActive
                 ? "border-brand font-medium text-fg"
                 : "border-transparent text-fg-muted hover:border-border hover:text-fg"

@@ -91,3 +91,28 @@ describe("Presentation prompt", () => {
     expect(prompt).not.toContain("DUAS OPÇÕES");
   });
 });
+
+describe("Grounded presentation requirements", () => {
+  it("requires artist research and transcription-based mood analysis", () => {
+    const prompt = buildPresentationPrompt({
+      titulo: "Faixa Teste",
+      creditos: "Artista Um, Artista Dois",
+      generos: ["Funk"],
+      data: "2026-09-15",
+      bpm: 130,
+      key: "F# minor",
+      energy: 0.82,
+      transcript_sample: "transcricao completa da musica",
+    });
+
+    expect(prompt).toMatch(/pesquise cada artista/i);
+    expect(prompt).toMatch(/fontes verificaveis/i);
+    expect(prompt).toMatch(/transcricao completa/i);
+    expect(prompt).toMatch(/mood|sentimento/i);
+    expect(prompt).toMatch(/contexto cultural|cidade|territorio/i);
+    expect(prompt).toMatch(/plano de lancamento|marketing/i);
+    expect(prompt).toMatch(/spotify|amazon music|apple music/i);
+    expect(prompt).toMatch(/nao invente/i);
+    expect(prompt).toContain('"fontes"');
+  });
+});

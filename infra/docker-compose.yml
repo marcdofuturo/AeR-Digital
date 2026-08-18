@@ -18,8 +18,8 @@ services:
     image: evoapicloud/evolution-api:latest
     container_name: ar-evolution
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     environment:
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
       - DATABASE_ENABLED=true
@@ -41,8 +41,8 @@ services:
     image: redis:7-alpine
     container_name: ar-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
@@ -56,14 +56,42 @@ services:
       dockerfile: Dockerfile
     container_name: ar-audio-svc
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     environment:
       - PYTHONUNBUFFERED=1
+      - AUDIO_ALLOWED_HOSTS=${AUDIO_ALLOWED_HOSTS:-dwqdpumeehcamnrbddad.supabase.co,evolution.193-203-182-39.sslip.io}
+      - AUDIO_MAX_BYTES=${AUDIO_MAX_BYTES:-536870912}
     volumes:
       - audio_data:/tmp/audio
     networks:
       - ar-net
+
+  # Persistent presentation queue consumer.
+  worker:
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    container_name: ar-worker
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      - WORKER_PORT=3001
+      - REDIS_URL=redis://ar-redis:6379
+      - SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_SONNET_MODEL=${CLAUDE_SONNET_MODEL:-claude-sonnet-4-6}
+      - AUDIO_SERVICE_URL=http://audio-svc:8000
+    networks:
+      - ar-net
+    depends_on:
+      redis:
+        condition: service_started
+      audio-svc:
+        condition: service_healthy
 
   # ── Caddy (reverse proxy + TLS) ──
   caddy:

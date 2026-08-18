@@ -46,7 +46,7 @@ export const getRelease = cache(async function getRelease(tenantId: string, rele
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("releases")
-    .select("*, tracks(*, track_participants(*, artists!inner(*)), registrations(*), splits(*), pitches(*)), authorizations(*, authorization_recipients(*))")
+    .select("*, tracks(*, track_participants(*, artists!inner(*)), registrations(*), splits(*), pitches(*), presentation_jobs(*)), authorizations(*, authorization_recipients(*))")
     .eq("tenant_id", tenantId)
     .eq("id", releaseId)
     .single();

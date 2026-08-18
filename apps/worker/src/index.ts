@@ -4,6 +4,8 @@ import { ExpressAdapter } from "@bull-board/express";
 import express from "express";
 import { Queue, Worker, type Job } from "bullmq";
 import { Redis } from "ioredis";
+import { processNextPresentationJob } from "./presentation/processor";
+import { createPresentationDependencies } from "./presentation/runtime";
 
 const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,
@@ -21,6 +23,30 @@ const PORT = parseInt(process.env.WORKER_PORT || "3001", 10);
 
 export async function startWorker() {
   const app = express();
+  const presentationDependencies = createPresentationDependencies();
+  let presentationCycleRunning = false;
+  let presentationWorkerStatus: "ready" | "processing" | "error" = "ready";
+
+  const processPresentationJobs = async () => {
+    if (presentationCycleRunning) return;
+    presentationCycleRunning = true;
+    presentationWorkerStatus = "processing";
+    try {
+      while (await processNextPresentationJob(presentationDependencies)) {
+        // Drain the current queue before waiting for the next polling interval.
+      }
+      presentationWorkerStatus = "ready";
+    } catch {
+      presentationWorkerStatus = "error";
+      console.error("Presentation worker cycle failed");
+    } finally {
+      presentationCycleRunning = false;
+    }
+  };
+
+  const presentationTimer = setInterval(processPresentationJobs, 5_000);
+  presentationTimer.unref();
+  void processPresentationJobs();
 
   // Bull Board (dev only)
   if (process.env.NODE_ENV !== "production") {
@@ -40,7 +66,11 @@ export async function startWorker() {
   }
 
   app.get("/health", (_req, res) => {
-    res.json({ status: "ok", queues: ["reminders", "emails", "pdf-generation", "audio-analysis", "pitch-generation"] });
+    res.json({
+      status: presentationWorkerStatus === "error" ? "degraded" : "ok",
+      presentation: presentationWorkerStatus,
+      queues: ["reminders", "emails", "pdf-generation", "audio-analysis", "pitch-generation", "presentation-db"],
+    });
   });
 
   // Default worker: process rules (Prompt 5)

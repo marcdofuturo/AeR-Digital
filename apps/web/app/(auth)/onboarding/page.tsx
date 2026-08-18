@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { SaveButton } from "@/components/forms/save-button";
 
 export default function OnboardingPage() {
   return (
@@ -107,12 +108,9 @@ export default function OnboardingPage() {
             />
           </div>
 
-          <button
-            type="submit"
-            className="w-full py-2 px-4 bg-brand hover:bg-brand-hover text-white font-medium rounded-md transition-colors"
-          >
+          <SaveButton className="w-full" pendingLabel="Criando selo..." savedLabel="Selo criado">
             Criar selo
-          </button>
+          </SaveButton>
         </form>
       </div>
     </div>

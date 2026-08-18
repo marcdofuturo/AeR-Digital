@@ -222,12 +222,19 @@ SINAL: ${signal}
 TRECHO/LETRA: ${ctx.transcript_sample || "nao informado"}
 ${improvement}
 REGRAS
+- Antes de escrever, pesquise cada artista citado. Registre somente relevancia publica sustentada por fontes verificaveis.
+- Use a TRANSCRICAO COMPLETA para identificar tema, narrativa, mood/sentimento e imagens centrais; nao copie versos longos.
+- Descreva elementos sonoros concretos: andamento, energia, timbres, arranjo, voz, gancho e referencias de genero.
+- Inclua contexto cultural, cidade ou territorio apenas quando confirmado pela pesquisa ou pelos dados fornecidos.
+- Explique o plano de lancamento/marketing quando houver dados e indique o encaixe editorial em Spotify, Amazon Music e Apple Music.
+- Diferencie fatos verificados de inferencias musicais. Nao invente streams, seguidores, premios, playlists, imprensa, campanhas ou parcerias.
+- A apresentacao deve responder quem, o que, por que, quando, onde e como em linguagem persuasiva sem hype vazio.
 - Portugues brasileiro.
 - Maximo de 700 caracteres.
 - Pesquise os artistas citados e use somente sinais verificaveis de relevancia publica quando houver.
 - Nao invente streams, premios, playlists, parcerias ou numeros.
 - Explique o som, o momento da faixa e o encaixe comercial.
-- Retorne JSON estrito: {"apresentacao":str,"avisos":[str]}`;
+- FORMATO JSON estrito: {"apresentacao":str,"avisos":[str],"fontes":[{"titulo":str,"url":str}]}`;
 }
 
 /** Elegibility check */

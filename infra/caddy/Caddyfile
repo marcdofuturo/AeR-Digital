@@ -1,5 +1,5 @@
 evolution.193-203-182-39.sslip.io {
-    reverse_proxy localhost:8080
+    reverse_proxy evolution:8080
 }
 
 :80 {

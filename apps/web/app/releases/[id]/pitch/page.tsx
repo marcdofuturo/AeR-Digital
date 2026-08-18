@@ -8,25 +8,30 @@ import { AI_CREDIT_COST, remainingAiCredits } from "@/lib/ai/presentation";
 import { generatePresentationForTrack } from "@/app/releases/actions";
 import { fmtDate } from "@ar/shared";
 import { FileText, Sparkles } from "lucide-react";
+import { PresentationJobRefresh } from "@/components/releases/presentation-job-refresh";
 
 export default async function PresentationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return null;
 
-  const [release, generatedCount] = await Promise.all([
+  const [release, usedCredits] = await Promise.all([
     getRelease(tenantId, id),
-    countTenantPresentations(tenantId),
+    countTenantPresentationUsage(tenantId),
   ]);
   if (!release) return null;
 
   const r = release as any;
   const tracks = r.tracks ?? [];
-  const credits = remainingAiCredits(generatedCount);
+  const credits = remainingAiCredits(usedCredits);
   const canGenerate = credits >= AI_CREDIT_COST;
+  const hasActiveJobs = tracks.some((track: any) =>
+    (track.presentation_jobs ?? []).some((job: any) => ["queued", "processing"].includes(job.status)),
+  );
 
   return (
     <div className="space-y-6">
+      <PresentationJobRefresh active={hasActiveJobs} />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -43,6 +48,11 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
         const presentations = [...(track.pitches ?? [])].sort(
           (a: any, b: any) => new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime(),
         );
+        const jobs = [...(track.presentation_jobs ?? [])].sort(
+          (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+        const activeJob = jobs.find((job: any) => ["queued", "processing"].includes(job.status));
+        const latestJob = jobs[0];
 
         return (
           <Card key={track.id}>
@@ -69,12 +79,25 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
                   <p className="text-xs text-fg-muted">
                     Sem texto, a IA gera uma primeira apresentação da música. Com texto, gera nova versão seguindo suas dicas.
                   </p>
-                  <SaveButton size="sm" disabled={!canGenerate} pendingLabel="Gerando..." savedLabel="Gerado">
+                  <SaveButton size="sm" disabled={!canGenerate || Boolean(activeJob)} pendingLabel="Enfileirando..." savedLabel="Na fila">
                     <Sparkles className="h-4 w-4" />
                     Gerar apresentação
                   </SaveButton>
                 </div>
               </form>
+
+              {latestJob && latestJob.status !== "completed" ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-2/40 p-3 text-xs text-fg-muted">
+                  <Badge variant={latestJob.status === "failed" ? "danger" : latestJob.status === "processing" ? "warning" : "info"}>
+                    {latestJob.status === "queued" ? "Na fila" : latestJob.status === "processing" ? "Transcrevendo e pesquisando" : "Falhou"}
+                  </Badge>
+                  <span>
+                    {latestJob.status === "failed"
+                      ? latestJob.last_error ?? "Nao foi possivel concluir a apresentacao."
+                      : "A pagina atualiza automaticamente quando o pitching estiver pronto."}
+                  </span>
+                </div>
+              ) : null}
 
               {presentations.length === 0 ? (
                 <div className="py-8 text-center">
@@ -120,6 +143,23 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
                               ))}
                             </div>
                           )}
+                          {Array.isArray(analysis.fontes) && analysis.fontes.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {analysis.fontes.map((source: { titulo?: string; url?: string }) =>
+                                source.url?.startsWith("https://") ? (
+                                  <a
+                                    key={source.url}
+                                    href={source.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs text-brand underline-offset-4 hover:underline"
+                                  >
+                                    {source.titulo || "Fonte da pesquisa"}
+                                  </a>
+                                ) : null,
+                              )}
+                            </div>
+                          ) : null}
                         </CardContent>
                       </Card>
                     );
@@ -134,12 +174,13 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
   );
 }
 
-async function countTenantPresentations(tenantId: string) {
+async function countTenantPresentationUsage(tenantId: string) {
   const supabase = createAdminClient();
-  const { count } = await supabase
-    .from("pitches")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId);
+  const [{ count: generated }, { count: active }] = await Promise.all([
+    supabase.from("pitches").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+    supabase.from("presentation_jobs").select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId).in("status", ["queued", "processing"]),
+  ]);
 
-  return count ?? 0;
+  return (generated ?? 0) + (active ?? 0);
 }
