@@ -46,12 +46,18 @@ vi.mock("@/lib/wa/tenant-resolver", () => ({
 
 import { POST } from "./route";
 
-function requestFor(text: string) {
+const EVOLUTION_API_KEY = "test-existing-evolution-key";
+
+function requestFor(text: string, options: { apiKey?: string; instance?: string } = {}) {
   return new Request("https://aerdigital.pages.dev/api/webhooks/whatsapp", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      ...(options.apiKey === undefined ? { apikey: EVOLUTION_API_KEY } : { apikey: options.apiKey }),
+    },
     body: JSON.stringify({
       event: "MESSAGES_UPSERT",
+      instance: options.instance ?? "atendimento",
       data: {
         key: {
           fromMe: false,
@@ -65,6 +71,9 @@ function requestFor(text: string) {
 
 describe("WhatsApp webhook route", () => {
   beforeEach(() => {
+    process.env.EVOLUTION_API_KEY = EVOLUTION_API_KEY;
+    process.env.EVOLUTION_BASE_URL = "https://evolution.example.com";
+    process.env.EVOLUTION_INSTANCE = "atendimento";
     for (const mock of Object.values(mocks)) mock.mockReset();
     mocks.resolveTenantByPhone.mockResolvedValue({
       tenant_id: "tenant-1",
@@ -84,6 +93,40 @@ describe("WhatsApp webhook route", () => {
       nextStep: "ask_release_format",
       draft: {},
     });
+  });
+
+  it("fails closed when the existing Evolution credential is not configured", async () => {
+    delete process.env.EVOLUTION_API_KEY;
+
+    const response = await POST(requestFor("A7K9") as never);
+
+    expect(response.status).toBe(503);
+    expect(mocks.resolveTenantByCode).not.toHaveBeenCalled();
+  });
+
+  it("rejects forged webhook requests before processing their payload", async () => {
+    const response = await POST(requestFor("A7K9", { apiKey: "forged" }) as never);
+
+    expect(response.status).toBe(401);
+    expect(mocks.resolveTenantByCode).not.toHaveBeenCalled();
+    expect(mocks.sendText).not.toHaveBeenCalled();
+  });
+
+  it("ignores events sent for another Evolution instance", async () => {
+    const response = await POST(requestFor("A7K9", { instance: "other-instance" }) as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ status: "ignored" });
+    expect(mocks.resolveTenantByCode).not.toHaveBeenCalled();
+  });
+
+  it("fails closed instead of constructing a provider from an insecure URL", async () => {
+    process.env.EVOLUTION_BASE_URL = "http://evolution.example.com";
+
+    const response = await POST(requestFor("A7K9") as never);
+
+    expect(response.status).toBe(503);
+    expect(mocks.resolveTenantByCode).not.toHaveBeenCalled();
   });
 
   it("restarts the intake when a valid label code arrives during an active session", async () => {

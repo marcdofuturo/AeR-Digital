@@ -14,11 +14,42 @@ import {
   type TenantInfo,
 } from "@/lib/wa/tenant-resolver";
 
-function getProvider(): EvolutionProvider {
-  const baseUrl = process.env.EVOLUTION_BASE_URL ?? "http://193.203.182.39:8080";
-  const apiKey = process.env.EVOLUTION_API_KEY ?? "";
-  const instance = process.env.EVOLUTION_INSTANCE ?? "atendimento";
-  return new EvolutionProvider(baseUrl, apiKey, instance);
+type EvolutionConfig = {
+  apiKey: string;
+  baseUrl: string;
+  instance: string;
+};
+
+function getEvolutionConfig(): EvolutionConfig | null {
+  const apiKey = process.env.EVOLUTION_API_KEY?.trim();
+  const baseUrl = process.env.EVOLUTION_BASE_URL?.trim().replace(/\/$/, "");
+  const instance = process.env.EVOLUTION_INSTANCE?.trim();
+  if (!apiKey || !baseUrl || !instance) return null;
+
+  try {
+    if (new URL(baseUrl).protocol !== "https:") return null;
+  } catch {
+    return null;
+  }
+
+  return { apiKey, baseUrl, instance };
+}
+
+function matchesSecret(provided: string | null, expected: string) {
+  if (!provided) return false;
+  const left = new TextEncoder().encode(provided);
+  const right = new TextEncoder().encode(expected);
+  if (left.length !== right.length) return false;
+
+  let mismatch = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    mismatch |= left[index]! ^ right[index]!;
+  }
+  return mismatch === 0;
+}
+
+function getProvider(config: EvolutionConfig): EvolutionProvider {
+  return new EvolutionProvider(config.baseUrl, config.apiKey, config.instance);
 }
 
 type ReplyFailureCode = "unauthorized" | "forbidden" | "not_found" | "rate_limited" | "fetch_failed" | "send_failed";
@@ -53,12 +84,12 @@ function firstQuestion(tenantName: string) {
   ].join("\n");
 }
 
-async function startIntake(phone: string, tenant: TenantInfo) {
+async function startIntake(phone: string, tenant: TenantInfo, config: EvolutionConfig) {
   await expireAllSessionsForPhone(phone);
   await registerIdentity(phone, tenant.tenant_id);
   await saveSession(phone, tenant.tenant_id, "ask_release_format", {});
 
-  const provider = getProvider();
+  const provider = getProvider(config);
   try {
     await provider.sendText(phone, firstQuestion(tenant.tenant_name));
     return { ok: true as const };
@@ -69,6 +100,14 @@ async function startIntake(phone: string, tenant: TenantInfo) {
 }
 
 export async function POST(req: NextRequest) {
+  const config = getEvolutionConfig();
+  if (!config) {
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
+  }
+  if (!matchesSecret(req.headers.get("apikey"), config.apiKey)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -78,6 +117,9 @@ export async function POST(req: NextRequest) {
 
   const eventName = String(body.event ?? "").trim().toLowerCase();
   if (eventName !== "messages.upsert" && eventName !== "messages_upsert") {
+    return NextResponse.json({ status: "ignored" });
+  }
+  if (String(body.instance ?? "").trim() !== config.instance) {
     return NextResponse.json({ status: "ignored" });
   }
 
@@ -100,7 +142,7 @@ export async function POST(req: NextRequest) {
       expireAllSessionsForPhone(phone),
     ]);
 
-    const provider = getProvider();
+    const provider = getProvider(config);
     try {
       await provider.sendText(
         phone,
@@ -116,7 +158,7 @@ export async function POST(req: NextRequest) {
   if (codeMatch) {
     const tenantByCode = await resolveTenantByCode(codeMatch[1]!);
     if (tenantByCode) {
-      const reply = await startIntake(phone, tenantByCode);
+      const reply = await startIntake(phone, tenantByCode, config);
       if (!reply.ok) {
         return NextResponse.json({ status: "reply_failed", error_code: reply.error_code }, { status: 502 });
       }
@@ -127,7 +169,7 @@ export async function POST(req: NextRequest) {
   const tenant = await resolveTenantByPhone(phone);
 
   if (!tenant) {
-    const provider = getProvider();
+    const provider = getProvider(config);
     try {
       await provider.sendText(
         phone,
@@ -148,7 +190,7 @@ export async function POST(req: NextRequest) {
   }
 
   const db = createHandlerDB();
-  const provider = getProvider();
+  const provider = getProvider(config);
 
   const ctx: HandlerContext = {
     tenant_id: tenant.tenant_id,
