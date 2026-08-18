@@ -99,6 +99,12 @@ def transcribe(path: str | Path) -> dict:
         return {"transcript": "", "segments": [], "error": str(e)}
 
 
+def scalar_float(value: object) -> float:
+    """Convert scalar-like values, including single-value NumPy arrays, to float."""
+    item = getattr(value, "item", None)
+    return float(item()) if callable(item) else float(value)
+
+
 def analyze_signal(path: str | Path) -> dict:
     """Extract BPM, key, energy, brightness, hook position using librosa."""
     try:
@@ -110,7 +116,7 @@ def analyze_signal(path: str | Path) -> dict:
 
         # Tempo (BPM)
         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-        bpm = float(tempo) if tempo is not None else 0
+        bpm = scalar_float(tempo) if tempo is not None else 0
 
         # Chroma → key estimate
         chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
