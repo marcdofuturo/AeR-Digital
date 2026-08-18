@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCurrentTenantId } from "@/lib/tenant";
+import { requireMembership } from "@/lib/auth/require-membership";
 
 export async function saveDigitalSplitSettings(formData: FormData) {
-  const tenantId = await getCurrentTenantId();
+  const { tenantId } = await requireMembership(["owner"]);
   if (!tenantId) throw new Error("Tenant não encontrado");
 
   const mode = formData.get("digital_mode") === "pro_rata" ? "pro_rata" : "fixo";
