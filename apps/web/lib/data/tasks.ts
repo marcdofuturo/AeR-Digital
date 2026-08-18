@@ -13,7 +13,6 @@ export async function getTasks(tenantId?: string, filters?: {
     .from("tasks")
     .select("*, profiles(full_name), releases!inner(title)")
     .eq("tenant_id", tid)
-    .order("priority", { ascending: false })
     .order("due_at", { ascending: true })
     .limit(100);
 
@@ -25,5 +24,8 @@ export async function getTasks(tenantId?: string, filters?: {
   }
 
   const { data } = await query;
-  return data ?? [];
+  const priorityRank: Record<string, number> = { alta: 0, media: 1, baixa: 2 };
+  return [...(data ?? [])].sort((left, right) =>
+    (priorityRank[left.priority] ?? 3) - (priorityRank[right.priority] ?? 3),
+  );
 }
