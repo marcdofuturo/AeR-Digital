@@ -50,7 +50,7 @@ describe("auth callback", () => {
     });
   });
 
-  it.each(["https://evil.example/phishing", "//evil.example/phishing"])(
+  it.each(["https://evil.example/phishing", "//evil.example/phishing", "/\\evil.example/phishing"])(
     "rejects the external next destination %s",
     async (destination) => {
       mocks.verifyOtp.mockResolvedValue({ error: null });

@@ -12,6 +12,7 @@ describe("invite session", () => {
     expect(parseInviteSession("#access_token=a&refresh_token=r&type=recovery")).toBeNull();
     expect(safeInviteDestination("https://evil.example/path")).toBe("/");
     expect(safeInviteDestination("//evil.example/path")).toBe("/");
+    expect(safeInviteDestination("/\\evil.example/phishing")).toBe("/");
     expect(safeInviteDestination("/config/equipe")).toBe("/config/equipe");
   });
 });
