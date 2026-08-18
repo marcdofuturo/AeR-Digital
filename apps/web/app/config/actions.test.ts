@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireMembership = vi.fn();
@@ -49,6 +50,12 @@ describe("configuration actions", () => {
     profileUpsert.mockReset().mockResolvedValue({ error: null });
     membershipUpsert.mockReset().mockResolvedValue({ error: null });
     tenantUpdate.mockClear();
+  });
+
+  it("exports only async actions from the use-server module", () => {
+    const source = readFileSync("app/config/actions.ts", "utf8");
+
+    expect(source).not.toMatch(/^export\s+const\s+/m);
   });
 
   it("invites one of the three allowed member roles", async () => {
