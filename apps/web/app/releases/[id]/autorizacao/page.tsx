@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SaveButton } from "@/components/forms/save-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId } from "@/lib/tenant";
@@ -164,9 +165,9 @@ export default async function AutorizacaoPage({ params }: { params: Promise<{ id
                             className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-2 text-sm text-fg"
                           />
                         </label>
-                        <Button type="submit" size="sm" variant="outline" className="self-end">
+                        <SaveButton size="sm" variant="outline" className="self-end" pendingLabel="Salvando email...">
                           Salvar email
-                        </Button>
+                        </SaveButton>
                       </form>
 
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -175,17 +176,17 @@ export default async function AutorizacaoPage({ params }: { params: Promise<{ id
                             <input type="hidden" name="release_id" value={id} />
                             <input type="hidden" name="recipient_id" value={recipient.id} />
                             <input type="hidden" name="status" value="pendente" />
-                            <Button type="submit" size="sm" variant="outline">
+                            <SaveButton size="sm" variant="outline" pendingLabel="Atualizando..." savedLabel="Pendente">
                               Retirar OK
-                            </Button>
+                            </SaveButton>
                           </form>
                         ) : (
                           <form action={markAuthorizationRecipientApproved}>
                             <input type="hidden" name="release_id" value={id} />
                             <input type="hidden" name="recipient_id" value={recipient.id} />
-                            <Button type="submit" size="sm" variant="outline">
+                            <SaveButton size="sm" variant="outline" pendingLabel="Atualizando..." savedLabel="Marcado OK">
                               Marcar OK
-                            </Button>
+                            </SaveButton>
                           </form>
                         )}
                       </div>
@@ -210,12 +211,12 @@ export default async function AutorizacaoPage({ params }: { params: Promise<{ id
             <form action={setReleaseStageFromForm}>
               <input type="hidden" name="release_id" value={id} />
               <input type="hidden" name="stage" value="registrar_obra" />
-              <Button type="submit">Registrar obra</Button>
+              <SaveButton pendingLabel="Avançando...">Registrar obra</SaveButton>
             </form>
             <form action={setReleaseStageFromForm}>
               <input type="hidden" name="release_id" value={id} />
               <input type="hidden" name="stage" value="registrar_fonograma" />
-              <Button type="submit" variant="outline">Pular obra</Button>
+              <SaveButton variant="outline" pendingLabel="Avançando...">Pular obra</SaveButton>
             </form>
           </CardContent>
         </Card>

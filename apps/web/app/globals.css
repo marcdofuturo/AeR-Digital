@@ -1,2 +1,8 @@
 @import "tailwindcss";
 @import "@ar/ui/tokens.css";
+
+@keyframes navigation-progress {
+  0% { transform: translateX(-120%); }
+  55% { transform: translateX(170%); }
+  100% { transform: translateX(340%); }
+}

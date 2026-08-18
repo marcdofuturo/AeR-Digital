@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SaveButton } from "@/components/forms/save-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/server";
@@ -60,7 +61,7 @@ export default async function NewReleasePage({ searchParams }: NewReleasePagePro
               <Button variant="outline" asChild>
                 <Link href="/releases">Cancelar</Link>
               </Button>
-              <Button type="submit">Criar lancamento</Button>
+              <SaveButton pendingLabel="Criando lancamento..." savedLabel="Lancamento criado">Criar lancamento</SaveButton>
             </div>
           </form>
         </CardContent>
