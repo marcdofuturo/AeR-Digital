@@ -6,6 +6,9 @@ import { getCurrentTenantId, getTenant } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
 import { addTrackParticipant, saveRegistrationStatus, setReleaseStageFromForm } from "@/app/releases/actions";
 import { AlertTriangle, CheckCheck, Clock, Plus, XCircle } from "lucide-react";
+import {
+  normalizeRegistrationStatus,
+} from "@/lib/registration-status";
 
 const REG_LABELS: Record<string, string> = {
   obra_ecad: "Status da obra",
@@ -19,7 +22,6 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "success" | "warn
   em_andamento: "warning",
   concluido: "success",
   rejeitado: "danger",
-  na: "secondary",
 };
 
 const REGISTRATION_ORDER = ["obra_ecad", "fonograma_ecad", "isrc", "distribuicao"];
@@ -129,7 +131,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
               <div className="space-y-3">
                 {REGISTRATION_ORDER.map((kind) => {
                   const reg = byKind[kind];
-                  const status = reg?.status ?? "pendente";
+                  const status = normalizeRegistrationStatus(reg?.status);
                   const isObraDone = kind === "obra_ecad" && status === "concluido";
                   return (
                     <form key={kind} action={saveRegistrationStatus} className="rounded-md border border-border/50 bg-bg p-3">
@@ -170,7 +172,6 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
                             <option value="em_andamento">Em andamento</option>
                             <option value="concluido">Concluído</option>
                             <option value="rejeitado">Rejeitado</option>
-                            <option value="na">N/A</option>
                           </select>
                         </label>
                         <Field name="entity" label={kind === "distribuicao" ? "Agregadora" : "Associação / entidade"} defaultValue={reg?.entity ?? ""} placeholder={kind === "distribuicao" ? "Altafonte, ONErpm, Tratore" : "UBC, Abramus, Audiolink"} />

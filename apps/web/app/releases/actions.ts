@@ -7,6 +7,7 @@ import { getCurrentTenantId } from "@/lib/tenant";
 import { persistAutomaticSplitsForTrack } from "@/lib/splits/persist";
 import type { Participant } from "@ar/splits";
 import type { ReleaseStage } from "@ar/shared";
+import { isRegistrationStatus } from "@/lib/registration-status";
 
 type SplitScope = "obra" | "fonograma" | "digital";
 
@@ -186,6 +187,7 @@ export async function saveRegistrationStatus(formData: FormData) {
   const trackId = String(formData.get("track_id") ?? "");
   const kind = String(formData.get("kind") ?? "");
   const status = String(formData.get("status") ?? "pendente");
+  if (!isRegistrationStatus(status)) throw new Error("Status de registro invalido");
   if (!releaseId || !trackId || !REGISTRATION_KINDS.has(kind)) throw new Error("Registro inválido");
 
   const completed = status === "concluido";
