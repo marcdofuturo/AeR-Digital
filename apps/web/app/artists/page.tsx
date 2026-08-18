@@ -1,10 +1,8 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getArtists } from "@/lib/data/artists";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { AlertTriangle, MicVocal, Plus, Search } from "lucide-react";
@@ -93,6 +91,7 @@ async function ArtistsGrid({ search, needsReview }: { search?: string; needsRevi
 export default async function ArtistsPage({ searchParams }: ArtistsPageProps) {
   const { q, precisa_revisao } = await searchParams;
   const showNeedsReview = precisa_revisao === "1";
+  const artistsGrid = await ArtistsGrid({ search: q, needsReview: showNeedsReview });
 
   return (
     <div className="p-8 max-w-[1400px]">
@@ -136,21 +135,7 @@ export default async function ArtistsPage({ searchParams }: ArtistsPageProps) {
         </Link>
       </div>
 
-      <Suspense fallback={
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-5">
-                <Skeleton className="mb-2 h-5 w-32" />
-                <Skeleton className="mb-3 h-4 w-24" />
-                <Skeleton className="h-4 w-16" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      }>
-        <ArtistsGrid search={q} needsReview={showNeedsReview} />
-      </Suspense>
+      {artistsGrid}
     </div>
   );
 }

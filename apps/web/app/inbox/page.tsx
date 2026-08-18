@@ -1,8 +1,6 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getSubmissions } from "@/lib/data/inbox";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
@@ -99,6 +97,7 @@ async function SubmissionsList({ status }: { status?: string }) {
 
 export default async function InboxPage({ searchParams }: InboxPageProps) {
   const { status } = await searchParams;
+  const submissionsList = await SubmissionsList({ status });
 
   return (
     <div className="p-8 max-w-[1100px]">
@@ -129,15 +128,7 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
       </div>
 
       {/* Submissions list */}
-      <Suspense fallback={
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}><CardContent className="p-5"><Skeleton className="h-12 w-full" /></CardContent></Card>
-          ))}
-        </div>
-      }>
-        <SubmissionsList status={status} />
-      </Suspense>
+      {submissionsList}
 
       {/* Intake link */}
       <div className="mt-8 bg-gradient-to-r from-brand/10 to-purple-900/20 border border-brand/20 rounded-lg p-6">

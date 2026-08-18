@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -8,9 +7,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getUrgentTasks } from "@/lib/data/dashboard";
-import { taskPriorityColor, taskStatusLabel } from "@ar/ai/crm";
+import { taskStatusLabel } from "@ar/ai/crm";
 import type { TaskPriority, TaskStatus } from "@ar/ai/crm";
 import { format, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -90,10 +88,6 @@ async function UrgentTasksContent() {
   );
 }
 
-export function UrgentTasks() {
-  return (
-    <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
-      <UrgentTasksContent />
-    </Suspense>
-  );
+export async function UrgentTasks() {
+  return UrgentTasksContent();
 }
