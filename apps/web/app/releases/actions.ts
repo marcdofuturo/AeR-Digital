@@ -13,6 +13,29 @@ import { enqueuePresentationJob } from "@/lib/presentation/jobs";
 type SplitScope = "obra" | "fonograma" | "digital";
 
 const REGISTRATION_KINDS = new Set(["obra_ecad", "fonograma_ecad", "isrc", "distribuicao"]);
+const RELEASE_ASSETS_BUCKET = "release-assets";
+const MAX_AUDIO_UPLOAD_BYTES = 60 * 1024 * 1024;
+const AUDIO_CONTENT_TYPES = new Set([
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/wave",
+]);
+
+type TrackAudioUploadRequest = {
+  releaseId: string;
+  trackId: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+};
+
+type CompleteTrackAudioUploadRequest = {
+  releaseId: string;
+  trackId: string;
+  path: string;
+};
 
 async function getCurrentTenantId() {
   return (await requireMembership(["owner", "ar"])).tenantId;
@@ -266,6 +289,84 @@ export async function saveTrackOverview(formData: FormData) {
   }
 
   revalidateRelease(releaseId);
+}
+
+export async function createTrackAudioUpload(input: TrackAudioUploadRequest) {
+  const { tenantId } = await requireMembership(["owner", "ar"]);
+  const releaseId = input.releaseId.trim();
+  const trackId = input.trackId.trim();
+  const contentType = input.contentType.trim().toLowerCase();
+  if (!releaseId || !trackId) throw new Error("Faixa inválida");
+  if (!AUDIO_CONTENT_TYPES.has(contentType)) throw new Error("Formato de áudio inválido");
+  if (!Number.isFinite(input.size) || input.size <= 0) throw new Error("Arquivo de áudio inválido");
+  if (input.size > MAX_AUDIO_UPLOAD_BYTES) throw new Error("Arquivo de áudio excede 60 MB");
+
+  const supabase = createAdminClient();
+  await requireTenantTrack(supabase, tenantId, releaseId, trackId);
+
+  const { error: bucketError } = await supabase.storage.createBucket(RELEASE_ASSETS_BUCKET, { public: true });
+  if (bucketError && !isExistingBucketError(bucketError)) {
+    throw new Error("Falha ao preparar armazenamento de áudio");
+  }
+
+  const extension = fileExtension(input.fileName, contentType, "audio");
+  const path = `${tenantId}/${releaseId}/audio-${globalThis.crypto.randomUUID()}.${extension}`;
+  const { data, error } = await supabase.storage
+    .from(RELEASE_ASSETS_BUCKET)
+    .createSignedUploadUrl(path, { upsert: false });
+  if (error || !data?.token) throw new Error("Falha ao autorizar envio de áudio");
+
+  return { bucket: RELEASE_ASSETS_BUCKET, path, token: data.token };
+}
+
+export async function completeTrackAudioUpload(input: CompleteTrackAudioUploadRequest) {
+  const { tenantId } = await requireMembership(["owner", "ar"]);
+  const releaseId = input.releaseId.trim();
+  const trackId = input.trackId.trim();
+  const path = input.path.trim();
+  const expectedPrefix = `${tenantId}/${releaseId}/audio-`;
+  if (!releaseId || !trackId || !path.startsWith(expectedPrefix) || path.includes("..")) {
+    throw new Error("Caminho de áudio inválido");
+  }
+
+  const fileName = path.slice(path.lastIndexOf("/") + 1);
+  if (!fileName || fileName.includes("/")) throw new Error("Caminho de áudio inválido");
+
+  const supabase = createAdminClient();
+  await requireTenantTrack(supabase, tenantId, releaseId, trackId);
+  const storage = supabase.storage.from(RELEASE_ASSETS_BUCKET);
+  const { data: objectInfo, error: infoError } = await storage.info(path);
+  if (infoError || !objectInfo) {
+    throw new Error("Áudio enviado não foi encontrado");
+  }
+
+  const uploadedSize = Number(objectInfo.size ?? objectInfo.metadata?.size);
+  const uploadedContentType = String(
+    objectInfo.contentType ?? objectInfo.metadata?.mimetype ?? "",
+  ).toLowerCase();
+  if (
+    !Number.isFinite(uploadedSize)
+    || uploadedSize <= 0
+    || uploadedSize > MAX_AUDIO_UPLOAD_BYTES
+    || !AUDIO_CONTENT_TYPES.has(uploadedContentType)
+  ) {
+    await storage.remove([path]);
+    throw new Error("Arquivo de áudio enviado é inválido");
+  }
+
+  const { data: publicData } = storage.getPublicUrl(path);
+  const { error: updateError } = await supabase
+    .from("tracks")
+    .update({ audio_url: publicData.publicUrl })
+    .eq("tenant_id", tenantId)
+    .eq("release_id", releaseId)
+    .eq("id", trackId)
+    .select("id")
+    .single();
+  if (updateError) throw new Error("Falha ao salvar áudio da faixa");
+
+  revalidateRelease(releaseId);
+  return publicData.publicUrl;
 }
 
 export async function saveArtistMetadata(formData: FormData) {
@@ -746,6 +847,35 @@ function requiredString(value: FormDataEntryValue | null, message: string) {
   const text = nullableString(value);
   if (!text) throw new Error(message);
   return text;
+}
+
+async function requireTenantTrack(
+  supabase: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  releaseId: string,
+  trackId: string,
+) {
+  const { data, error } = await supabase
+    .from("tracks")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("release_id", releaseId)
+    .eq("id", trackId)
+    .single();
+
+  if (error || !data) throw new Error("Faixa não encontrada");
+}
+
+function isExistingBucketError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const details = error as Record<string, unknown>;
+  const message = typeof details.message === "string" ? details.message.toLowerCase() : "";
+  return details.status === 409
+    || details.statusCode === "409"
+    || details.code === "BucketAlreadyExists"
+    || details.code === "ResourceAlreadyExists"
+    || message.includes("already exists")
+    || message.includes("duplicate");
 }
 
 async function uploadReleaseAsset(
