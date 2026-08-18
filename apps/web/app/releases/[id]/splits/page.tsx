@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SaveButton } from "@/components/forms/save-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId } from "@/lib/tenant";
@@ -65,10 +65,10 @@ export default async function SplitsPage({ params }: { params: Promise<{ id: str
                         <form action={regenerateAutomaticSplits}>
                           <input type="hidden" name="release_id" value={id} />
                           <input type="hidden" name="track_id" value={track.id} />
-                          <Button type="submit" size="sm" variant="outline">
+                          <SaveButton size="sm" variant="outline" pendingLabel="Recalculando..." savedLabel="Recalculado">
                             <RefreshCcw className="h-4 w-4" />
                             Regenerar automático
-                          </Button>
+                          </SaveButton>
                         </form>
                       </div>
 
@@ -130,10 +130,10 @@ export default async function SplitsPage({ params }: { params: Promise<{ id: str
                                 </Badge>
                               )}
                             </div>
-                            <Button type="submit" size="sm" variant="outline">
+                            <SaveButton size="sm" variant="outline" pendingLabel="Salvando...">
                               <Save className="h-4 w-4" />
                               Confirmar split
-                            </Button>
+                            </SaveButton>
                           </div>
                         </form>
                       )}

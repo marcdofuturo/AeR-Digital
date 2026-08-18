@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SaveButton } from "@/components/forms/save-button";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId, getTenant } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
@@ -57,7 +57,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
             <form action={setReleaseStageFromForm}>
               <input type="hidden" name="release_id" value={id} />
               <input type="hidden" name="stage" value="registrar_fonograma" />
-              <Button type="submit" size="sm">Avançar para registrar fonograma</Button>
+              <SaveButton size="sm" pendingLabel="Avançando...">Avançar para registrar fonograma</SaveButton>
             </form>
           )}
 
@@ -65,7 +65,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
             <form action={setReleaseStageFromForm}>
               <input type="hidden" name="release_id" value={id} />
               <input type="hidden" name="stage" value="pronto_p_distribuir" />
-              <Button type="submit" size="sm">Avançar para pronto p/ distribuir</Button>
+              <SaveButton size="sm" pendingLabel="Avançando...">Avançar para pronto p/ distribuir</SaveButton>
             </form>
           )}
 
@@ -180,7 +180,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
                       </div>
 
                       <div className="mt-3 flex justify-end">
-                        <Button type="submit" size="sm" variant="outline">Salvar</Button>
+                        <SaveButton size="sm" variant="outline">Salvar</SaveButton>
                       </div>
                     </form>
                   );
@@ -258,7 +258,7 @@ function AddParticipantPanel({
             <input type="checkbox" name="is_producer" defaultChecked={defaultProducer} className="accent-brand" />
             Produtor
           </label>
-          <Button type="submit" size="sm" className="mt-2 w-full">Adicionar</Button>
+          <SaveButton size="sm" className="mt-2 w-full" pendingLabel="Adicionando..." savedLabel="Adicionado">Adicionar</SaveButton>
         </div>
       </form>
     </details>

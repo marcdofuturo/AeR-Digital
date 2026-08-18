@@ -44,7 +44,7 @@ export function InviteMemberForm() {
             </select>
           </label>
           <div className="flex flex-col items-start justify-end gap-2">
-            <SaveButton pendingLabel="Enviando convite..." savedLabel="Convite enviado">
+            <SaveButton resultStatus={state.status} pendingLabel="Enviando convite..." savedLabel="Convite enviado">
               Convidar membro
             </SaveButton>
             <p aria-live="polite" className={cn("min-h-5 text-xs", state.status === "error" ? "text-danger" : "text-success")}>

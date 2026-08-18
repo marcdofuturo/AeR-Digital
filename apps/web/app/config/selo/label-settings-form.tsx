@@ -20,7 +20,7 @@ export function LabelSettingsForm({ tenant }: { tenant: Tenant }) {
       <Field id="label-phone" name="contact_phone" label="Telefone de contato" type="tel" defaultValue={tenant.contact_phone ?? ""} />
       <Field id="label-logo" name="logo_url" label="URL do logotipo" type="url" defaultValue={tenant.logo_url ?? ""} className="md:col-span-2" />
       <div className="flex flex-wrap items-center gap-3 md:col-span-2">
-        <SaveButton pendingLabel="Salvando selo..." savedLabel="Selo atualizado">Salvar dados do selo</SaveButton>
+        <SaveButton resultStatus={state.status} pendingLabel="Salvando selo..." savedLabel="Selo atualizado">Salvar dados do selo</SaveButton>
         <p aria-live="polite" className={cn("text-xs", state.status === "error" ? "text-danger" : "text-success")}>
           {state.message}
         </p>

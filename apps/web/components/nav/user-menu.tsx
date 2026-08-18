@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
   const [email, setEmail] = useState<string | null>(null);
@@ -29,11 +30,13 @@ export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
     : "??";
 
   return (
-    <button
+    <Button
+      type="button"
+      variant="ghost"
       onClick={handleSignOut}
       aria-label={collapsed ? "Sair" : undefined}
       title={collapsed ? email ?? "Sair" : undefined}
-      className={`flex w-full items-center gap-3 text-left group ${collapsed ? "justify-center" : ""}`}
+      className={`group h-auto w-full items-center gap-3 px-1 py-1 text-left ${collapsed ? "justify-center" : "justify-start"}`}
     >
       <Avatar className="h-8 w-8 shrink-0">
         <AvatarFallback className="bg-surface-2 text-xs text-fg-muted">
@@ -49,6 +52,6 @@ export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
           <LogOut className="h-4 w-4 text-fg-muted opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
         </>
       )}
-    </button>
+    </Button>
   );
 }

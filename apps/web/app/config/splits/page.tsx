@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { SaveButton } from "@/components/forms/save-button";
 import { getTenantSplitSettings } from "@/lib/tenant";
 import { saveDigitalSplitSettings } from "./actions";
 
@@ -113,7 +113,7 @@ export default async function SplitsConfigPage() {
               Para lançamentos já cadastrados, ajuste a aba Splits da própria música e confirme manualmente.
             </div>
 
-            <Button type="submit">Salvar configuração</Button>
+            <SaveButton pendingLabel="Salvando configuração...">Salvar configuração</SaveButton>
           </form>
         </CardContent>
       </Card>

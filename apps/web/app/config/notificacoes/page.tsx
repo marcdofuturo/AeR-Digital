@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SaveButton } from "@/components/forms/save-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/server";
@@ -65,7 +65,7 @@ export default async function NotificationsPage({ searchParams }: NotificationsP
           ) : null}
 
           <div className="flex justify-end">
-            <Button type="submit">Salvar notificacoes</Button>
+            <SaveButton pendingLabel="Salvando notificacoes...">Salvar notificacoes</SaveButton>
           </div>
         </form>
       </CardContent>
