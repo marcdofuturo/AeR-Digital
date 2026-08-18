@@ -255,8 +255,14 @@ $$;
 
 revoke all on function auth_tenant_ids() from public, anon;
 grant execute on function auth_tenant_ids() to authenticated, service_role;
-revoke all on function auth_tenant_ids(uuid) from public, anon, authenticated;
-grant execute on function auth_tenant_ids(uuid) to service_role;
+do $legacy_tenant_helper$
+begin
+  if to_regprocedure('public.auth_tenant_ids(uuid)') is not null then
+    execute 'revoke all on function public.auth_tenant_ids(uuid) from public, anon, authenticated';
+    execute 'grant execute on function public.auth_tenant_ids(uuid) to service_role';
+  end if;
+end
+$legacy_tenant_helper$;
 
 -- Replace broad authenticated writes with role-aware policies.
 do $$
@@ -264,8 +270,7 @@ declare
   table_name text;
 begin
   foreach table_name in array array[
-    'artists', 'artist_aliases', 'artist_contacts',
-    'releases', 'tracks', 'track_participants', 'splits',
+    'artists', 'releases', 'tracks', 'track_participants', 'splits',
     'authorizations', 'authorization_recipients', 'registrations',
     'pitches', 'tasks', 'presentation_jobs'
   ] loop
@@ -357,6 +362,61 @@ $$;
 revoke all on function auth_has_tenant_role(uuid, text[]) from public, anon;
 grant execute on function auth_has_tenant_role(uuid, text[]) to authenticated, service_role;
 
+-- Artist aliases and contacts inherit tenancy from their parent artist.
+alter table artist_aliases enable row level security;
+drop policy if exists tenant_rw on artist_aliases;
+drop policy if exists tenant_read on artist_aliases;
+drop policy if exists tenant_operate on artist_aliases;
+drop policy if exists service_role_bypass on artist_aliases;
+create policy tenant_read on artist_aliases
+  for select to authenticated
+  using (exists (
+    select 1 from artists artist
+    where artist.id = artist_aliases.artist_id
+      and artist.tenant_id in (select auth_tenant_ids())
+  ));
+create policy tenant_operate on artist_aliases
+  for all to authenticated
+  using (exists (
+    select 1 from artists artist
+    where artist.id = artist_aliases.artist_id
+      and auth_has_tenant_role(artist.tenant_id, array['owner', 'ar'])
+  ))
+  with check (exists (
+    select 1 from artists artist
+    where artist.id = artist_aliases.artist_id
+      and auth_has_tenant_role(artist.tenant_id, array['owner', 'ar'])
+  ));
+create policy service_role_bypass on artist_aliases
+  for all to service_role using (true) with check (true);
+
+alter table artist_contacts enable row level security;
+drop policy if exists tenant_rw on artist_contacts;
+drop policy if exists tenant_read on artist_contacts;
+drop policy if exists tenant_operate on artist_contacts;
+drop policy if exists service_role_bypass on artist_contacts;
+create policy tenant_read on artist_contacts
+  for select to authenticated
+  using (exists (
+    select 1 from artists artist
+    where artist.id = artist_contacts.artist_id
+      and artist.tenant_id in (select auth_tenant_ids())
+  ));
+create policy tenant_operate on artist_contacts
+  for all to authenticated
+  using (exists (
+    select 1 from artists artist
+    where artist.id = artist_contacts.artist_id
+      and auth_has_tenant_role(artist.tenant_id, array['owner', 'ar'])
+  ))
+  with check (exists (
+    select 1 from artists artist
+    where artist.id = artist_contacts.artist_id
+      and auth_has_tenant_role(artist.tenant_id, array['owner', 'ar'])
+  ));
+create policy service_role_bypass on artist_contacts
+  for all to service_role using (true) with check (true);
+
 alter table tenants enable row level security;
 alter table profiles enable row level security;
 alter table memberships enable row level security;
@@ -364,7 +424,7 @@ alter table memberships enable row level security;
 drop policy if exists tenant_member_read on tenants;
 create policy tenant_member_read on tenants
   for select to authenticated
-  using (id = any(auth_tenant_ids()));
+  using (id in (select auth_tenant_ids()));
 drop policy if exists tenant_owner_update on tenants;
 create policy tenant_owner_update on tenants
   for update to authenticated
@@ -391,7 +451,7 @@ create policy service_role_bypass on profiles
 drop policy if exists tenant_member_read on memberships;
 create policy tenant_member_read on memberships
   for select to authenticated
-  using (tenant_id = any(auth_tenant_ids()));
+  using (tenant_id in (select auth_tenant_ids()));
 drop policy if exists tenant_owner_manage on memberships;
 create policy tenant_owner_manage on memberships
   for all to authenticated

@@ -22,4 +22,21 @@ describe("task zero migration security", () => {
       "grant execute on function apply_authorization_reply(text, text, jsonb, text, boolean)\n  to service_role;",
     );
   });
+
+  it("guards the optional legacy tenant helper before changing its grants", () => {
+    expect(migration).toContain("to_regprocedure('public.auth_tenant_ids(uuid)') is not null");
+  });
+
+  it("secures artist child tables through their parent artist tenant", () => {
+    expect(migration).not.toContain("'artists', 'artist_aliases', 'artist_contacts'");
+    expect(migration).toContain("alter table artist_aliases enable row level security");
+    expect(migration).toContain("artist.id = artist_aliases.artist_id");
+    expect(migration).toContain("alter table artist_contacts enable row level security");
+    expect(migration).toContain("artist.id = artist_contacts.artist_id");
+  });
+
+  it("uses the set-returning tenant helper through a valid subquery", () => {
+    expect(migration).not.toMatch(/any\s*\(\s*auth_tenant_ids\(\)\s*\)/i);
+    expect(migration).toContain("in (select auth_tenant_ids())");
+  });
 });
