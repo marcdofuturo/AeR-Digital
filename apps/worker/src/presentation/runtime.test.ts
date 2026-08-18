@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { generatePresentation, markFailedById, resolveClaudeModel } from "./runtime";
+import {
+  generatePresentation,
+  markFailedById,
+  resolveClaudeModel,
+  resolveSupabaseCredentials,
+} from "./runtime";
 import type { PresentationInput } from "./processor";
 
 const input: PresentationInput = {
@@ -70,6 +75,24 @@ describe("presentation runtime", () => {
     expect(() => resolveClaudeModel({
       CLAUDE_SONNET_MODEL: "claude-sonnet-4-20250514",
     })).toThrow("Modelo Claude aposentado");
+  });
+
+  it("trims credentials and falls back when SUPABASE_URL is blank", () => {
+    expect(resolveSupabaseCredentials({
+      SUPABASE_URL: "  ",
+      NEXT_PUBLIC_SUPABASE_URL: " https://example.supabase.co ",
+      SUPABASE_SERVICE_ROLE_KEY: " test-service-role-key ",
+    })).toEqual({
+      url: "https://example.supabase.co",
+      serviceRoleKey: "test-service-role-key",
+    });
+  });
+
+  it("rejects a service role key containing only whitespace", () => {
+    expect(() => resolveSupabaseCredentials({
+      NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: " \t ",
+    })).toThrow("Supabase do worker nao configurado");
   });
 
   it("rejects a pitch whose research has no verified web-search source", async () => {

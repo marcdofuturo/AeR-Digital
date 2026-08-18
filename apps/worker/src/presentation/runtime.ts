@@ -29,12 +29,20 @@ export function resolveClaudeModel(environment: RuntimeEnvironment): string {
   return model;
 }
 
+export function resolveSupabaseCredentials(environment: RuntimeEnvironment): {
+  url: string;
+  serviceRoleKey: string;
+} {
+  const url = environment.SUPABASE_URL?.trim() || environment.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !serviceRoleKey) throw new Error("Supabase do worker nao configurado");
+  return { url, serviceRoleKey };
+}
+
 export function createPresentationDependencies(
   environment: RuntimeEnvironment = process.env,
 ): PresentationProcessorDependencies {
-  const url = environment.SUPABASE_URL ?? environment.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRoleKey) throw new Error("Supabase do worker nao configurado");
+  const { url, serviceRoleKey } = resolveSupabaseCredentials(environment);
   resolveClaudeModel(environment);
 
   const supabase = createClient(url, serviceRoleKey, {
