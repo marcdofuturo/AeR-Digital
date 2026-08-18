@@ -2,13 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { assertAiCredits, generateClaudePresentation, remainingAiCredits } from "@/lib/ai/presentation";
+import { assertAiCredits } from "@/lib/ai/presentation";
 import { requireMembership } from "@/lib/auth/require-membership";
 import { persistAutomaticSplitsForTrack } from "@/lib/splits/persist";
 import type { Participant } from "@ar/splits";
 import type { ReleaseStage } from "@ar/shared";
 import { isRegistrationStatus } from "@/lib/registration-status";
 import { syncReleaseStageTask } from "@/lib/tasks/sync-stage-task";
+import { enqueuePresentationJob } from "@/lib/presentation/jobs";
 
 type SplitScope = "obra" | "fonograma" | "digital";
 
@@ -443,8 +444,7 @@ export async function saveManualSplits(formData: FormData) {
 }
 
 export async function generatePresentationForTrack(formData: FormData) {
-  const tenantId = await getCurrentTenantId();
-  if (!tenantId) throw new Error("Tenant não encontrado");
+  const { tenantId, userId } = await requireMembership(["owner", "ar"]);
 
   const releaseId = String(formData.get("release_id") ?? "");
   const trackId = String(formData.get("track_id") ?? "");
@@ -452,72 +452,25 @@ export async function generatePresentationForTrack(formData: FormData) {
   if (!releaseId || !trackId) throw new Error("Faixa inválida");
 
   const supabase = createAdminClient();
-  const { count } = await supabase
-    .from("pitches")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId);
+  const [{ count: generatedCount }, { count: activeJobCount }, { data: track, error: trackError }] = await Promise.all([
+    supabase.from("pitches").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+    supabase.from("presentation_jobs").select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId).in("status", ["queued", "processing"]),
+    supabase.from("tracks").select("id, audio_url")
+      .eq("tenant_id", tenantId).eq("release_id", releaseId).eq("id", trackId).single(),
+  ]);
 
-  assertAiCredits(count ?? 0);
+  assertAiCredits((generatedCount ?? 0) + (activeJobCount ?? 0));
+  if (trackError || !track) throw new Error("Faixa não encontrada");
+  if (!track.audio_url) throw new Error("Envie o arquivo de áudio antes de gerar a apresentação");
 
-  const { data: track, error } = await supabase
-    .from("tracks")
-    .select(`
-      id,
-      title,
-      audio_bpm,
-      audio_key,
-      audio_energy,
-      lyrics_transcript,
-      releases!inner(id, title, release_date, genre_primary, genre_secondary),
-      track_participants(position, artists(stage_name))
-    `)
-    .eq("tenant_id", tenantId)
-    .eq("id", trackId)
-    .single();
-
-  if (error || !track) throw new Error("Faixa não encontrada");
-
-  const release = Array.isArray((track as any).releases) ? (track as any).releases[0] : (track as any).releases;
-  const participants = [...((track as any).track_participants ?? [])]
-    .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
-    .map((tp: any) => tp.artists?.stage_name)
-    .filter(Boolean);
-
-  const result = await generateClaudePresentation({
-    track: {
-      title: track.title,
-      releaseDate: release?.release_date ?? "",
-      genres: [release?.genre_primary, release?.genre_secondary].filter(Boolean),
-      participants,
-      bpm: track.audio_bpm == null ? null : Number(track.audio_bpm),
-      key: track.audio_key ?? null,
-      energy: track.audio_energy == null ? null : Number(track.audio_energy),
-      transcript: track.lyrics_transcript ?? null,
-    },
+  await enqueuePresentationJob(supabase, {
+    tenantId,
+    releaseId,
+    trackId,
+    userId,
     userGuidance,
   });
-
-  const { error: insertError } = await supabase
-    .from("pitches")
-    .insert({
-      tenant_id: tenantId,
-      track_id: trackId,
-      option_a: result.apresentacao,
-      option_b: "",
-      analysis: {
-        kind: "presentation",
-        user_guidance: userGuidance,
-        avisos: result.avisos,
-        raw: result.raw,
-        credits_remaining_after: remainingAiCredits((count ?? 0) + 1),
-      },
-      audience: {},
-    });
-
-  if (insertError) {
-    console.error("Failed to save presentation:", insertError);
-    throw new Error("Falha ao salvar apresentação");
-  }
 
   revalidatePath(`/releases/${releaseId}/pitch`);
   revalidateRelease(releaseId);

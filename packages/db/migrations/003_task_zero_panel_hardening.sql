@@ -130,3 +130,277 @@ on conflict (tenant_id, release_id, kind) do update
 set title = excluded.title,
     priority = excluded.priority,
     auto_generated = true;
+
+create table if not exists presentation_jobs (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references tenants(id) on delete cascade,
+  release_id uuid not null references releases(id) on delete cascade,
+  track_id uuid not null references tracks(id) on delete cascade,
+  created_by uuid references profiles(id) on delete set null,
+  status text not null default 'queued'
+    check (status in ('queued', 'processing', 'completed', 'failed')),
+  user_guidance text,
+  audio_analysis jsonb,
+  result_pitch_id uuid references pitches(id) on delete set null,
+  attempt_count integer not null default 0 check (attempt_count between 0 and 10),
+  last_error text,
+  locked_at timestamptz,
+  started_at timestamptz,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists presentation_jobs_queue_idx
+  on presentation_jobs (status, created_at)
+  where status in ('queued', 'processing');
+
+create index if not exists presentation_jobs_tenant_track_idx
+  on presentation_jobs (tenant_id, track_id, created_at desc);
+
+create unique index if not exists presentation_jobs_one_active_per_track_uidx
+  on presentation_jobs (tenant_id, track_id)
+  where status in ('queued', 'processing');
+
+alter table presentation_jobs enable row level security;
+
+drop policy if exists presentation_jobs_tenant_rw on presentation_jobs;
+create policy presentation_jobs_tenant_rw on presentation_jobs
+  for all to authenticated
+  using (tenant_id = any(auth_tenant_ids()))
+  with check (tenant_id = any(auth_tenant_ids()));
+
+drop policy if exists presentation_jobs_service_role on presentation_jobs;
+create policy presentation_jobs_service_role on presentation_jobs
+  for all to service_role using (true) with check (true);
+
+create or replace function claim_presentation_job()
+returns setof presentation_jobs
+language plpgsql security definer set search_path = public as $$
+begin
+  return query
+  with candidate as (
+    select id
+    from presentation_jobs
+    where attempt_count < 3
+      and (
+        status = 'queued'
+        or (status = 'processing' and locked_at < now() - interval '30 minutes')
+      )
+    order by created_at
+    for update skip locked
+    limit 1
+  )
+  update presentation_jobs job
+  set status = 'processing',
+      attempt_count = job.attempt_count + 1,
+      locked_at = now(),
+      started_at = coalesce(job.started_at, now()),
+      last_error = null,
+      updated_at = now()
+  from candidate
+  where job.id = candidate.id
+  returning job.*;
+end $$;
+
+create or replace function complete_presentation_job(
+  p_job_id uuid,
+  p_presentation text,
+  p_analysis jsonb,
+  p_audience jsonb default '{}'::jsonb
+) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  claimed_job presentation_jobs;
+  created_pitch_id uuid;
+begin
+  select * into claimed_job
+  from presentation_jobs
+  where id = p_job_id
+  for update;
+
+  if not found then raise exception 'presentation job not found'; end if;
+  if claimed_job.status = 'completed' then return claimed_job.result_pitch_id; end if;
+  if claimed_job.status <> 'processing' then raise exception 'presentation job is not processing'; end if;
+
+  insert into pitches (tenant_id, track_id, option_a, option_b, analysis, audience)
+  values (
+    claimed_job.tenant_id,
+    claimed_job.track_id,
+    p_presentation,
+    '',
+    p_analysis,
+    coalesce(p_audience, '{}'::jsonb)
+  )
+  returning id into created_pitch_id;
+
+  update presentation_jobs
+  set status = 'completed',
+      result_pitch_id = created_pitch_id,
+      completed_at = now(),
+      locked_at = null,
+      updated_at = now()
+  where id = p_job_id;
+
+  return created_pitch_id;
+end $$;
+
+revoke all on function claim_presentation_job() from public, anon, authenticated;
+grant execute on function claim_presentation_job() to service_role;
+revoke all on function complete_presentation_job(uuid, text, jsonb, jsonb) from public, anon, authenticated;
+grant execute on function complete_presentation_job(uuid, text, jsonb, jsonb) to service_role;
+
+-- Resolve tenancy only from current membership rows. JWT metadata may remain
+-- stale until token refresh after a membership is revoked.
+create or replace function auth_tenant_ids() returns setof uuid
+language sql stable security definer set search_path = public as $$
+  select tenant_id from memberships where user_id = auth.uid()
+$$;
+
+revoke all on function auth_tenant_ids() from public, anon;
+grant execute on function auth_tenant_ids() to authenticated, service_role;
+revoke all on function auth_tenant_ids(uuid) from public, anon, authenticated;
+grant execute on function auth_tenant_ids(uuid) to service_role;
+
+-- Replace broad authenticated writes with role-aware policies.
+do $$
+declare
+  table_name text;
+begin
+  foreach table_name in array array[
+    'artists', 'artist_aliases', 'artist_contacts',
+    'releases', 'tracks', 'track_participants', 'splits',
+    'authorizations', 'authorization_recipients', 'registrations',
+    'pitches', 'tasks', 'presentation_jobs'
+  ] loop
+    execute format('drop policy if exists tenant_rw on %I', table_name);
+    execute format('drop policy if exists tenant_read on %I', table_name);
+    execute format('drop policy if exists tenant_operate on %I', table_name);
+    execute format($policy$
+      create policy tenant_read on %I
+        for select to authenticated
+        using (exists (
+          select 1 from memberships membership
+          where membership.tenant_id = %I.tenant_id
+            and membership.user_id = auth.uid()
+        ))
+    $policy$, table_name, table_name);
+    execute format($policy$
+      create policy tenant_operate on %I
+        for all to authenticated
+        using (exists (
+          select 1 from memberships membership
+          where membership.tenant_id = %I.tenant_id
+            and membership.user_id = auth.uid()
+            and membership.role in ('owner', 'ar')
+        ))
+        with check (exists (
+          select 1 from memberships membership
+          where membership.tenant_id = %I.tenant_id
+            and membership.user_id = auth.uid()
+            and membership.role in ('owner', 'ar')
+        ))
+    $policy$, table_name, table_name, table_name);
+  end loop;
+
+  foreach table_name in array array[
+    'whatsapp_identities', 'whatsapp_sessions', 'submissions', 'activity_log'
+  ] loop
+    execute format('drop policy if exists tenant_rw on %I', table_name);
+    execute format('drop policy if exists tenant_read on %I', table_name);
+    execute format($policy$
+      create policy tenant_read on %I
+        for select to authenticated
+        using (exists (
+          select 1 from memberships membership
+          where membership.tenant_id = %I.tenant_id
+            and membership.user_id = auth.uid()
+        ))
+    $policy$, table_name, table_name);
+  end loop;
+
+  drop policy if exists tenant_rw on label_split_settings;
+  drop policy if exists tenant_read on label_split_settings;
+  drop policy if exists tenant_owner on label_split_settings;
+  create policy tenant_read on label_split_settings
+    for select to authenticated
+    using (exists (
+      select 1 from memberships membership
+      where membership.tenant_id = label_split_settings.tenant_id
+        and membership.user_id = auth.uid()
+    ));
+  create policy tenant_owner on label_split_settings
+    for all to authenticated
+    using (exists (
+      select 1 from memberships membership
+      where membership.tenant_id = label_split_settings.tenant_id
+        and membership.user_id = auth.uid()
+        and membership.role = 'owner'
+    ))
+    with check (exists (
+      select 1 from memberships membership
+      where membership.tenant_id = label_split_settings.tenant_id
+        and membership.user_id = auth.uid()
+        and membership.role = 'owner'
+    ));
+end $$;
+
+-- Protect the tenancy directory itself. Server-side administration continues
+-- through service_role, while direct authenticated access remains least-privilege.
+create or replace function auth_has_tenant_role(p_tenant_id uuid, p_roles text[])
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from memberships
+    where tenant_id = p_tenant_id
+      and user_id = auth.uid()
+      and role = any(p_roles)
+  )
+$$;
+
+revoke all on function auth_has_tenant_role(uuid, text[]) from public, anon;
+grant execute on function auth_has_tenant_role(uuid, text[]) to authenticated, service_role;
+
+alter table tenants enable row level security;
+alter table profiles enable row level security;
+alter table memberships enable row level security;
+
+drop policy if exists tenant_member_read on tenants;
+create policy tenant_member_read on tenants
+  for select to authenticated
+  using (id = any(auth_tenant_ids()));
+drop policy if exists tenant_owner_update on tenants;
+create policy tenant_owner_update on tenants
+  for update to authenticated
+  using (auth_has_tenant_role(id, array['owner']))
+  with check (auth_has_tenant_role(id, array['owner']));
+revoke update on tenants from authenticated;
+grant update (
+  name, legal_name, cnpj, logo_url,
+  responsible_name, contact_email, contact_phone
+) on tenants to authenticated;
+drop policy if exists service_role_bypass on tenants;
+create policy service_role_bypass on tenants
+  for all to service_role using (true) with check (true);
+
+drop policy if exists own_profile on profiles;
+create policy own_profile on profiles
+  for all to authenticated
+  using (id = auth.uid())
+  with check (id = auth.uid());
+drop policy if exists service_role_bypass on profiles;
+create policy service_role_bypass on profiles
+  for all to service_role using (true) with check (true);
+
+drop policy if exists tenant_member_read on memberships;
+create policy tenant_member_read on memberships
+  for select to authenticated
+  using (tenant_id = any(auth_tenant_ids()));
+drop policy if exists tenant_owner_manage on memberships;
+create policy tenant_owner_manage on memberships
+  for all to authenticated
+  using (auth_has_tenant_role(tenant_id, array['owner']))
+  with check (auth_has_tenant_role(tenant_id, array['owner']));
+drop policy if exists service_role_bypass on memberships;
+create policy service_role_bypass on memberships
+  for all to service_role using (true) with check (true);
