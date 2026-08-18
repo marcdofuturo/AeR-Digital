@@ -75,7 +75,7 @@ services:
     container_name: ar-worker
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:${WORKER_HOST_PORT:-3002}:3001"
     environment:
       - WORKER_PORT=3001
       - REDIS_URL=redis://ar-redis:6379

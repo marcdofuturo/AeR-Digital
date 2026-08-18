@@ -24,3 +24,9 @@ def test_audio_container_runs_as_non_root_with_a_healthcheck() -> None:
     assert "USER app" in dockerfile
     assert "HEALTHCHECK" in dockerfile
     assert "condition: service_healthy" in compose
+
+
+def test_worker_host_port_does_not_collide_with_legacy_crm() -> None:
+    compose = (ROOT.parents[1] / "infra" / "docker-compose.yml").read_text(encoding="utf-8")
+
+    assert '"127.0.0.1:${WORKER_HOST_PORT:-3002}:3001"' in compose
