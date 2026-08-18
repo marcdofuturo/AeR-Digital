@@ -6,7 +6,8 @@ import { SaveButton } from "@/components/forms/save-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { INITIAL_CONFIG_ACTION_STATE, inviteTeamMember } from "../actions";
+import { INITIAL_CONFIG_ACTION_STATE } from "../action-state";
+import { inviteTeamMember } from "../actions";
 
 export function InviteMemberForm() {
   const [state, action] = useActionState(inviteTeamMember, INITIAL_CONFIG_ACTION_STATE);
