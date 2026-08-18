@@ -1,8 +1,6 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { KanbanBoard } from "@/components/releases/kanban-board";
 import { ReleasesTable } from "@/components/releases/releases-table";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getReleases } from "@/lib/data/releases";
@@ -160,6 +158,7 @@ export default async function ReleasesPage({ searchParams }: ReleasesPageProps) 
   const { view, stage } = await searchParams;
   const isTable = view === "table";
   const selectedStageLabel = stage ? STAGE_LABEL[stage] ?? stage : null;
+  const releasesContent = await ReleasesContent({ view: view ?? "kanban", stage });
 
   return (
     <div className="p-8 max-w-full">
@@ -215,19 +214,7 @@ export default async function ReleasesPage({ searchParams }: ReleasesPageProps) 
       </div>
 
       {/* Content */}
-      <Suspense
-        fallback={
-          <div className="flex gap-3 pb-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="w-[280px] shrink-0">
-                <Skeleton className="h-96 w-full rounded-lg" />
-              </div>
-            ))}
-          </div>
-        }
-      >
-        <ReleasesContent view={view ?? "kanban"} stage={stage} />
-      </Suspense>
+      {releasesContent}
     </div>
   );
 }

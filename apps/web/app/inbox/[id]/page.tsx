@@ -1,10 +1,8 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getSubmission } from "@/lib/data/inbox";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
@@ -155,6 +153,7 @@ async function SubmissionDetail({ submissionId }: { submissionId: string }) {
 
 export default async function InboxDetailPage({ params }: InboxDetailPageProps) {
   const { id } = await params;
+  const submissionDetail = await SubmissionDetail({ submissionId: id });
 
   return (
     <div className="p-8 max-w-[1400px]">
@@ -170,9 +169,7 @@ export default async function InboxDetailPage({ params }: InboxDetailPageProps) 
         </div>
       </div>
 
-      <Suspense fallback={<Skeleton className="h-96 w-full rounded-lg" />}>
-        <SubmissionDetail submissionId={id} />
-      </Suspense>
+      {submissionDetail}
     </div>
   );
 }
