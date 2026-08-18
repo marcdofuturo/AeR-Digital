@@ -14,6 +14,7 @@ import {
 } from "@/app/releases/actions";
 import { FileText, Mail, CheckCircle, Clock, XCircle, AlertTriangle, Download, Eye } from "lucide-react";
 import Link from "next/link";
+import { AuthorizationStatusButton } from "@/components/releases/authorization-status-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -100,15 +101,11 @@ export default async function AutorizacaoPage({ params }: { params: Promise<{ id
                       <Badge variant={RECIPIENT_STATUS_VARIANT[recipient.status] ?? "secondary"} className="text-xs">
                         {recipient.status}
                       </Badge>
-                      {!approved && (
-                        <form action={markAuthorizationRecipientApproved}>
-                          <input type="hidden" name="release_id" value={id} />
-                          <input type="hidden" name="recipient_id" value={recipient.id} />
-                          <Button type="submit" size="sm" variant="outline">
-                            Marcar OK
-                          </Button>
-                        </form>
-                      )}
+                      <AuthorizationStatusButton
+                        releaseId={id}
+                        recipientId={recipient.id}
+                        approved={approved}
+                      />
                     </div>
                   </div>
                 );
