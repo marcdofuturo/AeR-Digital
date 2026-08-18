@@ -1,7 +1,6 @@
 import json
-from pathlib import Path
 import subprocess
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = ROOT.parents[1] / "infra" / "docker-compose.yml"
@@ -37,6 +36,19 @@ def test_audio_container_runs_as_non_root_with_a_healthcheck() -> None:
     assert "USER app" in dockerfile
     assert "HEALTHCHECK" in dockerfile
     assert "condition: service_healthy" in compose
+
+
+def test_audio_model_cache_survives_container_rebuilds() -> None:
+    services = load_compose_config()["services"]
+    audio_service = services["audio-svc"]
+
+    assert audio_service["environment"]["WHISPER_MODEL"] == "large-v3-turbo"
+    assert audio_service["environment"]["HF_HOME"] == "/home/app/.cache/huggingface"
+    assert any(
+        volume["source"] == "audio_models"
+        and volume["target"] == "/home/app/.cache/huggingface"
+        for volume in audio_service["volumes"]
+    )
 
 
 def test_worker_host_port_does_not_collide_with_legacy_crm() -> None:

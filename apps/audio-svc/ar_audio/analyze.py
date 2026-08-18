@@ -1,15 +1,15 @@
 """Audio analysis using faster-whisper + librosa (Prompt 6)."""
 from __future__ import annotations
 
-import tempfile
-import os
 import ipaddress
+import os
+import tempfile
 import uuid
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import ParseResult, urlparse
 
 import httpx
-
 
 DEFAULT_AUDIO_HOSTS = (
     "dwqdpumeehcamnrbddad.supabase.co",
@@ -71,12 +71,19 @@ async def download_audio(url: str) -> Path:
         raise
 
 
-def transcribe(path: str | Path) -> dict:
-    """Transcribe audio using faster-whisper large-v3 (pt-BR)."""
-    try:
-        from faster_whisper import WhisperModel
+@lru_cache(maxsize=1)
+def get_whisper_model():
+    """Load the configured Whisper model once per service process."""
+    from faster_whisper import WhisperModel
 
-        model = WhisperModel("large-v3", device="cpu", compute_type="int8")
+    model_name = os.getenv("WHISPER_MODEL", "large-v3-turbo").strip() or "large-v3-turbo"
+    return WhisperModel(model_name, device="cpu", compute_type="int8")
+
+
+def transcribe(path: str | Path) -> dict:
+    """Transcribe Brazilian Portuguese audio with the cached Whisper model."""
+    try:
+        model = get_whisper_model()
         segments_iter, info = model.transcribe(
             str(path),
             language="pt",
