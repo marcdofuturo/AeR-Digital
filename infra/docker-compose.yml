@@ -36,7 +36,7 @@ services:
       - postgres
       - redis
 
-  # ── Redis (BullMQ) ──
+  # ── Redis (Evolution API) ──
   redis:
     image: redis:7-alpine
     container_name: ar-redis
@@ -46,6 +46,24 @@ services:
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
+    networks:
+      - ar-net
+
+  # BullMQ requires noeviction and must not share memory pressure with Evolution.
+  worker-redis:
+    image: redis:7-alpine
+    container_name: ar-worker-redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - worker_redis_data:/data
     networks:
       - ar-net
 
@@ -78,7 +96,7 @@ services:
       - "127.0.0.1:${WORKER_HOST_PORT:-3002}:3001"
     environment:
       - WORKER_PORT=3001
-      - REDIS_URL=redis://ar-redis:6379
+      - REDIS_URL=redis://ar-worker-redis:6379
       - SUPABASE_URL=${SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
@@ -88,8 +106,8 @@ services:
     networks:
       - ar-net
     depends_on:
-      redis:
-        condition: service_started
+      worker-redis:
+        condition: service_healthy
       audio-svc:
         condition: service_healthy
 
@@ -111,6 +129,7 @@ services:
 volumes:
   evolution_data:
   redis_data:
+  worker_redis_data:
   audio_data:
   caddy_data:
   caddy_config:
