@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function CopyIntakeLink({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -13,14 +14,15 @@ export function CopyIntakeLink({ value }: { value: string }) {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
       onClick={copy}
       title="Copiar link"
-      className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-bg px-4 py-3 text-left font-mono text-sm text-brand transition-colors hover:border-brand/60"
+      className="h-auto w-full justify-between gap-3 rounded-lg bg-bg px-4 py-3 text-left font-mono text-sm text-brand hover:border-brand/60"
     >
       <span className="break-all">{value}</span>
       {copied ? <Check className="h-4 w-4 shrink-0 text-success" /> : <Copy className="h-4 w-4 shrink-0" />}
-    </button>
+    </Button>
   );
 }

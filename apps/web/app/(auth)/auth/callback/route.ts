@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { safeInviteDestination } from "@/lib/auth/invite-session";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+
+const EMAIL_OTP_TYPES = new Set<EmailOtpType>([
+  "signup", "invite", "magiclink", "recovery", "email_change", "email",
+]);
 
 /**
  * Handles the OTP callback from the magic link email.
@@ -11,14 +17,18 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
-  const next = url.searchParams.get("next") ?? "/";
+  const requestedType = url.searchParams.get("type");
+  const otpType = requestedType && EMAIL_OTP_TYPES.has(requestedType as EmailOtpType)
+    ? requestedType as EmailOtpType
+    : "email";
+  const next = safeInviteDestination(url.searchParams.get("next"));
 
   const supabase = await createClient();
 
   if (tokenHash) {
     const { error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
-      type: "email",
+      type: otpType,
     });
 
     if (error) {

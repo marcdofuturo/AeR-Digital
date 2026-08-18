@@ -5,6 +5,19 @@ vi.mock("@/lib/tenant", () => ({
   getCurrentTenantId: vi.fn().mockResolvedValue("tenant-1"),
 }));
 
+vi.mock("@/lib/auth/require-membership", () => ({
+  requireMembership: vi.fn().mockResolvedValue({
+    userId: "user-1",
+    tenantId: "tenant-1",
+    role: "owner",
+  }),
+}));
+
+vi.mock("../actions", () => ({
+  inviteTeamMember: vi.fn(),
+  INITIAL_CONFIG_ACTION_STATE: { status: "idle", message: "" },
+}));
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     from: vi.fn(() => ({
@@ -46,5 +59,7 @@ describe("EquipeConfigPage", () => {
     expect(screen.getByText("Marc Audiolink Brasil")).toBeVisible();
     expect(screen.getByText("marc@audiolinkbrasil.com")).toBeVisible();
     expect(screen.getByText("Owner")).toBeVisible();
+    expect(screen.getByRole("button", { name: /convidar membro/i })).toBeVisible();
+    expect(screen.getByLabelText(/nivel de permissao/i)).toBeVisible();
   });
 });

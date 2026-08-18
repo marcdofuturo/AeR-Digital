@@ -1,11 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SaveButton } from "@/components/forms/save-button";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId, getTenant } from "@/lib/tenant";
 import { fmtDate } from "@ar/shared";
 import { addTrackParticipant, saveRegistrationStatus, setReleaseStageFromForm } from "@/app/releases/actions";
 import { AlertTriangle, CheckCheck, Clock, Plus, XCircle } from "lucide-react";
+import {
+  normalizeRegistrationStatus,
+} from "@/lib/registration-status";
 
 const REG_LABELS: Record<string, string> = {
   obra_ecad: "Status da obra",
@@ -19,7 +22,6 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "success" | "warn
   em_andamento: "warning",
   concluido: "success",
   rejeitado: "danger",
-  na: "secondary",
 };
 
 const REGISTRATION_ORDER = ["obra_ecad", "fonograma_ecad", "isrc", "distribuicao"];
@@ -55,7 +57,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
             <form action={setReleaseStageFromForm}>
               <input type="hidden" name="release_id" value={id} />
               <input type="hidden" name="stage" value="registrar_fonograma" />
-              <Button type="submit" size="sm">Avançar para registrar fonograma</Button>
+              <SaveButton size="sm" pendingLabel="Avançando...">Avançar para registrar fonograma</SaveButton>
             </form>
           )}
 
@@ -63,7 +65,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
             <form action={setReleaseStageFromForm}>
               <input type="hidden" name="release_id" value={id} />
               <input type="hidden" name="stage" value="pronto_p_distribuir" />
-              <Button type="submit" size="sm">Avançar para pronto p/ distribuir</Button>
+              <SaveButton size="sm" pendingLabel="Avançando...">Avançar para pronto p/ distribuir</SaveButton>
             </form>
           )}
 
@@ -129,7 +131,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
               <div className="space-y-3">
                 {REGISTRATION_ORDER.map((kind) => {
                   const reg = byKind[kind];
-                  const status = reg?.status ?? "pendente";
+                  const status = normalizeRegistrationStatus(reg?.status);
                   const isObraDone = kind === "obra_ecad" && status === "concluido";
                   return (
                     <form key={kind} action={saveRegistrationStatus} className="rounded-md border border-border/50 bg-bg p-3">
@@ -170,7 +172,6 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
                             <option value="em_andamento">Em andamento</option>
                             <option value="concluido">Concluído</option>
                             <option value="rejeitado">Rejeitado</option>
-                            <option value="na">N/A</option>
                           </select>
                         </label>
                         <Field name="entity" label={kind === "distribuicao" ? "Agregadora" : "Associação / entidade"} defaultValue={reg?.entity ?? ""} placeholder={kind === "distribuicao" ? "Altafonte, ONErpm, Tratore" : "UBC, Abramus, Audiolink"} />
@@ -179,7 +180,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
                       </div>
 
                       <div className="mt-3 flex justify-end">
-                        <Button type="submit" size="sm" variant="outline">Salvar</Button>
+                        <SaveButton size="sm" variant="outline">Salvar</SaveButton>
                       </div>
                     </form>
                   );
@@ -257,7 +258,7 @@ function AddParticipantPanel({
             <input type="checkbox" name="is_producer" defaultChecked={defaultProducer} className="accent-brand" />
             Produtor
           </label>
-          <Button type="submit" size="sm" className="mt-2 w-full">Adicionar</Button>
+          <SaveButton size="sm" className="mt-2 w-full" pendingLabel="Adicionando..." savedLabel="Adicionado">Adicionar</SaveButton>
         </div>
       </form>
     </details>

@@ -2,24 +2,19 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getTasks } from "@/lib/data/tasks";
 import { getCurrentTenantId } from "@/lib/tenant";
-import { taskStatusLabel, taskPriorityColor } from "@ar/ai/crm";
+import { taskStatusLabel } from "@ar/ai/crm";
 import type { TaskStatus, TaskPriority } from "@ar/ai/crm";
 import { fmtDate } from "@ar/shared";
-import { CheckCircle2, AlertTriangle, Clock, ListChecks } from "lucide-react";
+import { ListChecks } from "lucide-react";
+import { priorityFilterClass, priorityVariant } from "@/lib/tasks/priority-style";
 
 interface TarefasPageProps {
   searchParams: Promise<{ status?: string; prioridade?: string }>;
-}
-
-function priorityVariant(p: TaskPriority): "danger" | "warning" | "outline" {
-  const map = { alta: "danger" as const, media: "warning" as const, baixa: "outline" as const };
-  return map[p];
 }
 
 const FILTER_TABS = [
@@ -28,6 +23,8 @@ const FILTER_TABS = [
   { label: "Em Andamento", status: "em_andamento" },
   { label: "Bloqueadas", status: "bloqueada" },
 ];
+
+const PRIORITIES: TaskPriority[] = ["alta", "media", "baixa"];
 
 async function TasksTable({ status, priority }: { status?: string; priority?: string }) {
   const tenantId = await getCurrentTenantId();
@@ -153,7 +150,7 @@ export default async function TarefasPage({ searchParams }: TarefasPageProps) {
         ))}
 
         <div className="ml-auto flex gap-2">
-          {["alta", "media", "baixa"].map((p) => {
+          {PRIORITIES.map((p) => {
             const isActive = prioridade === p;
             const href = isActive
               ? `/tarefas${status ? `?status=${status}` : ""}`
@@ -162,11 +159,7 @@ export default async function TarefasPage({ searchParams }: TarefasPageProps) {
               <Link
                 key={p}
                 href={href}
-                className={`px-3 py-1.5 rounded-md text-xs border transition-colors ${
-                  isActive
-                    ? "border-warning bg-warning/10 text-warning"
-                    : "border-border bg-surface text-fg-muted hover:text-fg hover:border-border/80"
-                }`}
+                className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${priorityFilterClass(p, isActive)}`}
               >
                 {p}
               </Link>

@@ -2,27 +2,73 @@
 from __future__ import annotations
 
 import tempfile
+import os
+import ipaddress
+import uuid
 from pathlib import Path
+from urllib.parse import ParseResult, urlparse
 
 import httpx
-import numpy as np
+
+
+DEFAULT_AUDIO_HOSTS = (
+    "dwqdpumeehcamnrbddad.supabase.co",
+    "evolution.193-203-182-39.sslip.io",
+)
+
+
+def validate_audio_url(url: str) -> ParseResult:
+    """Allow only HTTPS audio URLs from explicitly configured storage hosts."""
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("invalid audio URL")
+
+    hostname = parsed.hostname.lower().rstrip(".")
+    try:
+        address = ipaddress.ip_address(hostname)
+        if address.is_private or address.is_loopback or address.is_link_local or address.is_reserved:
+            raise ValueError("private audio host")
+    except ValueError as error:
+        if str(error) == "private audio host":
+            raise
+
+    configured = os.getenv("AUDIO_ALLOWED_HOSTS", ",".join(DEFAULT_AUDIO_HOSTS))
+    allowed_hosts = [host.strip().lower().rstrip(".") for host in configured.split(",") if host.strip()]
+    if not any(hostname == host or hostname.endswith(f".{host}") for host in allowed_hosts):
+        raise ValueError("audio host not allowed")
+    return parsed
 
 
 async def download_audio(url: str) -> Path:
     """Download audio file to temp directory."""
-    async with httpx.AsyncClient(timeout=300) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
+    parsed = validate_audio_url(url)
+    max_bytes = int(os.getenv("AUDIO_MAX_BYTES", str(512 * 1024 * 1024)))
 
     suffix = ".mp3"
-    if ".wav" in url.lower():
+    if parsed.path.lower().endswith(".wav"):
         suffix = ".wav"
-    elif ".flac" in url.lower():
+    elif parsed.path.lower().endswith(".flac"):
         suffix = ".flac"
 
-    tmp = Path(tempfile.gettempdir()) / f"ar_audio_{hash(url)}{suffix}"
-    tmp.write_bytes(resp.content)
-    return tmp
+    tmp = Path(tempfile.gettempdir()) / f"ar_audio_{uuid.uuid4().hex}{suffix}"
+    downloaded = 0
+    try:
+        async with httpx.AsyncClient(timeout=300, follow_redirects=False) as client:
+            async with client.stream("GET", parsed.geturl()) as response:
+                response.raise_for_status()
+                content_length = int(response.headers.get("content-length", "0") or 0)
+                if content_length > max_bytes:
+                    raise ValueError("audio file too large")
+                with tmp.open("wb") as output:
+                    async for chunk in response.aiter_bytes():
+                        downloaded += len(chunk)
+                        if downloaded > max_bytes:
+                            raise ValueError("audio file too large")
+                        output.write(chunk)
+        return tmp
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def transcribe(path: str | Path) -> dict:
@@ -50,6 +96,7 @@ def analyze_signal(path: str | Path) -> dict:
     """Extract BPM, key, energy, brightness, hook position using librosa."""
     try:
         import librosa
+        import numpy as np
 
         y, sr = librosa.load(str(path), sr=22050, mono=True)
         duration = len(y) / sr

@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockCreateClient = vi.fn();
 const mockCreateAdminClient = vi.fn();
-
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: mockCreateClient,
-}));
+const mockRequireMembership = vi.fn();
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: mockCreateAdminClient,
+}));
+
+vi.mock("@/lib/auth/require-membership", () => ({
+  requireMembership: mockRequireMembership,
 }));
 
 function singleResult(data: unknown) {
@@ -21,8 +21,28 @@ function singleResult(data: unknown) {
 describe("tenant metadata", () => {
   beforeEach(() => {
     vi.resetModules();
-    mockCreateClient.mockReset();
     mockCreateAdminClient.mockReset();
+    mockRequireMembership.mockReset();
+  });
+
+  it("resolves the tenant only from a verified membership", async () => {
+    mockRequireMembership.mockResolvedValue({
+      userId: "user-1",
+      tenantId: "tenant-1",
+      role: "viewer",
+    });
+
+    const { getCurrentTenantId } = await import("./tenant");
+
+    await expect(getCurrentTenantId()).resolves.toBe("tenant-1");
+  });
+
+  it("does not trust stale tenant metadata after membership removal", async () => {
+    mockRequireMembership.mockRejectedValue(new Error("Sem permissao para este tenant"));
+
+    const { getCurrentTenantId } = await import("./tenant");
+
+    await expect(getCurrentTenantId()).resolves.toBeNull();
   });
 
   it("fetches the current tenant with the admin client after resolving the user's tenant id", async () => {
@@ -32,16 +52,12 @@ describe("tenant metadata", () => {
       name: "Audiolink Brasil",
       plan: "trial",
     };
-    const blockedTenantQuery = singleResult(null);
     const adminTenantQuery = singleResult(tenant);
 
-    mockCreateClient.mockResolvedValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({
-          data: { user: { id: "user-1", app_metadata: { tenant_id: "tenant-1" } } },
-        }),
-      },
-      from: vi.fn(() => blockedTenantQuery),
+    mockRequireMembership.mockResolvedValue({
+      userId: "user-1",
+      tenantId: "tenant-1",
+      role: "owner",
     });
     mockCreateAdminClient.mockReturnValue({
       from: vi.fn(() => adminTenantQuery),

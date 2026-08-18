@@ -1,4 +1,5 @@
 import { login } from "./actions";
+import { SaveButton } from "@/components/forms/save-button";
 
 type LoginPageProps = {
   searchParams: Promise<{
@@ -55,12 +56,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
           <input type="hidden" name="redirect" value={params.redirect ?? "/"} />
 
-          <button
-            type="submit"
-            className="w-full py-2 px-4 bg-brand hover:bg-brand-hover text-white font-medium rounded-md transition-colors"
-          >
+          <SaveButton className="w-full" pendingLabel="Entrando..." savedLabel="Acesso confirmado">
             Entrar
-          </button>
+          </SaveButton>
 
           {params.error ? (
             <p role="alert" className="text-sm text-red-400" aria-live="polite">

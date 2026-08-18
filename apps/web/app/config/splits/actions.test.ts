@@ -2,8 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockUpsert = vi.fn();
 
-vi.mock("@/lib/tenant", () => ({
-  getCurrentTenantId: vi.fn().mockResolvedValue("tenant-1"),
+vi.mock("@/lib/auth/require-membership", () => ({
+  requireMembership: vi.fn().mockResolvedValue({
+    userId: "owner-1",
+    tenantId: "tenant-1",
+    role: "owner",
+  }),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({

@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { KanbanBoard } from "./kanban-board";
 import { ReleasesTable } from "./releases-table";
 import type { KanbanCardData } from "./kanban-card";
@@ -53,8 +53,23 @@ beforeAll(() => {
   }
 });
 
+afterEach(async () => {
+  cleanup();
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+});
+
+async function closeDialog(dialog: HTMLElement) {
+  fireEvent.click(within(dialog).getByRole("button", { name: /close/i }));
+
+  await act(async () => {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+  });
+
+  expect(dialog).not.toBeInTheDocument();
+}
+
 describe("release details dialog", () => {
-  it("opens release details when a kanban card is clicked", () => {
+  it("opens release details when a kanban card is clicked", async () => {
     render(<KanbanBoard releases={[release]} />);
 
     fireEvent.click(screen.getByText("Acordei feliz"));
@@ -64,9 +79,10 @@ describe("release details dialog", () => {
     expect(within(dialog).getByRole("heading", { name: "Acordei feliz" })).toBeInTheDocument();
     expect(within(dialog).getAllByText("Mc Rick, Mc Lobao").length).toBeGreaterThan(0);
     expect(within(dialog).getByText("BR1232600001")).toBeInTheDocument();
+    await closeDialog(dialog);
   });
 
-  it("opens release details when a table row is clicked", () => {
+  it("opens release details when a table row is clicked", async () => {
     render(<ReleasesTable releases={[release]} />);
 
     fireEvent.click(screen.getByRole("button", { name: /abrir detalhes de acordei feliz/i }));
@@ -75,9 +91,10 @@ describe("release details dialog", () => {
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText("1 pendente")).toBeInTheDocument();
     expect(within(dialog).getByRole("link", { name: /abrir ficha completa/i })).toHaveAttribute("href", "/releases/release-1");
+    await closeDialog(dialog);
   });
 
-  it("does not render missing audio metadata placeholders", () => {
+  it("does not render missing audio metadata placeholders", async () => {
     render(
       <ReleasesTable
         releases={[
@@ -110,5 +127,6 @@ describe("release details dialog", () => {
     expect(within(dialog).getByText("Iniciou em:")).toBeInTheDocument();
     expect(within(dialog).queryByRole("img")).not.toBeInTheDocument();
     expect(within(dialog).getByText(/capa recebida/i)).toBeInTheDocument();
+    await closeDialog(dialog);
   });
 });

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDaysInStage, deadlineColor, KANBAN_STAGES } from "@ar/ai/crm";
 import type { KanbanCardData } from "./kanban-card";
 import { ReleaseDetailsDialog } from "./release-details-dialog";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   releases: KanbanCardData[];
@@ -49,14 +50,15 @@ export function ReleasesTable({ releases }: Props) {
                 return (
                   <TableRow key={r.id}>
                     <TableCell>
-                      <button
+                      <Button
                         type="button"
+                        variant="link"
                         aria-label={`Abrir detalhes de ${r.title}`}
                         onClick={() => setSelectedRelease(r)}
-                        className="text-left font-medium text-fg transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                        className="h-auto justify-start p-0 text-left font-medium text-fg hover:text-brand"
                       >
                         {r.title}
-                      </button>
+                      </Button>
                     </TableCell>
                     <TableCell className="text-xs text-fg-muted">
                       {r.artists.join(", ")}
