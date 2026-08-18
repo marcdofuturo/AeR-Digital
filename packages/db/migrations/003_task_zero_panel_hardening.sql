@@ -165,10 +165,6 @@ create unique index if not exists presentation_jobs_one_active_per_track_uidx
 alter table presentation_jobs enable row level security;
 
 drop policy if exists presentation_jobs_tenant_rw on presentation_jobs;
-create policy presentation_jobs_tenant_rw on presentation_jobs
-  for all to authenticated
-  using (tenant_id = any(auth_tenant_ids()))
-  with check (tenant_id = any(auth_tenant_ids()));
 
 drop policy if exists presentation_jobs_service_role on presentation_jobs;
 create policy presentation_jobs_service_role on presentation_jobs
@@ -404,3 +400,71 @@ create policy tenant_owner_manage on memberships
 drop policy if exists service_role_bypass on memberships;
 create policy service_role_bypass on memberships
   for all to service_role using (true) with check (true);
+
+-- Apply an authenticated Resend reply and keep the parent checklist status
+-- consistent in the same transaction.
+create or replace function apply_authorization_reply(
+  p_reply_token text,
+  p_response_raw text,
+  p_response_class jsonb,
+  p_decision text,
+  p_high_confidence boolean
+) returns table (
+  matched boolean,
+  recipient_status text,
+  authorization_status text
+)
+language plpgsql security definer set search_path = public as $$
+declare
+  recipient authorization_recipients;
+  next_recipient_status text;
+  next_authorization_status text;
+begin
+  select * into recipient
+  from authorization_recipients
+  where reply_token = p_reply_token
+  for update;
+
+  if not found then
+    return query select false, null::text, null::text;
+    return;
+  end if;
+
+  next_recipient_status := recipient.status;
+  if p_high_confidence and p_decision = 'aprovado' then
+    next_recipient_status := 'aprovado';
+  elsif p_high_confidence and p_decision = 'recusado' then
+    next_recipient_status := 'recusado';
+  end if;
+
+  update authorization_recipients
+  set status = next_recipient_status,
+      responded_at = now(),
+      response_raw = p_response_raw,
+      response_class = p_response_class
+  where id = recipient.id;
+
+  select case
+    when bool_or(status = 'recusado') then 'recusado'
+    when bool_and(status = 'aprovado') then 'aprovado'
+    else 'parcial'
+  end into next_authorization_status
+  from authorization_recipients
+  where authorization_id = recipient.authorization_id;
+
+  update authorizations
+  set status = next_authorization_status,
+      resolved_at = case
+        when next_authorization_status in ('aprovado', 'recusado') then now()
+        else null
+      end
+  where id = recipient.authorization_id
+    and tenant_id = recipient.tenant_id;
+
+  return query select true, next_recipient_status, next_authorization_status;
+end $$;
+
+revoke all on function apply_authorization_reply(text, text, jsonb, text, boolean)
+  from public, anon, authenticated;
+grant execute on function apply_authorization_reply(text, text, jsonb, text, boolean)
+  to service_role;
