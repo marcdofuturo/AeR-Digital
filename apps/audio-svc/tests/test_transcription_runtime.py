@@ -56,3 +56,14 @@ def test_transcribe_uses_the_configured_model(monkeypatch, tmp_path):
     analyze.transcribe(tmp_path / "track.wav")
 
     assert created_models == ["small"]
+
+
+def test_scalar_float_accepts_a_single_value_array():
+    class SingleValueArray:
+        def __float__(self):
+            raise TypeError("only 0-dimensional arrays can be converted to Python scalars")
+
+        def item(self):
+            return 123.4
+
+    assert analyze.scalar_float(SingleValueArray()) == 123.4
