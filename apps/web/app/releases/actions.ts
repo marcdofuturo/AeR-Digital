@@ -8,6 +8,7 @@ import { persistAutomaticSplitsForTrack } from "@/lib/splits/persist";
 import type { Participant } from "@ar/splits";
 import type { ReleaseStage } from "@ar/shared";
 import { isRegistrationStatus } from "@/lib/registration-status";
+import { syncReleaseStageTask } from "@/lib/tasks/sync-stage-task";
 
 type SplitScope = "obra" | "fonograma" | "digital";
 
@@ -33,6 +34,12 @@ export async function updateReleaseStage(releaseId: string, newStage: ReleaseSta
     console.error("Failed to update release stage:", error);
     throw new Error("Falha ao mover lançamento");
   }
+
+  await syncReleaseStageTask(supabase, {
+    tenantId,
+    releaseId,
+    stage: newStage,
+  });
 
   revalidatePath("/releases");
   revalidateRelease(releaseId);
