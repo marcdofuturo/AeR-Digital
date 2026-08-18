@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ReplaceFileButton } from "@/components/forms/replace-file-button";
+import { TrackAudioUploadButton } from "@/components/forms/track-audio-upload-button";
 import { SaveButton } from "@/components/forms/save-button";
 import { EditMetadataButton } from "@/components/forms/edit-metadata-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -126,7 +127,7 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                   <div className="flex flex-wrap gap-2">
                     <MediaButton href={track.audio_url} label="Ouvir" icon="headphones" />
                     <MediaButton href={track.audio_url} label="Baixar áudio" icon="download" download />
-                    <ReplaceFileButton name="audio_file" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/wave" label="Substituir áudio" />
+                    <TrackAudioUploadButton releaseId={id} trackId={track.id} />
                   </div>
                 </div>
                 {isUsableUrl(track.audio_url) && (
