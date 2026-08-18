@@ -1,9 +1,7 @@
-import { Suspense } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getTasks } from "@/lib/data/tasks";
 import { getCurrentTenantId } from "@/lib/tenant";
@@ -120,6 +118,7 @@ async function TasksTable({ status, priority }: { status?: string; priority?: st
 
 export default async function TarefasPage({ searchParams }: TarefasPageProps) {
   const { status, prioridade } = await searchParams;
+  const tasksTable = await TasksTable({ status, priority: prioridade });
 
   return (
     <div className="p-8 max-w-[1400px]">
@@ -170,9 +169,7 @@ export default async function TarefasPage({ searchParams }: TarefasPageProps) {
 
       {/* Table */}
       <Card>
-        <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
-          <TasksTable status={status} priority={prioridade} />
-        </Suspense>
+        {tasksTable}
       </Card>
     </div>
   );
