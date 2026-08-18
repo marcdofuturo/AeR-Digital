@@ -14,4 +14,11 @@ describe("buildSimplePdf", () => {
     expect(pdf).toContain("1 0 0 1 56 736 Tm\n(Third line) Tj");
     expect(pdf).not.toContain("56 770 Td");
   });
+
+  it("declares WinAnsi encoding for accented Latin text", () => {
+    const pdf = buildSimplePdf([{ text: "Autorizacao com acentos: olá, música, distribuição" }])
+      .toString("binary");
+
+    expect(pdf.match(/\/Encoding \/WinAnsiEncoding/g)).toHaveLength(2);
+  });
 });
