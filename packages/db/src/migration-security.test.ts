@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 const migrationPath = fileURLToPath(
   new URL("../migrations/003_task_zero_panel_hardening.sql", import.meta.url),
 );
-const migration = readFileSync(migrationPath, "utf8");
+const migration = readFileSync(migrationPath, "utf8").replace(/\r\n/g, "\n");
 const repairMigrationPath = fileURLToPath(
   new URL("../migrations/004_task_zero_review_repairs.sql", import.meta.url),
 );
-const repairMigration = readFileSync(repairMigrationPath, "utf8");
+const repairMigration = readFileSync(repairMigrationPath, "utf8").replace(/\r\n/g, "\n");
 
 describe("task zero migration security", () => {
   it("does not leave a permissive write policy on presentation jobs", () => {
