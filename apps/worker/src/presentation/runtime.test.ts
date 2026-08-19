@@ -106,6 +106,42 @@ describe("presentation runtime", () => {
     });
   });
 
+  it("persists only cited, unique sources and caps their count", async () => {
+    const citations = Array.from({ length: 15 }, (_, index) => ({
+      type: "web_search_result_location",
+      title: `Fonte citada ${index + 1}`,
+      url: `https://example.com/cited-${index + 1}`,
+    }));
+    const searchResults = Array.from({ length: 5 }, (_, index) => ({
+      type: "web_search_result",
+      title: `Resultado bruto ${index + 1}`,
+      url: `https://example.com/raw-${index + 1}`,
+    }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        stop_reason: "end_turn",
+        content: [
+          { type: "web_search_tool_result", content: searchResults },
+          { type: "text", text: "Pesquisa concluida.", citations: [...citations, citations[0]] },
+        ],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        stop_reason: "end_turn",
+        content: [{
+          type: "text",
+          text: JSON.stringify({ apresentacao: "Pitch final", avisos: [] }),
+        }],
+      }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generatePresentation({ ANTHROPIC_API_KEY: "test-key" }, input);
+
+    expect(result.fontes).toHaveLength(12);
+    expect(result.fontes.every((source) => source.titulo.startsWith("Fonte citada"))).toBe(true);
+    expect(result.raw).not.toContain("Resultado bruto");
+  });
+
   it("verifies the configured key and model before jobs are claimed", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       data: [{ id: "claude-sonnet-4-6" }],

@@ -9,6 +9,7 @@ import { generatePresentationForTrack } from "@/app/releases/actions";
 import { fmtDate } from "@ar/shared";
 import { FileText, Sparkles } from "lucide-react";
 import { PresentationJobRefresh } from "@/components/releases/presentation-job-refresh";
+import { summarizePresentationSources } from "@/lib/presentation/sources";
 
 export default async function PresentationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -111,6 +112,7 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
                   {presentations.map((presentation: any, idx: number) => {
                     const analysis = presentation.analysis ?? {};
                     const guidance = analysis.user_guidance as string | null | undefined;
+                    const sources = summarizePresentationSources(analysis.fontes);
 
                     return (
                       <Card key={presentation.id ?? idx} className="border-2 border-border">
@@ -143,10 +145,10 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
                               ))}
                             </div>
                           )}
-                          {Array.isArray(analysis.fontes) && analysis.fontes.length > 0 ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {analysis.fontes.map((source: { titulo?: string; url?: string }) =>
-                                source.url?.startsWith("https://") ? (
+                          {sources.visible.length > 0 ? (
+                            <div className="mt-3 space-y-2">
+                              <div className="flex flex-wrap gap-2">
+                                {sources.visible.map((source) => (
                                   <a
                                     key={source.url}
                                     href={source.url}
@@ -154,10 +156,15 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
                                     rel="noreferrer"
                                     className="text-xs text-brand underline-offset-4 hover:underline"
                                   >
-                                    {source.titulo || "Fonte da pesquisa"}
+                                    {source.titulo}
                                   </a>
-                                ) : null,
-                              )}
+                                ))}
+                              </div>
+                              {sources.total > sources.visible.length ? (
+                                <p className="text-[10px] text-fg-muted">
+                                  Exibindo {sources.visible.length} de {sources.total} fontes verificadas.
+                                </p>
+                              ) : null}
                             </div>
                           ) : null}
                         </CardContent>
