@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a secure, resumable cover-and-WAV upload page to the active WhatsApp intake and return the artist to WhatsApp after validated persistence.
+**Goal:** Add a secure direct cover-and-WAV upload page to the active WhatsApp intake and return the artist to WhatsApp after validated persistence.
 
-**Architecture:** The webhook signs a two-hour stateless grant for the active WhatsApp session. Public server actions exchange that grant for path-scoped Supabase TUS tokens, independently validate stored media headers, update the session draft, and send the existing metadata continuation through Evolution.
+**Architecture:** The webhook signs a two-hour stateless grant for the active WhatsApp session. Public server actions exchange that grant for path-scoped Supabase signed upload URLs, independently validate stored media headers, update the session draft, and send the existing metadata continuation through Evolution.
 
-**Tech Stack:** Next.js 15 server actions, React 19, TypeScript, Supabase Storage signed TUS uploads, `tus-js-client`, Vitest, Testing Library, Web Crypto.
+**Tech Stack:** Next.js 15 server actions, React 19, TypeScript, Supabase Storage signed uploads, XMLHttpRequest progress events, Vitest, Testing Library, Web Crypto.
 
 ---
 
@@ -46,7 +46,7 @@
 - [ ] Extract a focused exported helper from the existing `ask_audio`/`ask_cover` behavior without changing direct-media fallback behavior.
 - [ ] Run `pnpm --filter @ar/wa test` and commit `refactor: share WhatsApp media continuation`.
 
-### Task 4: Grant-aware resumable upload actions
+### Task 4: Grant-aware signed upload actions
 
 **Files:**
 - Create: `apps/web/app/envio/[grant]/actions.ts`
@@ -55,11 +55,11 @@
 - Modify: `pnpm-lock.yaml`
 
 - [ ] Write failing action tests for invalid grant, wrong session step, path scoping, cover/audio ticket types, storage readback, invalid-object deletion, and successful session continuation.
-- [ ] Add `tus-js-client` to `@ar/web`.
+- [ ] Use direct browser-to-Supabase signed uploads with progress events.
 - [ ] Implement `createWhatsAppUploadTicket` with no application audio-size cap and unique tenant/session paths.
 - [ ] Implement `completeWhatsAppMediaUpload`: verify both object records, fetch bounded headers, validate actual media, persist one session transition, and send the continuation through Evolution.
 - [ ] Ensure errors never include provider keys, signed tokens, phone numbers, or storage URLs.
-- [ ] Run focused tests and commit `feat: persist resumable WhatsApp media uploads`.
+- [ ] Run focused tests and commit `feat: persist WhatsApp media uploads`.
 
 ### Task 5: Link the webhook to the upload page
 
@@ -86,7 +86,7 @@
 - [ ] Write failing tests for both requirement cards, local binary validation, disabled/enabled submit, progress states, error replacement, success countdown, automatic close attempt, and WhatsApp fallback link.
 - [ ] Add `/envio` to public and shell-free routes and mark the page noindex/no-store/no-referrer.
 - [ ] Build the responsive dark Audiolink interface using existing tokens and accessible live regions.
-- [ ] Upload cover then audio through TUS with retry delays, progress, abort, and fingerprint removal after success.
+- [ ] Upload cover and audio through signed URLs with progress and visible retry behavior.
 - [ ] On completion, attempt `window.close()` and then replace location with the WhatsApp deep link while keeping a visible fallback button.
 - [ ] Run component, navigation, and middleware tests; commit `feat: add WhatsApp media upload interface`.
 
@@ -103,4 +103,3 @@
 - [ ] Deploy Cloudflare Pages and verify immutable/canonical URLs, zero console errors, and public-route headers.
 - [ ] When SSH is healthy, back up `/opt/ar-digital/.env`, replace only `ANTHROPIC_API_KEY`, recreate only `ar-worker`, and confirm the key with a status-only API probe.
 - [ ] Run a production intake/upload/readback test. Report the real handset message as a separate gate if no controlled phone is available.
-

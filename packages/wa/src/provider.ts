@@ -50,6 +50,8 @@ export class EvolutionProvider implements WhatsAppProvider {
 
   private async request(method: string, path: string, body?: unknown) {
     const url = `${this.baseUrl}/message/${path}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
     const res = await fetch(url, {
       method,
       headers: {
@@ -57,7 +59,8 @@ export class EvolutionProvider implements WhatsAppProvider {
         apikey: this.apiKey,
       },
       body: body ? JSON.stringify(body) : undefined,
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
     if (!res.ok) {
       throw new Error(`Evolution API ${method} ${path}: ${res.status} ${res.statusText}`);
     }
@@ -86,9 +89,12 @@ export class EvolutionProvider implements WhatsAppProvider {
 
   async getInstanceHealth(): Promise<boolean> {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
       const res = await fetch(`${this.baseUrl}/instance/connectionState/${this.instance}`, {
         headers: { apikey: this.apiKey },
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
       const data = await res.json();
       return data.instance?.status === "open";
     } catch {

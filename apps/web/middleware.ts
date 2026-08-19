@@ -6,6 +6,7 @@ const PUBLIC_ROUTES = [
   "/login",
   "/auth/callback",
   "/auth/invite",
+  "/envio",
   "/api/webhooks/whatsapp",
   "/api/webhooks/email/inbound",
 ];
@@ -15,19 +16,18 @@ function isPublic(pathname: string): boolean {
 }
 
 export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  if (isPublic(pathname)) {
+    return NextResponse.next();
+  }
+
   const { supabase, response } = createMiddlewareClient(req);
 
   // Refresh the session cookie
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = req.nextUrl;
-
-  // Allow public routes through
-  if (isPublic(pathname)) {
-    return response;
-  }
 
   // Redirect unauthenticated users to login
   if (!user) {

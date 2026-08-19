@@ -68,6 +68,27 @@ export async function loadSessionById(sessionId: string): Promise<SessionRow | n
   return data ? mapSession(data) : null;
 }
 
+export async function advanceUploadSession(
+  sessionId: string,
+  step: string,
+  draft: Draft,
+): Promise<SessionRow> {
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("whatsapp_sessions")
+    .update({ step, draft, last_message_at: now })
+    .eq("id", sessionId)
+    .in("step", ["ask_audio", "ask_cover"])
+    .gt("expires_at", now)
+    .select("id, tenant_id, phone_e164, step, draft")
+    .maybeSingle();
+
+  if (error) throw new Error("Falha ao atualizar a sess\u00e3o de envio.");
+  if (!data) throw new Error("Arquivos j\u00e1 recebidos. Continue no WhatsApp.");
+  return mapSession(data);
+}
+
 /**
  * Create or update a session. Uses ON CONFLICT on the unique index
  * (phone_e164 WHERE expires_at > now()) so at most one active session

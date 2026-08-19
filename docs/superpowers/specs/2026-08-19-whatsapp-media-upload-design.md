@@ -8,7 +8,7 @@ Replace the fragile audio-and-cover transfer inside WhatsApp with a secure mobil
 
 - Cover: JPEG, PNG, or WebP; square; minimum 1600 x 1600 pixels; maximum 3000 x 3000 pixels.
 - Audio: RIFF/RF64 WAV, PCM, stereo, 16-bit, 44.1 kHz.
-- Audio size: AeR Digital adds no application-level cap. The effective maximum remains the Supabase project global limit. Resumable TUS upload is used because Supabase recommends it for files larger than 6 MB.
+- Audio size: AeR Digital adds no application-level cap. The effective maximum remains the Supabase project global limit.
 - Both files are required before the intake advances.
 
 ## Chosen Architecture
@@ -26,9 +26,11 @@ The upload page and server actions accept the grant only when all conditions hol
 
 Completing the upload moves the session to metadata confirmation, which makes the grant unusable. The page is `noindex`, `no-store`, and sends a `no-referrer` policy so the bearer grant is not cached or forwarded.
 
-### Direct resumable upload
+### Direct signed upload
 
-Cloudflare never receives the media bytes. A server action validates the grant and issues a Supabase signed upload token for an unguessable path under `release-assets/<tenant>/whatsapp/<session>/`. The browser uploads with `tus-js-client` directly to the Supabase resumable endpoint, using retries and progress callbacks.
+Cloudflare never receives the media bytes. A server action validates the grant and issues a Supabase signed upload URL for an unguessable path under `release-assets/<tenant>/whatsapp/<session>/`. The browser sends the multipart body directly to Supabase with `XMLHttpRequest`, preserving upload progress without exposing a server credential.
+
+The production project's TUS endpoint was tested and rejected its own dedicated Storage signing-key token with `Invalid Compact JWS`. Standard signed upload was then verified by controlled write and readback in the same bucket, so this design uses the working signed endpoint rather than claiming unsupported resumability.
 
 The signed upload token is scoped to one path and expires according to Supabase Storage. Files use unique object names and are never overwritten, avoiding CDN stale-content behavior.
 
@@ -62,7 +64,7 @@ Mobile layout:
 - compact Audiolink/AeR masthead and security/expiry note;
 - two large upload cards, cover first and WAV second;
 - explicit requirement chips and filename/technical-summary states;
-- per-file progress bars, retry/cancel behavior, and accessible status text;
+- per-file progress bars, retry behavior, and accessible status text;
 - one final `Enviar arquivos` action enabled only after both local validations pass;
 - success state with a short countdown and WhatsApp return action.
 
@@ -72,9 +74,9 @@ No CRM navigation, tenant details, phone number, storage token, or internal iden
 
 - Invalid or expired grant: neutral expired-link screen instructing the artist to request a new link in WhatsApp.
 - Invalid local file: upload does not start and the exact failed requirement is shown.
-- Interrupted upload: TUS retries and resumes from its stored fingerprint.
+- Interrupted upload: the user retries with a new signed URL; the interface keeps the selected local files.
 - Server-side validation failure: invalid objects are deleted and the page allows replacement without advancing the session.
-- Evolution reply failure after successful persistence: files and session state remain saved; the page still returns to WhatsApp with a message asking the artist to type `continuar`.
+- Evolution reply failure after successful persistence: files and session state remain saved; the page still shows success and returns to WhatsApp through the deep link.
 - Repeated completion: returns the already-completed state without creating duplicate catalog records.
 
 ## Verification
@@ -91,4 +93,3 @@ No CRM navigation, tenant details, phone number, storage token, or internal iden
 - A browser cannot guarantee automatic tab closure; deep-link redirect plus a visible fallback is the reliable behavior.
 - “Any size” means no AeR Digital cap. Supabase plan/global limits still apply; current `release-assets` has no bucket-specific size restriction.
 - A controlled webhook or database readback does not by itself prove a real handset round trip. Final WhatsApp confirmation must distinguish infrastructure checks from an observed message on the device.
-
