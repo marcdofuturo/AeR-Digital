@@ -3,12 +3,12 @@
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 
-const AUTH_PATH_PREFIXES = ["/login", "/auth", "/onboarding"];
+const SHELL_FREE_PATH_PREFIXES = ["/login", "/auth", "/onboarding", "/envio"];
 
 function isAuthPath(pathname: string | null) {
   if (!pathname) return false;
 
-  return AUTH_PATH_PREFIXES.some(
+  return SHELL_FREE_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
 }

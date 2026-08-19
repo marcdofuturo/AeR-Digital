@@ -31,6 +31,19 @@ describe("AppShell", () => {
     expect(screen.queryByRole("main")).not.toBeInTheDocument();
   });
 
+  it("renders the public media page without the authenticated sidebar", () => {
+    mockUsePathname.mockReturnValue("/envio/temporary-grant");
+
+    render(
+      <AppShell>
+        <h1>Envio seguro</h1>
+      </AppShell>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Envio seguro" })).toBeVisible();
+    expect(screen.queryByLabelText("Navegacao principal")).not.toBeInTheDocument();
+  });
+
   it("wraps CRM pages with sidebar and main landmark", () => {
     mockUsePathname.mockReturnValue("/releases");
 
