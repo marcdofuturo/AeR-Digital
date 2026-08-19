@@ -34,6 +34,7 @@ export type PresentationResult = {
 };
 
 export type PresentationProcessorDependencies = {
+  ready(): Promise<void>;
   claim(): Promise<PresentationJob | null>;
   analyze(job: PresentationJob): Promise<AudioAnalysis>;
   saveAnalysis(job: PresentationJob, analysis: AudioAnalysis): Promise<void>;
@@ -45,6 +46,7 @@ export type PresentationProcessorDependencies = {
 export async function processNextPresentationJob(
   dependencies: PresentationProcessorDependencies,
 ): Promise<boolean> {
+  await dependencies.ready();
   const job = await dependencies.claim();
   if (!job) return false;
 

@@ -5,6 +5,7 @@ import {
   markFailedById,
   resolveClaudeModel,
   resolveSupabaseCredentials,
+  verifyAnthropicConfiguration,
 } from "./runtime";
 import type { PresentationInput } from "./processor";
 
@@ -34,7 +35,7 @@ const input: PresentationInput = {
 describe("presentation runtime", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("uses a supported fallback model and continues a paused web search", async () => {
+  it("researches with web search and synthesizes a structured presentation", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -45,16 +46,22 @@ describe("presentation runtime", () => {
         stop_reason: "end_turn",
         content: [{
           type: "text",
-          text: JSON.stringify({
-            apresentacao: "Pitch final",
-            avisos: [],
-            fontes: [{ titulo: "Fonte inventada", url: "https://example.com/fonte" }],
-          }),
+          text: "Pesquisa factual sobre o artista e sua relevancia publica.",
           citations: [{
             type: "web_search_result_location",
             title: "Spotify for Artists",
             url: "https://artists.spotify.com/blog",
           }],
+        }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        stop_reason: "end_turn",
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            apresentacao: "Pitch final",
+            avisos: [],
+          }),
         }],
       }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -64,12 +71,55 @@ describe("presentation runtime", () => {
       fontes: [{ titulo: "Spotify for Artists", url: "https://artists.spotify.com/blog" }],
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     const firstRequest = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body));
     const secondRequest = JSON.parse(String(fetchMock.mock.calls[1]![1]?.body));
+    const synthesisRequest = JSON.parse(String(fetchMock.mock.calls[2]![1]?.body));
     expect(firstRequest.model).toBe("claude-sonnet-4-6");
     expect(secondRequest.messages).toHaveLength(2);
     expect(secondRequest.messages[1]).toMatchObject({ role: "assistant" });
+    expect(synthesisRequest.tools).toBeUndefined();
+    expect(synthesisRequest.output_config.format.type).toBe("json_schema");
+    expect(synthesisRequest.messages[0].content).toContain("Pesquisa factual");
+  });
+
+  it("generates from track evidence when public research has no verified source", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        stop_reason: "end_turn",
+        content: [{ type: "text", text: "Nenhum resultado publico confiavel encontrado." }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        stop_reason: "end_turn",
+        content: [{
+          type: "text",
+          text: JSON.stringify({ apresentacao: "Pitch baseado na faixa", avisos: [] }),
+        }],
+      }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(generatePresentation({ ANTHROPIC_API_KEY: "test-key" }, input)).resolves.toMatchObject({
+      apresentacao: "Pitch baseado na faixa",
+      fontes: [],
+      avisos: expect.arrayContaining([expect.stringMatching(/fonte publica verificavel/i)]),
+    });
+  });
+
+  it("verifies the configured key and model before jobs are claimed", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{ id: "claude-sonnet-4-6" }],
+    }), { status: 200 }));
+
+    await expect(verifyAnthropicConfiguration(
+      { ANTHROPIC_API_KEY: "test-key" },
+      fetchMock,
+    )).resolves.toEqual({ model: "claude-sonnet-4-6" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.anthropic.com/v1/models?limit=100",
+      expect.objectContaining({ method: "GET" }),
+    );
   });
 
   it("rejects a retired model before processing presentation jobs", () => {
@@ -125,23 +175,6 @@ describe("presentation runtime", () => {
         bodyTimeout: 15 * 60_000,
       }),
     );
-  });
-
-  it("rejects a pitch whose research has no verified web-search source", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      stop_reason: "end_turn",
-      content: [{
-        type: "text",
-        text: JSON.stringify({
-          apresentacao: "Pitch sem fonte",
-          avisos: [],
-          fontes: [{ titulo: "Fonte inventada", url: "https://example.com" }],
-        }),
-      }],
-    }), { status: 200 })));
-
-    await expect(generatePresentation({ ANTHROPIC_API_KEY: "test-key" }, input))
-      .rejects.toThrow("Pesquisa sem fontes verificadas");
   });
 
   it("never overwrites a presentation job that already completed", async () => {
