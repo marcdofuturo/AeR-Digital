@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { StepMachine } from "./machine";
 import {
   assignRoles,
+  completeUploadedMedia,
   matchGenre,
   parseAudioFilename,
   parseMetadataCorrection,
@@ -203,6 +204,27 @@ describe("new WhatsApp intake flow", () => {
 
     expect(cover.nextStep).toBe("confirm_file_metadata");
     expect(cover.draft.cover_url).toBe(coverUrl);
+  });
+
+  it("continues the same flow after both files arrive through the upload page", async () => {
+    const result = await completeUploadedMedia(
+      { release_format: "single" },
+      testCtx(),
+      {
+        audioUrl: "https://storage.example/audio.wav",
+        coverUrl: "https://storage.example/cover.png",
+        audioFilename: "MC Midia, DJ Arquivo - Faixa Web.wav",
+      },
+    );
+
+    expect(result.nextStep).toBe("confirm_file_metadata");
+    expect(result.draft).toMatchObject({
+      audio_url: "https://storage.example/audio.wav",
+      cover_url: "https://storage.example/cover.png",
+      title: "Faixa Web",
+    });
+    expect(result.reply).toContain("MC Midia");
+    expect(result.reply).toContain("Faixa Web");
   });
 
   it("keeps the review open when the release cannot be saved", async () => {

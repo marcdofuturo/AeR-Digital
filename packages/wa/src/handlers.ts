@@ -88,12 +88,21 @@ function isNegative(input: string) {
   return value === "nao" || value === "corrigir" || value.includes("corrige") || value.includes("errado");
 }
 
-async function resolveArtists(ctx: HandlerContext, names: string[]) {
-  const resolved: ResolvedArtist[] = [];
-  for (const name of names) {
-    const existing = await ctx.db.findArtist(ctx.tenant_id, name);
-    resolved.push(existing ?? await ctx.db.createArtist(ctx.tenant_id, name));
-  }
+type ArtistResolutionContext = Pick<HandlerContext, "tenant_id" | "db">;
+
+async function resolveArtists(ctx: ArtistResolutionContext, names: string[]) {
+  const pending = new Map<string, Promise<ResolvedArtist>>();
+  const resolved = await Promise.all(names.map((name) => {
+    const key = normalizeText(name);
+    let artist = pending.get(key);
+    if (!artist) {
+      artist = ctx.db.findArtist(ctx.tenant_id, name).then(
+        (existing) => existing ?? ctx.db.createArtist(ctx.tenant_id, name),
+      );
+      pending.set(key, artist);
+    }
+    return artist;
+  }));
   return assignRoles(resolved);
 }
 
@@ -126,6 +135,43 @@ function correctionPrompt() {
     "",
     "Depois eu devolvo a revisão para confirmar. Se precisar corrigir a pergunta anterior, escreva *voltar*.",
   ].join("\n");
+}
+
+export async function completeUploadedMedia(
+  draft: Draft,
+  ctx: ArtistResolutionContext,
+  media: { audioUrl: string; coverUrl: string; audioFilename: string },
+) {
+  const filenameInfo = parseAudioFilename(media.audioFilename);
+  const artists = filenameInfo.participants.length
+    ? await resolveArtists(ctx, filenameInfo.participants)
+    : (draft.artists ?? []);
+  const nextDraft: Partial<Draft> = {
+    audio_url: media.audioUrl,
+    cover_url: media.coverUrl,
+    audio_filename: media.audioFilename,
+    title: filenameInfo.title ?? draft.title,
+    artists,
+    filename_title_guess: filenameInfo.title ?? draft.filename_title_guess,
+    filename_participants_guess: filenameInfo.participants.length
+      ? filenameInfo.participants
+      : draft.filename_participants_guess,
+  };
+  const completedDraft = { ...draft, ...nextDraft };
+
+  if (!completedDraft.title || !(completedDraft.artists ?? []).length) {
+    return {
+      reply: `Arquivos recebidos. Preciso confirmar os dados antes de seguir.\n\n${correctionPrompt()}`,
+      nextStep: "ask_metadata_correction" as const,
+      draft: nextDraft,
+    };
+  }
+
+  return {
+    reply: formatMetadataReview(completedDraft),
+    nextStep: "confirm_file_metadata" as const,
+    draft: nextDraft,
+  };
 }
 
 function finalReview(draft: Draft) {
@@ -225,7 +271,7 @@ export const handlers: Record<Step, StepHandler> = {
     }
     if (norm.includes("single") || norm.includes("musica") || norm.includes("faixa") || norm === "1") {
       return {
-        reply: "✅ Single.\n\n*2. Envie o áudio.*\nWAV ou MP3 320kbps. Vou tentar reconhecer o título e os participantes pelo nome do arquivo.",
+        reply: "✅ Single.\n\n*2. Envie o áudio.*\nUse o link seguro: WAV PCM, estéreo, 16-bit e 44,1 kHz. Vou tentar reconhecer o título e os participantes pelo nome do arquivo.",
         nextStep: "ask_audio",
         draft: { release_format: "single", album_track_count: 1, current_track_index: 1 },
       };
@@ -247,7 +293,7 @@ export const handlers: Record<Step, StepHandler> = {
       };
     }
     return {
-      reply: `✅ ${count} faixa${count > 1 ? "s" : ""}.\n\n*2. Envie o áudio da faixa 1.*\nWAV ou MP3 320kbps. Vou tentar reconhecer título e participantes pelo nome do arquivo.`,
+      reply: `✅ ${count} faixa${count > 1 ? "s" : ""}.\n\n*2. Envie o áudio da faixa 1.*\nUse o link seguro: WAV PCM, estéreo, 16-bit e 44,1 kHz. Vou tentar reconhecer título e participantes pelo nome do arquivo.`,
       nextStep: "ask_audio",
       draft: { album_track_count: count, current_track_index: 1 },
     };
@@ -535,7 +581,7 @@ export const handlers: Record<Step, StepHandler> = {
       : [];
 
     return {
-      reply: "Perfeito! 🎧\n\n*3. Envie a capa.*\nManda como *ARQUIVO/DOCUMENTO* no clipe, não como foto, para manter a qualidade.\n\nMínimo 3000x3000px, quadrada.",
+      reply: "Perfeito! 🎧\n\n*3. Envie a capa.*\nManda como *ARQUIVO/DOCUMENTO* no clipe, não como foto, para manter a qualidade.\n\nQuadrada, entre 1600x1600 e 3000x3000px.",
       nextStep: "ask_cover",
       draft: {
         audio_url: media?.url ?? "received",
