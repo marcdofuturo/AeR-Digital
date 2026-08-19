@@ -21,7 +21,7 @@ function ascii(bytes: Uint8Array, offset: number, length: number) {
 }
 
 function readUint24LE(bytes: Uint8Array, offset: number) {
-  return bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
+  return bytes[offset]! | (bytes[offset + 1]! << 8) | (bytes[offset + 2]! << 16);
 }
 
 function parsePng(bytes: Uint8Array): CoverMetadata | null {
@@ -53,7 +53,7 @@ function parseJpeg(bytes: Uint8Array): CoverMetadata | null {
     while (offset < bytes.byteLength && bytes[offset] === 0xff) offset += 1;
     if (offset >= bytes.byteLength) break;
 
-    const marker = bytes[offset];
+    const marker = bytes[offset]!;
     offset += 1;
 
     if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) continue;
@@ -97,7 +97,7 @@ function parseWebp(bytes: Uint8Array): CoverMetadata | null {
 
   if (chunk === "VP8L" && bytes.byteLength >= 25 && bytes[20] === 0x2f) {
     const packed =
-      (bytes[21] | (bytes[22] << 8) | (bytes[23] << 16) | (bytes[24] << 24)) >>> 0;
+      (bytes[21]! | (bytes[22]! << 8) | (bytes[23]! << 16) | (bytes[24]! << 24)) >>> 0;
     return {
       format: "webp",
       width: (packed & 0x3fff) + 1,
@@ -108,9 +108,9 @@ function parseWebp(bytes: Uint8Array): CoverMetadata | null {
   if (
     chunk === "VP8 " &&
     bytes.byteLength >= 30 &&
-    bytes[23] === 0x9d &&
-    bytes[24] === 0x01 &&
-    bytes[25] === 0x2a
+    bytes[23]! === 0x9d &&
+    bytes[24]! === 0x01 &&
+    bytes[25]! === 0x2a
   ) {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     return {
