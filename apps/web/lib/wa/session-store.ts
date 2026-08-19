@@ -5,8 +5,28 @@ import type { Draft } from "@ar/wa/types";
 
 export interface SessionRow {
   id: string;
+  tenantId: string;
+  phone: string;
   step: string;
   draft: Draft;
+}
+
+type RawSessionRow = {
+  id: string;
+  tenant_id: string;
+  phone_e164: string;
+  step: string;
+  draft: unknown;
+};
+
+function mapSession(data: RawSessionRow): SessionRow {
+  return {
+    id: data.id,
+    tenantId: data.tenant_id,
+    phone: data.phone_e164,
+    step: data.step,
+    draft: (data.draft ?? {}) as Draft,
+  };
 }
 
 /**
@@ -22,7 +42,7 @@ export async function loadSession(
 
   const { data } = await supabase
     .from("whatsapp_sessions")
-    .select("id, step, draft")
+    .select("id, tenant_id, phone_e164, step, draft")
     .in("phone_e164", whatsappPhoneVariants(phone))
     .eq("tenant_id", tenantId)
     .gt("expires_at", new Date().toISOString())
@@ -32,11 +52,20 @@ export async function loadSession(
 
   if (!data) return null;
 
-  return {
-    id: data.id,
-    step: data.step,
-    draft: (data.draft ?? {}) as Draft,
-  };
+  return mapSession(data);
+}
+
+export async function loadSessionById(sessionId: string): Promise<SessionRow | null> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("whatsapp_sessions")
+    .select("id, tenant_id, phone_e164, step, draft")
+    .eq("id", sessionId)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+
+  if (error) throw new Error("Falha ao carregar a sess\u00e3o de envio.");
+  return data ? mapSession(data) : null;
 }
 
 /**
@@ -49,7 +78,7 @@ export async function saveSession(
   tenantId: string,
   step: string,
   draft: Draft,
-): Promise<void> {
+): Promise<SessionRow> {
   const supabase = createAdminClient();
   const now = new Date().toISOString();
   const normalizedPhone = normalizeWhatsappPhone(phone);
@@ -65,24 +94,33 @@ export async function saveSession(
     .maybeSingle();
 
   if (existing) {
-    await supabase
+    const { data, error } = await supabase
       .from("whatsapp_sessions")
       .update({
         step,
         draft,
         last_message_at: now,
       })
-      .eq("id", existing.id);
-  } else {
-    // Insert new session (72h expiry is the DB default)
-    await supabase.from("whatsapp_sessions").insert({
+      .eq("id", existing.id)
+      .select("id, tenant_id, phone_e164, step, draft")
+      .single();
+    if (error || !data) throw new Error("Falha ao atualizar a sess\u00e3o do WhatsApp.");
+    return mapSession(data);
+  }
+
+  const { data, error } = await supabase
+    .from("whatsapp_sessions")
+    .insert({
       tenant_id: tenantId,
       phone_e164: normalizedPhone,
       step,
       draft,
       last_message_at: now,
-    });
-  }
+    })
+    .select("id, tenant_id, phone_e164, step, draft")
+    .single();
+  if (error || !data) throw new Error("Falha ao criar a sess\u00e3o do WhatsApp.");
+  return mapSession(data);
 }
 
 /**
