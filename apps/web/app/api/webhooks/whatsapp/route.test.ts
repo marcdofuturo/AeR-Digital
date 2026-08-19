@@ -47,6 +47,7 @@ vi.mock("@/lib/wa/tenant-resolver", () => ({
 import { POST } from "./route";
 
 const EVOLUTION_API_KEY = "test-existing-evolution-key";
+const SESSION_ID = "6bf35a8f-6422-4f48-8b87-cfd8d59f45ab";
 
 function requestFor(text: string, options: { apiKey?: string; instance?: string } = {}) {
   return new Request("https://aerdigital.pages.dev/api/webhooks/whatsapp", {
@@ -84,7 +85,16 @@ describe("WhatsApp webhook route", () => {
       tenant_name: "SuperTime Digital",
     });
     mocks.loadSession.mockResolvedValue({
-      id: "session-1",
+      id: SESSION_ID,
+      tenantId: "tenant-1",
+      phone: "5511970416135",
+      step: "ask_release_format",
+      draft: {},
+    });
+    mocks.saveSession.mockResolvedValue({
+      id: SESSION_ID,
+      tenantId: "tenant-1",
+      phone: "5511970416135",
       step: "ask_release_format",
       draft: {},
     });
@@ -162,5 +172,45 @@ describe("WhatsApp webhook route", () => {
     expect(response.status).toBe(502);
     expect(json).toMatchObject({ status: "reply_failed", error_code: "unauthorized" });
     expect(mocks.process).not.toHaveBeenCalled();
+  });
+
+  it("adds the temporary media page when the flow reaches audio upload", async () => {
+    mocks.process.mockResolvedValueOnce({
+      reply: "Envie o audio.",
+      nextStep: "ask_audio",
+      draft: { release_format: "single" },
+    });
+    mocks.saveSession.mockResolvedValueOnce({
+      id: SESSION_ID,
+      tenantId: "tenant-1",
+      phone: "5511970416135",
+      step: "ask_audio",
+      draft: { release_format: "single" },
+    });
+
+    const response = await POST(requestFor("single envio") as never);
+
+    expect(response.status).toBe(200);
+    expect(mocks.sendText).toHaveBeenCalledOnce();
+    expect(mocks.sendText.mock.calls[0]?.[1]).toContain(
+      "https://aerdigital.pages.dev/envio/",
+    );
+  });
+
+  it("resends the media page without treating text as an uploaded audio file", async () => {
+    mocks.loadSession.mockResolvedValueOnce({
+      id: SESSION_ID,
+      tenantId: "tenant-1",
+      phone: "5511970416135",
+      step: "ask_audio",
+      draft: { release_format: "single" },
+    });
+
+    const response = await POST(requestFor("como envio?") as never);
+    const json = await response.json();
+
+    expect(json).toMatchObject({ status: "upload_link_sent", step: "ask_audio" });
+    expect(mocks.process).not.toHaveBeenCalled();
+    expect(mocks.sendText.mock.calls[0]?.[1]).toContain("/envio/");
   });
 });

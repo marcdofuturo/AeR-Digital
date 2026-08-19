@@ -6,6 +6,7 @@ import { extractIncomingEvolutionMessage } from "@/lib/wa/evolution-message";
 import { isTenantSwitchCommand } from "@/lib/wa/flow-commands";
 import { createHandlerDB } from "@/lib/wa/handler-db";
 import { loadSession, saveSession, expireSession, expireAllSessionsForPhone } from "@/lib/wa/session-store";
+import { createUploadGrant } from "@/lib/wa/upload-grant";
 import {
   resolveTenantByPhone,
   resolveTenantByCode,
@@ -82,6 +83,23 @@ function firstQuestion(tenantName: string) {
     "",
     "Se precisar corrigir em qualquer pergunta, escreva *voltar*.",
   ].join("\n");
+}
+
+function mediaUploadPrompt(uploadUrl: string) {
+  return [
+    "Envie o \u00e1udio e a capa pelo link seguro abaixo:",
+    uploadUrl,
+    "",
+    "\u00c1udio: WAV PCM, est\u00e9reo, 16-bit, 44,1 kHz.",
+    "Capa: PNG, JPEG ou WebP, quadrada, entre 1600x1600 e 3000x3000 px.",
+    "O link expira em 2 horas.",
+  ].join("\n");
+}
+
+async function uploadPromptFor(sessionId: string, requestUrl: string) {
+  const grant = await createUploadGrant(sessionId);
+  const uploadUrl = new URL(`/envio/${grant}`, requestUrl).toString();
+  return mediaUploadPrompt(uploadUrl);
 }
 
 async function startIntake(phone: string, tenant: TenantInfo, config: EvolutionConfig) {
@@ -189,6 +207,26 @@ export async function POST(req: NextRequest) {
     await saveSession(phone, tenant.tenant_id, "ask_release_format", currentDraft);
   }
 
+  const normalizedMessage = message.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (
+    session &&
+    (currentStep === "ask_audio" || currentStep === "ask_cover") &&
+    incoming.mediaKind === "text" &&
+    normalizedMessage !== "voltar"
+  ) {
+    const provider = getProvider(config);
+    try {
+      await provider.sendText(phone, await uploadPromptFor(session.id, req.url));
+      return NextResponse.json({ status: "upload_link_sent", step: currentStep });
+    } catch (err) {
+      console.error("Failed to send media upload link:", err);
+      return NextResponse.json(
+        { status: "reply_failed", error_code: classifyReplyError(err) },
+        { status: 502 },
+      );
+    }
+  }
+
   const db = createHandlerDB();
   const provider = getProvider(config);
 
@@ -222,15 +260,19 @@ export async function POST(req: NextRequest) {
   const latency = Date.now() - start;
 
   const nextDraft = { ...currentDraft, ...result.draft };
+  let persistedSession = session;
   if (result.nextStep === "done") {
     await expireSession(phone, tenant.tenant_id);
   } else {
-    await saveSession(phone, tenant.tenant_id, result.nextStep, nextDraft);
+    persistedSession = await saveSession(phone, tenant.tenant_id, result.nextStep, nextDraft);
   }
 
   if (result.reply) {
     try {
-      await provider.sendText(phone, result.reply);
+      const reply = result.nextStep === "ask_audio" && persistedSession
+        ? `${result.reply}\n\n${await uploadPromptFor(persistedSession.id, req.url)}`
+        : result.reply;
+      await provider.sendText(phone, reply);
     } catch (err) {
       console.error("Failed to send WhatsApp reply:", err);
     }

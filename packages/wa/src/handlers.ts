@@ -128,6 +128,43 @@ function correctionPrompt() {
   ].join("\n");
 }
 
+export async function completeUploadedMedia(
+  draft: Draft,
+  ctx: HandlerContext,
+  media: { audioUrl: string; coverUrl: string; audioFilename: string },
+) {
+  const filenameInfo = parseAudioFilename(media.audioFilename);
+  const artists = filenameInfo.participants.length
+    ? await resolveArtists(ctx, filenameInfo.participants)
+    : (draft.artists ?? []);
+  const nextDraft: Partial<Draft> = {
+    audio_url: media.audioUrl,
+    cover_url: media.coverUrl,
+    audio_filename: media.audioFilename,
+    title: filenameInfo.title ?? draft.title,
+    artists,
+    filename_title_guess: filenameInfo.title ?? draft.filename_title_guess,
+    filename_participants_guess: filenameInfo.participants.length
+      ? filenameInfo.participants
+      : draft.filename_participants_guess,
+  };
+  const completedDraft = { ...draft, ...nextDraft };
+
+  if (!completedDraft.title || !(completedDraft.artists ?? []).length) {
+    return {
+      reply: `Arquivos recebidos. Preciso confirmar os dados antes de seguir.\n\n${correctionPrompt()}`,
+      nextStep: "ask_metadata_correction" as const,
+      draft: nextDraft,
+    };
+  }
+
+  return {
+    reply: formatMetadataReview(completedDraft),
+    nextStep: "confirm_file_metadata" as const,
+    draft: nextDraft,
+  };
+}
+
 function finalReview(draft: Draft) {
   const artists = (draft.artists ?? []).map((artist) =>
     `${artist.position}. ${artist.stage_name} - ${artist.billing_role === "featuring" ? "feat." : "principal"}${artist.is_producer ? " / produtor" : ""}`
@@ -225,7 +262,7 @@ export const handlers: Record<Step, StepHandler> = {
     }
     if (norm.includes("single") || norm.includes("musica") || norm.includes("faixa") || norm === "1") {
       return {
-        reply: "✅ Single.\n\n*2. Envie o áudio.*\nWAV ou MP3 320kbps. Vou tentar reconhecer o título e os participantes pelo nome do arquivo.",
+        reply: "✅ Single.\n\n*2. Envie o áudio.*\nUse o link seguro: WAV PCM, estéreo, 16-bit e 44,1 kHz. Vou tentar reconhecer o título e os participantes pelo nome do arquivo.",
         nextStep: "ask_audio",
         draft: { release_format: "single", album_track_count: 1, current_track_index: 1 },
       };
@@ -247,7 +284,7 @@ export const handlers: Record<Step, StepHandler> = {
       };
     }
     return {
-      reply: `✅ ${count} faixa${count > 1 ? "s" : ""}.\n\n*2. Envie o áudio da faixa 1.*\nWAV ou MP3 320kbps. Vou tentar reconhecer título e participantes pelo nome do arquivo.`,
+      reply: `✅ ${count} faixa${count > 1 ? "s" : ""}.\n\n*2. Envie o áudio da faixa 1.*\nUse o link seguro: WAV PCM, estéreo, 16-bit e 44,1 kHz. Vou tentar reconhecer título e participantes pelo nome do arquivo.`,
       nextStep: "ask_audio",
       draft: { album_track_count: count, current_track_index: 1 },
     };
@@ -535,7 +572,7 @@ export const handlers: Record<Step, StepHandler> = {
       : [];
 
     return {
-      reply: "Perfeito! 🎧\n\n*3. Envie a capa.*\nManda como *ARQUIVO/DOCUMENTO* no clipe, não como foto, para manter a qualidade.\n\nMínimo 3000x3000px, quadrada.",
+      reply: "Perfeito! 🎧\n\n*3. Envie a capa.*\nManda como *ARQUIVO/DOCUMENTO* no clipe, não como foto, para manter a qualidade.\n\nQuadrada, entre 1600x1600 e 3000x3000px.",
       nextStep: "ask_cover",
       draft: {
         audio_url: media?.url ?? "received",
