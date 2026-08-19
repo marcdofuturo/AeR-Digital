@@ -23,6 +23,7 @@ const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-6";
 const RETIRED_CLAUDE_MODELS = new Set(["claude-sonnet-4-20250514"]);
 const AUDIO_ANALYSIS_TIMEOUT_MS = 15 * 60_000;
 const ANTHROPIC_READINESS_TTL_MS = 5 * 60_000;
+const MAX_PRESENTATION_SOURCES = 12;
 const NO_PUBLIC_SOURCE_WARNING = "A pesquisa nao encontrou fonte publica verificavel para os artistas informados.";
 
 const PRESENTATION_OUTPUT_SCHEMA = {
@@ -296,7 +297,7 @@ export async function generatePresentation(
     break;
   }
 
-  const fontes = uniqueSources(verifiedSources);
+  const fontes = uniqueSources(verifiedSources).slice(0, MAX_PRESENTATION_SOURCES);
   const synthesisPrompt = [
     presentationPrompt,
     "",
@@ -384,14 +385,15 @@ function limitPresentation(value: string) {
 }
 
 function extractVerifiedWebSources(content: Array<Record<string, unknown>>) {
-  const sources: Array<{ titulo: string; url: string }> = [];
+  const citedSources: Array<{ titulo: string; url: string }> = [];
+  const searchResults: Array<{ titulo: string; url: string }> = [];
   for (const block of content) {
     if (block.type === "text" && Array.isArray(block.citations)) {
       for (const citation of block.citations) {
         if (!citation || typeof citation !== "object") continue;
         const record = citation as Record<string, unknown>;
         if (record.type !== "web_search_result_location") continue;
-        addSource(sources, record.title, record.url);
+        addSource(citedSources, record.title, record.url);
       }
     }
 
@@ -400,11 +402,11 @@ function extractVerifiedWebSources(content: Array<Record<string, unknown>>) {
         if (!result || typeof result !== "object") continue;
         const record = result as Record<string, unknown>;
         if (record.type !== "web_search_result") continue;
-        addSource(sources, record.title, record.url);
+        addSource(searchResults, record.title, record.url);
       }
     }
   }
-  return sources;
+  return citedSources.length ? citedSources : searchResults;
 }
 
 function addSource(
