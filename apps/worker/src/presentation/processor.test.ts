@@ -17,6 +17,7 @@ const job = {
 describe("processNextPresentationJob", () => {
   it("transcribes, analyzes, pitches and completes a claimed job", async () => {
     const dependencies = {
+      ready: vi.fn().mockResolvedValue(undefined),
       claim: vi.fn().mockResolvedValue(job),
       analyze: vi.fn().mockResolvedValue({
         transcript: "letra transcrita inteira",
@@ -47,11 +48,28 @@ describe("processNextPresentationJob", () => {
       participants: ["Artista Teste"],
     }));
     expect(dependencies.complete).toHaveBeenCalledWith(job, expect.objectContaining({ apresentacao: "Pitch final" }));
+    expect(dependencies.ready).toHaveBeenCalledOnce();
     expect(dependencies.fail).not.toHaveBeenCalled();
+  });
+
+  it("does not claim a job while the presentation provider is unavailable", async () => {
+    const dependencies = {
+      ready: vi.fn().mockRejectedValue(new Error("provider unavailable")),
+      claim: vi.fn(),
+      analyze: vi.fn(),
+      saveAnalysis: vi.fn(),
+      generate: vi.fn(),
+      complete: vi.fn(),
+      fail: vi.fn(),
+    };
+
+    await expect(processNextPresentationJob(dependencies)).rejects.toThrow("provider unavailable");
+    expect(dependencies.claim).not.toHaveBeenCalled();
   });
 
   it("stores a safe failure without exposing provider details", async () => {
     const dependencies = {
+      ready: vi.fn().mockResolvedValue(undefined),
       claim: vi.fn().mockResolvedValue(job),
       analyze: vi.fn().mockRejectedValue(new Error("secret provider response")),
       saveAnalysis: vi.fn(),
