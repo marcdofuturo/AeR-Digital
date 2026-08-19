@@ -88,12 +88,21 @@ function isNegative(input: string) {
   return value === "nao" || value === "corrigir" || value.includes("corrige") || value.includes("errado");
 }
 
-async function resolveArtists(ctx: HandlerContext, names: string[]) {
-  const resolved: ResolvedArtist[] = [];
-  for (const name of names) {
-    const existing = await ctx.db.findArtist(ctx.tenant_id, name);
-    resolved.push(existing ?? await ctx.db.createArtist(ctx.tenant_id, name));
-  }
+type ArtistResolutionContext = Pick<HandlerContext, "tenant_id" | "db">;
+
+async function resolveArtists(ctx: ArtistResolutionContext, names: string[]) {
+  const pending = new Map<string, Promise<ResolvedArtist>>();
+  const resolved = await Promise.all(names.map((name) => {
+    const key = normalizeText(name);
+    let artist = pending.get(key);
+    if (!artist) {
+      artist = ctx.db.findArtist(ctx.tenant_id, name).then(
+        (existing) => existing ?? ctx.db.createArtist(ctx.tenant_id, name),
+      );
+      pending.set(key, artist);
+    }
+    return artist;
+  }));
   return assignRoles(resolved);
 }
 
@@ -130,7 +139,7 @@ function correctionPrompt() {
 
 export async function completeUploadedMedia(
   draft: Draft,
-  ctx: HandlerContext,
+  ctx: ArtistResolutionContext,
   media: { audioUrl: string; coverUrl: string; audioFilename: string },
 ) {
   const filenameInfo = parseAudioFilename(media.audioFilename);

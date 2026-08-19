@@ -108,8 +108,8 @@ export async function verifyUploadGrant(grant: string, options: GrantOptions = {
   } catch (error) {
     if (error instanceof Error && error.message.includes("n\u00e3o configurado")) throw error;
     if (error instanceof Error && error.message === "expired") {
-      throw new Error("Link de envio expirado. Volte ao WhatsApp para gerar outro.");
+      throw new Error("Link de envio expirado. Volte ao WhatsApp para gerar outro.", { cause: error });
     }
-    throw new Error("Link de envio inv\u00e1lido.");
+    throw new Error("Link de envio inv\u00e1lido.", { cause: error });
   }
 }
