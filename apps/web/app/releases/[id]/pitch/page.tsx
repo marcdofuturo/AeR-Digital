@@ -9,6 +9,7 @@ import { generatePresentationForTrack } from "@/app/releases/actions";
 import { fmtDate } from "@ar/shared";
 import { FileText, Sparkles } from "lucide-react";
 import { PresentationJobRefresh } from "@/components/releases/presentation-job-refresh";
+import { isUsablePresentationAudioUrl } from "@/lib/presentation/audio";
 
 export default async function PresentationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -56,8 +57,12 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
         );
         const activeJob = jobs.find((job: any) => ["queued", "processing"].includes(job.status));
         const latestJob = jobs[0];
+        const hasUsableAudio = isUsablePresentationAudioUrl(
+          track.audio_url,
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+        );
         const includedGeneration = presentations.length < 2;
-        const canGenerate = includedGeneration || credits >= AI_CREDIT_COST;
+        const canGenerate = hasUsableAudio && (includedGeneration || credits >= AI_CREDIT_COST);
 
         return (
           <Card key={track.id}>
@@ -87,8 +92,9 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
                 </label>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <p className="text-fg-muted text-xs">
-                    Sem texto, a IA gera uma primeira apresentação da música. Com texto, gera nova
-                    versão seguindo suas dicas.
+                    {hasUsableAudio
+                      ? "Sem texto, a IA gera uma primeira apresentação da música. Com texto, gera nova versão seguindo suas dicas."
+                      : "Envie ou substitua o áudio por um arquivo válido antes de gerar a apresentação."}
                   </p>
                   <SaveButton
                     size="sm"
@@ -97,9 +103,11 @@ export default async function PresentationPage({ params }: { params: Promise<{ i
                     savedLabel="Na fila"
                   >
                     <Sparkles className="h-4 w-4" />
-                    {includedGeneration
-                      ? "Gerar apresentação incluída"
-                      : `Gerar nova apresentação · ${AI_CREDIT_COST} créditos`}
+                    {!hasUsableAudio
+                      ? "Áudio necessário"
+                      : includedGeneration
+                        ? "Gerar apresentação incluída"
+                        : `Gerar nova apresentação · ${AI_CREDIT_COST} créditos`}
                   </SaveButton>
                 </div>
               </form>
