@@ -16,12 +16,12 @@ type PresentationTrack = {
 
 type ClaudeMessageContent = Array<{ type?: string; text?: string }>;
 
-export function remainingAiCredits(generatedCount: number) {
-  return Math.max(0, AI_CREDIT_LIMIT - generatedCount * AI_CREDIT_COST);
+export function remainingAiCredits(usedCreditUnits: number) {
+  return Math.max(0, AI_CREDIT_LIMIT - usedCreditUnits);
 }
 
-export function assertAiCredits(generatedCount: number) {
-  const remaining = remainingAiCredits(generatedCount);
+export function assertAiCredits(usedCreditUnits: number) {
+  const remaining = remainingAiCredits(usedCreditUnits);
   if (remaining < AI_CREDIT_COST) {
     throw new Error("Créditos de IA insuficientes");
   }
@@ -40,7 +40,11 @@ export async function generateClaudePresentation({
   model?: string;
 }) {
   if (!apiKey) {
-    return buildLocalPresentation(track, userGuidance, "Claude não configurado no ambiente de produção.");
+    return buildLocalPresentation(
+      track,
+      userGuidance,
+      "Claude não configurado no ambiente de produção.",
+    );
   }
 
   const prompt = buildPresentationPrompt({
@@ -78,11 +82,18 @@ export async function generateClaudePresentation({
     });
 
     if (!response.ok) {
-      return buildLocalPresentation(track, userGuidance, `Claude indisponível (${response.status}). Verifique o segredo ANTHROPIC_API_KEY no Cloudflare Pages.`);
+      return buildLocalPresentation(
+        track,
+        userGuidance,
+        `Claude indisponível (${response.status}). Verifique o segredo ANTHROPIC_API_KEY no Cloudflare Pages.`,
+      );
     }
 
-    const data = await response.json() as { content?: ClaudeMessageContent };
-    const text = (data.content ?? []).map((part) => part.text ?? "").join("\n").trim();
+    const data = (await response.json()) as { content?: ClaudeMessageContent };
+    const text = (data.content ?? [])
+      .map((part) => part.text ?? "")
+      .join("\n")
+      .trim();
     if (!text) {
       return buildLocalPresentation(track, userGuidance, "Claude retornou resposta vazia.");
     }
@@ -124,7 +135,11 @@ function extractJsonObject(text: string) {
   return text.slice(start, end + 1);
 }
 
-function buildLocalPresentation(track: PresentationTrack, userGuidance: string | null | undefined, reason: string) {
+function buildLocalPresentation(
+  track: PresentationTrack,
+  userGuidance: string | null | undefined,
+  reason: string,
+) {
   const artists = track.participants.join(", ") || "artistas do projeto";
   const genres = track.genres.filter(Boolean).join(" / ") || "música brasileira";
   const releaseDate = track.releaseDate ? ` com lançamento previsto para ${track.releaseDate}` : "";

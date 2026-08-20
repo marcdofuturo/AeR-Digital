@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/activity/log", () => ({ recordUserActivity: vi.fn() }));
+
 const requireMembership = vi.fn();
 const rpc = vi.fn();
 
