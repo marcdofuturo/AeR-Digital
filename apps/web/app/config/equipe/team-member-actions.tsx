@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { ShieldCheck, UserMinus } from "lucide-react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { Pencil, ShieldCheck, UserMinus, X } from "lucide-react";
 import { SaveButton } from "@/components/forms/save-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,10 +30,20 @@ export function TeamMemberActions({
   );
   const [removeState, removeAction] = useActionState(removeTeamMember, INITIAL_CONFIG_ACTION_STATE);
   const [removeOpen, setRemoveOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState(false);
+  const previousUpdateState = useRef(updateState);
 
   useEffect(() => {
     if (removeState.status === "success") setRemoveOpen(false);
   }, [removeState.status]);
+
+  useEffect(() => {
+    if (previousUpdateState.current === updateState) return undefined;
+    previousUpdateState.current = updateState;
+    if (updateState.status !== "success") return undefined;
+    const timer = window.setTimeout(() => setEditingRole(false), 700);
+    return () => window.clearTimeout(timer);
+  }, [updateState]);
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -46,22 +56,36 @@ export function TeamMemberActions({
           id={`role-${userId}`}
           name="role"
           defaultValue={role}
-          className="border-border bg-bg text-fg h-9 rounded-md border px-2 text-sm"
+          disabled={!editingRole}
+          className="border-border bg-bg text-fg h-9 rounded-md border px-2 text-sm disabled:cursor-not-allowed disabled:opacity-65"
         >
           <option value="ar">A&amp;R</option>
           <option value="financeiro">Financeiro</option>
           <option value="viewer">Viewer</option>
         </select>
-        <SaveButton
-          size="sm"
-          variant="outline"
-          resultStatus={updateState.status}
-          pendingLabel="Salvando..."
-          savedLabel="Permissao salva"
-        >
-          <ShieldCheck className="h-4 w-4" />
-          Salvar permissao
-        </SaveButton>
+        {editingRole ? (
+          <>
+            <Button type="reset" size="sm" variant="ghost" onClick={() => setEditingRole(false)}>
+              <X className="h-4 w-4" />
+              Cancelar
+            </Button>
+            <SaveButton
+              size="sm"
+              variant="outline"
+              resultStatus={updateState.status}
+              pendingLabel="Salvando..."
+              savedLabel="Permissao salva"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Salvar permissao
+            </SaveButton>
+          </>
+        ) : (
+          <Button type="button" size="sm" variant="outline" onClick={() => setEditingRole(true)}>
+            <Pencil className="h-4 w-4" />
+            Editar permissao
+          </Button>
+        )}
       </form>
       <Button
         type="button"

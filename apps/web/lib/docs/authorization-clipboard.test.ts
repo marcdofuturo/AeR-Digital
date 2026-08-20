@@ -13,7 +13,6 @@ describe("buildAuthorizationClipboardPayload", () => {
       distributor: "Audiolink Brasil",
       isrc: "BR-ABC-26-00001",
       albumId: "123",
-      trackLink: "https://example.com/audio.mp3",
       splits: {
         obra: [{ id: 1, artist: "Artista Teste", role: "Autor", percent: "100,00%" }],
         fonograma: [],
