@@ -101,7 +101,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className={cn("flex-1 space-y-1", isCollapsed ? "p-3" : "p-4")}>
+      <nav className={cn("flex-1 space-y-1 overflow-y-auto", isCollapsed ? "p-3" : "p-4")}>
         {NAV_ITEMS.map((item) => {
           const active =
             pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -144,7 +144,7 @@ export function Sidebar() {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "border-border bg-surface hidden flex-shrink-0 flex-col border-r transition-[width] duration-200 md:flex",
+          "border-border bg-surface sticky top-0 hidden h-screen flex-shrink-0 flex-col self-start border-r transition-[width] duration-200 md:flex",
           collapsed ? "w-20" : "w-64",
         )}
       >

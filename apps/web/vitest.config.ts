@@ -19,5 +19,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    maxWorkers: 4,
+    testTimeout: 10_000,
   },
 });

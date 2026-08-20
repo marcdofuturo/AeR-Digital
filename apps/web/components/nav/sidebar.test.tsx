@@ -42,5 +42,12 @@ describe("Sidebar", () => {
     expect(screen.getByRole("button", { name: /recolher menu lateral/i })).toBeVisible();
     expect(screen.getByText("Audiolink Brasil")).toBeVisible();
   });
-});
 
+  it("keeps the desktop controls visible while the page scrolls", () => {
+    const { container } = render(<Sidebar />);
+    const desktopSidebar = container.querySelector("aside");
+
+    expect(desktopSidebar).toHaveClass("sticky", "top-0", "h-screen");
+    expect(container.querySelector("nav")).toHaveClass("overflow-y-auto");
+  });
+});

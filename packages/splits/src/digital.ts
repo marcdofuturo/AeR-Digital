@@ -11,9 +11,9 @@ export function computeDigital(
   cfg: DigitalConfig,
   labelName: string,
 ): SplitLine[] {
-  const visible = participants.filter(p => !p.hidden_from_billing);
+  const visible = participants.filter((p) => !p.hidden_from_billing);
 
-  const weighted = visible.map(p => ({
+  const weighted = visible.map((p) => ({
     item: p,
     w: digitalWeight(p, cfg),
     bps100: 0,
@@ -21,17 +21,14 @@ export function computeDigital(
 
   if (cfg.mode === "pro_rata") {
     // Selo entra no pro-rata como mais um participante
-    const withLabel = [
-      ...weighted,
-      { item: null, w: cfg.weight_primary, bps100: 0 },
-    ];
+    const withLabel = [...weighted, { item: null, w: cfg.weight_primary, bps100: 0 }];
 
     const dist = distributeByWeight(
-      withLabel.map(e => ({ item: e, w: e.w })),
+      withLabel.map((e) => ({ item: e, w: e.w })),
       10_000,
     );
 
-    const lines: SplitLine[] = dist.map(d => {
+    const lines: SplitLine[] = dist.map((d) => {
       if (d.item.item === null) {
         return {
           holder_type: "label" as const,
@@ -44,7 +41,12 @@ export function computeDigital(
       return {
         holder_type: "artist" as const,
         artist_id: p.id,
-        role_label: p.billing_role === "featuring" ? "Featured Artist" : "Primary Artist",
+        role_label:
+          p.billing_role === "principal"
+            ? "Principal Artist"
+            : p.billing_role === "featuring"
+              ? "Featured Artist"
+              : "Primary Artist",
         name: p.stage_name,
         bps100: d.bps100,
       };
@@ -58,7 +60,7 @@ export function computeDigital(
   const resto = 10_000 - fixo;
 
   const dist = distributeByWeight(
-    weighted.map(e => ({ item: e.item as Participant, w: e.w })),
+    weighted.map((e) => ({ item: e.item as Participant, w: e.w })),
     resto,
   );
 
@@ -69,10 +71,15 @@ export function computeDigital(
       name: labelName,
       bps100: fixo,
     },
-    ...dist.map(d => ({
+    ...dist.map((d) => ({
       holder_type: "artist" as const,
       artist_id: d.item.id,
-      role_label: d.item.billing_role === "featuring" ? "Featured Artist" : "Primary Artist",
+      role_label:
+        d.item.billing_role === "principal"
+          ? "Principal Artist"
+          : d.item.billing_role === "featuring"
+            ? "Featured Artist"
+            : "Primary Artist",
       name: d.item.stage_name,
       bps100: d.bps100,
     })),

@@ -118,6 +118,7 @@ export function ReleaseMetadataForm({
           name="distributor"
           label="Agregadora"
           defaultValue={data.distributor}
+          placeholder="Audiolink Brasil"
           disabled={locked}
         />
         <MetadataField name="upc" label="UPC" defaultValue={data.upc} disabled={locked} />
@@ -154,7 +155,7 @@ export function ReleaseMetadataForm({
           <Button
             type="button"
             size="sm"
-            variant="ghost"
+            variant={editing ? "cancel" : "edit"}
             disabled={saving || saved}
             onClick={() => {
               if (editing) {
@@ -172,7 +173,7 @@ export function ReleaseMetadataForm({
           {editing ? (
             <SaveButton
               size="sm"
-              variant="outline"
+              variant="success"
               disabled={locked}
               savedLabel="Visão geral salva"
             >
@@ -194,7 +195,7 @@ export function ReleaseMetadataForm({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="cancel"
               onClick={() => {
                 setReleaseDate(data.releaseDate);
                 setConfirmOpen(false);
@@ -204,6 +205,7 @@ export function ReleaseMetadataForm({
             </Button>
             <Button
               type="button"
+              variant="success"
               onClick={() => {
                 confirmedDateRef.current = true;
                 setConfirmOpen(false);
@@ -223,11 +225,13 @@ function MetadataField({
   name,
   label,
   defaultValue,
+  placeholder,
   disabled,
 }: {
   name: string;
   label: string;
   defaultValue: string;
+  placeholder?: string;
   disabled: boolean;
 }) {
   return (
@@ -236,6 +240,7 @@ function MetadataField({
       <input
         name={name}
         defaultValue={defaultValue}
+        placeholder={placeholder}
         disabled={disabled}
         className="border-border bg-surface text-fg mt-1 w-full rounded-md border px-2 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-65"
       />

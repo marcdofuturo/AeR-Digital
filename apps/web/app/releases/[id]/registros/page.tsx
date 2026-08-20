@@ -38,8 +38,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
           <CardTitle className="text-base">Checklist de registros</CardTitle>
           <CardDescription>
             ISWC identifica a obra. ISRC identifica o fonograma. O codigo ECAD pode ser registrado
-            em ambos. Para obra e fonograma, use apenas UBC ou Abramus; a distribuicao e feita pela
-            Audiolink Brasil.
+            em ambos. Selecione a associacao ECAD correta e informe a distribuidora contratada.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -118,7 +117,7 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
                     trackId={track.id}
                     kind={kind}
                     registration={registrations[kind]}
-                    distributor={r.distributor ?? "Audiolink Brasil"}
+                    distributor={r.distributor ?? ""}
                     upc={r.upc ?? ""}
                     isrc={track.isrc ?? ""}
                   />
@@ -244,11 +243,12 @@ function AddParticipantPanel({
           Papel
           <select
             name="billing_role"
-            defaultValue="primary"
+            defaultValue=""
             className="border-border bg-surface text-fg mt-1 w-full rounded-md border px-2 py-2 text-sm"
           >
-            <option value="primary">Principal</option>
-            <option value="featuring">Feat.</option>
+            <option value="">Automatico pela ordem</option>
+            <option value="primary">Primario</option>
+            <option value="featuring">Featuring</option>
           </select>
         </label>
         <div className="text-fg-muted space-y-1 text-xs">

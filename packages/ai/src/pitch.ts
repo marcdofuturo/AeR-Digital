@@ -225,9 +225,11 @@ REGRAS
 - Escreva para um curador com pouco tempo e convença pela especificidade, nao por adjetivos vazios.
 - Antes de escrever, pesquise cada artista citado. Use somente relevancia publica ou tracao sustentada por fontes verificaveis.
 - Use a TRANSCRICAO COMPLETA para entender o contexto da letra, tema, narrativa, mood/sentimento e imagens centrais; nao copie versos longos.
-- Siga a logica dos pitchings de referencia da Audiolink: apresente faixa e artistas, situe genero ou cena, conecte o tema da letra ao mood, destaque voz, beat, instrumentacao ou gancho quando forem perceptiveis e feche com relevancia editorial e potencial de circulacao.
+- Siga o padrao observado em 322 pitchings da Audiolink, cuja mediana e 432 caracteres: abra com faixa e artistas, situe genero ou cena, conecte tema e mood a voz, beat, instrumentacao ou gancho perceptivel e feche com relevancia editorial e potencial de circulacao.
+- Organize o texto em 3 ou 4 frases fluidas. A primeira apresenta o gancho; as seguintes desenvolvem tema, mood e sonoridade; a ultima vende a relevancia editorial.
+- Use relevancia de carreira, audiencia e tracao somente quando houver fato verificavel. Sem prova, concentre-se na faixa e nunca sinalize falta de dados.
 - Explique por que a faixa merece atencao editorial e pode conquistar ouvintes, sem pedir inclusao nem citar uma playlist especifica.
-- Nunca exponha dados tecnicos do audio, pontuacoes ou metricas internas de analise.
+- Nunca exponha dados tecnicos do audio, nota musical, BPM, tom, tonalidade, pontuacoes ou metricas internas de analise.
 - Inclua contexto cultural, cidade ou territorio apenas quando confirmado pela pesquisa ou pelos dados fornecidos.
 - Para letras explicitas, venda ritmo, interpretacao, irreverencia, atmosfera e impacto cultural sem reproduzir trechos graficos.
 - Nao mencione violencia, coercao, risco juridico, classificacao etaria ou recomendacoes negativas no pitching; concentre-se em atributos musicais verdadeiros e comercialmente relevantes.
@@ -235,7 +237,7 @@ REGRAS
 - Nao inclua avisos, ressalvas, notas metodologicas ou explicacoes sobre falta de dados.
 - Nao invente streams, seguidores, premios, imprensa, campanhas, parcerias ou numeros.
 - Portugues brasileiro natural, assertivo e sem hype vazio.
-- Maximo de 500 caracteres, contando espacos. Entregue preferencialmente entre 380 e 500 caracteres.
+- Maximo de 500 caracteres, contando espacos. Entregue preferencialmente entre 380 e 500 caracteres, proximo da referencia de 431 caracteres.
 - FORMATO JSON estrito: {"apresentacao":str}`;
 }
 

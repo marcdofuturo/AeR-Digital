@@ -9,12 +9,7 @@ import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantId } from "@/lib/tenant";
 
-const REGISTRATION_KINDS = [
-  "obra_ecad",
-  "fonograma_ecad",
-  "isrc",
-  "distribuicao",
-];
+const REGISTRATION_KINDS = ["obra_ecad", "fonograma_ecad", "isrc", "distribuicao"];
 
 type NewReleasePageProps = {
   searchParams: Promise<{ error?: string }>;
@@ -25,16 +20,16 @@ export default async function NewReleasePage({ searchParams }: NewReleasePagePro
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="p-8 max-w-2xl">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="max-w-2xl p-8">
+      <div className="mb-6 flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/releases">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-fg">Novo lancamento</h1>
-          <p className="text-sm text-fg-muted mt-1">
+          <h1 className="text-fg text-2xl font-bold">Novo lancamento</h1>
+          <p className="text-fg-muted mt-1 text-sm">
             Crie um rascunho de catalogo para completar creditos, splits e registros.
           </p>
         </div>
@@ -47,7 +42,13 @@ export default async function NewReleasePage({ searchParams }: NewReleasePagePro
         <CardContent>
           <form action={createRelease} className="space-y-4">
             <Field label="Titulo" name="title" required />
-            <Field label="Data de lancamento" name="release_date" type="date" defaultValue={today} required />
+            <Field
+              label="Data de lancamento"
+              name="release_date"
+              type="date"
+              defaultValue={today}
+              required
+            />
             <Field label="Genero principal" name="genre_primary" placeholder="Funk, Trap, Pop..." />
             <Field label="Genero secundario" name="genre_secondary" />
 
@@ -61,7 +62,9 @@ export default async function NewReleasePage({ searchParams }: NewReleasePagePro
               <Button variant="outline" asChild>
                 <Link href="/releases">Cancelar</Link>
               </Button>
-              <SaveButton pendingLabel="Criando lancamento..." savedLabel="Lancamento criado">Criar lancamento</SaveButton>
+              <SaveButton pendingLabel="Criando lancamento..." savedLabel="Lancamento criado">
+                Criar lancamento
+              </SaveButton>
             </div>
           </form>
         </CardContent>
@@ -87,7 +90,7 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-fg mb-1">
+      <label htmlFor={name} className="text-fg mb-1 block text-sm font-medium">
         {label}
       </label>
       <Input
@@ -124,14 +127,15 @@ async function createRelease(formData: FormData) {
       release_date: releaseDate,
       genre_primary: nullableText(formData.get("genre_primary")),
       genre_secondary: nullableText(formData.get("genre_secondary")),
-      distributor: "Audiolink Brasil",
       stage: "em_analise",
     })
     .select("id")
     .single();
 
   if (releaseError || !release) {
-    redirect(`/releases/new?error=${encodeURIComponent(releaseError?.message ?? "Erro ao criar lancamento")}`);
+    redirect(
+      `/releases/new?error=${encodeURIComponent(releaseError?.message ?? "Erro ao criar lancamento")}`,
+    );
   }
 
   const { data: track, error: trackError } = await supabase

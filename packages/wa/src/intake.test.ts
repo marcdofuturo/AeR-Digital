@@ -17,7 +17,9 @@ function testDB(artists: ResolvedArtist[] = []): HandlerDB {
   return {
     async findArtist(_tenantId, name) {
       const n = name.toLowerCase().trim();
-      const found = store.find((a) => a.stage_name.toLowerCase() === n || a.input_name.toLowerCase() === n);
+      const found = store.find(
+        (a) => a.stage_name.toLowerCase() === n || a.input_name.toLowerCase() === n,
+      );
       return found ?? null;
     },
     async createArtist(_tenantId, stageName) {
@@ -60,7 +62,7 @@ function artist(name: string, position: number): ResolvedArtist {
     stage_name: name,
     input_name: name,
     position,
-    billing_role: position <= 4 ? "primary" : "featuring",
+    billing_role: position === 1 ? "principal" : position <= 4 ? "primary" : "featuring",
     is_producer: false,
     is_composer: true,
     is_performer: true,
@@ -104,7 +106,9 @@ describe("new WhatsApp intake flow", () => {
   it("accepts corrected metadata list and returns to metadata confirmation", async () => {
     const machine = new StepMachine("ask_metadata_correction", {}, testCtx());
 
-    const result = await machine.process("Titulo: Noite Linda\nParticipantes: Ana, Beto, Carla\nCargos: Ana - principal; Beto - feat; Carla - feat");
+    const result = await machine.process(
+      "Titulo: Noite Linda\nParticipantes: Ana, Beto, Carla\nCargos: Ana - principal; Beto - feat; Carla - feat",
+    );
 
     expect(result.nextStep).toBe("confirm_file_metadata");
     expect(result.draft.title).toBe("Noite Linda");
@@ -207,15 +211,11 @@ describe("new WhatsApp intake flow", () => {
   });
 
   it("continues the same flow after both files arrive through the upload page", async () => {
-    const result = await completeUploadedMedia(
-      { release_format: "single" },
-      testCtx(),
-      {
-        audioUrl: "https://storage.example/audio.wav",
-        coverUrl: "https://storage.example/cover.png",
-        audioFilename: "MC Midia, DJ Arquivo - Faixa Web.wav",
-      },
-    );
+    const result = await completeUploadedMedia({ release_format: "single" }, testCtx(), {
+      audioUrl: "https://storage.example/audio.wav",
+      coverUrl: "https://storage.example/cover.png",
+      audioFilename: "MC Midia, DJ Arquivo - Faixa Web.wav",
+    });
 
     expect(result.nextStep).toBe("confirm_file_metadata");
     expect(result.draft).toMatchObject({
@@ -275,10 +275,17 @@ describe("WhatsApp helper parsing", () => {
     });
   });
 
-  it("splits names and assigns primary/featuring roles", () => {
+  it("splits names and assigns principal, primary and featuring roles", () => {
     expect(splitNames("A, B feat C")).toEqual(["A", "B", "C"]);
-    const roles = assignRoles([artist("A", 0), artist("B", 0), artist("C", 0), artist("D", 0), artist("E", 0)]);
-    expect(roles[0]!.billing_role).toBe("primary");
+    const roles = assignRoles([
+      artist("A", 0),
+      artist("B", 0),
+      artist("C", 0),
+      artist("D", 0),
+      artist("E", 0),
+    ]);
+    expect(roles[0]!.billing_role).toBe("principal");
+    expect(roles[1]!.billing_role).toBe("primary");
     expect(roles[4]!.billing_role).toBe("featuring");
   });
 

@@ -20,6 +20,8 @@ const STATUS_VARIANT: Record<string, "secondary" | "success" | "warning" | "dang
   rejeitado: "danger",
 };
 
+const ECAD_ASSOCIATIONS = ["Abramus", "Amar", "Assim", "Sbacem", "Sicam", "Socinpro", "UBC"];
+
 type Registration = {
   status?: string | null;
   entity?: string | null;
@@ -49,8 +51,7 @@ export function RegistrationForm({
   const status = normalizeRegistrationStatus(registration?.status);
   const isDistribution = kind === "distribuicao";
   const externalLabel = kind === "obra_ecad" ? "ISWC" : kind === "fonograma_ecad" ? "ISRC" : "UPC";
-  const entity =
-    registration?.entity ?? (isDistribution ? distributor || "Audiolink Brasil" : "UBC");
+  const entity = registration?.entity ?? (isDistribution ? distributor : "UBC");
   const externalId =
     registration?.external_id ?? (isDistribution ? upc : kind === "fonograma_ecad" ? isrc : "");
   const label = REG_LABELS[kind] ?? "Registro";
@@ -59,7 +60,7 @@ export function RegistrationForm({
     <EditableActionForm
       action={saveRegistrationStatus}
       className="border-border/50 bg-bg rounded-md border p-3"
-      fieldsClassName="grid gap-3 md:grid-cols-5"
+      fieldsClassName="grid gap-3 md:grid-cols-6"
       controlsClassName="mt-3 flex justify-end gap-2"
       editLabel={`Editar ${label.toLowerCase()}`}
       saveLabel="Salvar registro"
@@ -113,11 +114,14 @@ export function RegistrationForm({
           Associacao
           <select
             name="entity"
-            defaultValue={entity === "Abramus" ? "Abramus" : "UBC"}
+            defaultValue={ECAD_ASSOCIATIONS.includes(entity) ? entity : "UBC"}
             className="border-border bg-surface text-fg mt-1 w-full rounded-md border px-2 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-65"
           >
-            <option value="UBC">UBC</option>
-            <option value="Abramus">Abramus</option>
+            {ECAD_ASSOCIATIONS.map((association) => (
+              <option key={association} value={association}>
+                {association}
+              </option>
+            ))}
           </select>
         </label>
       )}
@@ -127,6 +131,9 @@ export function RegistrationForm({
         defaultValue={externalId}
         placeholder={externalLabel}
       />
+      {isDistribution ? (
+        <Field name="distribution_isrc" label="ISRC" defaultValue={isrc} placeholder="ISRC" />
+      ) : null}
       {!isDistribution ? (
         <Field
           name="ecad_code"

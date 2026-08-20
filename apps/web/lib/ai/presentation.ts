@@ -32,7 +32,7 @@ export async function generateClaudePresentation({
   track,
   userGuidance,
   apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.CLAUDE_API_KEY,
-  model = process.env.CLAUDE_SONNET_MODEL ?? "claude-sonnet-5",
+  model = process.env.CLAUDE_SONNET_MODEL ?? "claude-sonnet-4-6",
 }: {
   track: PresentationTrack;
   userGuidance?: string | null;
@@ -55,7 +55,7 @@ export async function generateClaudePresentation({
     bpm: track.bpm ?? null,
     key: track.key ?? null,
     energy: track.energy ?? null,
-    transcript_sample: (track.transcript ?? "").slice(0, 500),
+    transcript_sample: track.transcript ?? "",
     userGuidance,
   });
 
