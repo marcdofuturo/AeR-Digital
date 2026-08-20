@@ -23,4 +23,8 @@ describe("dates", () => {
     // Accept any format with day/month/year
     expect(fmtDate(d)).toBeTruthy();
   });
+
+  it("keeps ISO date-only values on the same calendar day", () => {
+    expect(fmtDate("2026-09-15")).toBe("15/09/2026");
+  });
 });
