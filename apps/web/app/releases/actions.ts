@@ -9,6 +9,7 @@ import type { Participant } from "@ar/splits";
 import type { ReleaseStage } from "@ar/shared";
 import { isRegistrationStatus } from "@/lib/registration-status";
 import { enqueuePresentationJob } from "@/lib/presentation/jobs";
+import { isUsablePresentationAudioUrl } from "@/lib/presentation/audio";
 import { recordUserActivity } from "@/lib/activity/log";
 import {
   COVER_HEADER_BYTES,
@@ -679,7 +680,9 @@ export async function generatePresentationForTrack(formData: FormData) {
     ]);
 
   if (trackError || !track) throw new Error("Faixa não encontrada");
-  if (!track.audio_url) throw new Error("Envie o arquivo de áudio antes de gerar a apresentação");
+  if (!isUsablePresentationAudioUrl(track.audio_url, process.env.NEXT_PUBLIC_SUPABASE_URL)) {
+    throw new Error("Envie um arquivo de áudio válido antes de gerar a apresentação");
+  }
   const creditCost = (trackPitchUsage.count ?? 0) >= 2 ? AI_CREDIT_COST : 0;
   const usedCredits = sumCreditCost(generatedUsage.data) + sumCreditCost(activeUsage.data);
   if (creditCost > 0) assertAiCredits(usedCredits);
