@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { billingRoleClasses, billingRoleLabel } from "@/lib/artists/billing-role";
 import { Button } from "@/components/ui/button";
 import { getSubmission } from "@/lib/data/inbox";
 import { getCurrentTenantId } from "@/lib/tenant";
@@ -25,11 +26,11 @@ async function SubmissionDetail({ submissionId }: { submissionId: string }) {
   const producers = draft.producers ?? [];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Left: Conversation */}
       <Card className="lg:col-span-2">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
             <MessageCircle className="h-4 w-4" />
             Conversa
           </CardTitle>
@@ -37,9 +38,9 @@ async function SubmissionDetail({ submissionId }: { submissionId: string }) {
         </CardHeader>
         <CardContent>
           {!messages.length ? (
-            <p className="text-sm text-fg-muted text-center py-8">Nenhuma mensagem registrada</p>
+            <p className="text-fg-muted py-8 text-center text-sm">Nenhuma mensagem registrada</p>
           ) : (
-            <div className="space-y-3 max-h-[500px] overflow-y-auto">
+            <div className="max-h-[500px] space-y-3 overflow-y-auto">
               {messages.map((msg: any) => (
                 <div
                   key={msg.id}
@@ -48,14 +49,12 @@ async function SubmissionDetail({ submissionId }: { submissionId: string }) {
                   <div
                     className={`max-w-[80%] rounded-lg px-4 py-2 text-sm ${
                       msg.direction === "in"
-                        ? "bg-success/10 text-fg border border-success/20"
-                        : "bg-surface-2 text-fg border border-border"
+                        ? "bg-success/10 text-fg border-success/20 border"
+                        : "bg-surface-2 text-fg border-border border"
                     }`}
                   >
                     <p>{msg.content ?? (msg.has_media ? "[Mídia]" : "")}</p>
-                    <p className="text-xs text-fg-muted mt-1">
-                      {fmtDate(msg.created_at, "HH:mm")}
-                    </p>
+                    <p className="text-fg-muted mt-1 text-xs">{fmtDate(msg.created_at, "HH:mm")}</p>
                   </div>
                 </div>
               ))}
@@ -69,35 +68,37 @@ async function SubmissionDetail({ submissionId }: { submissionId: string }) {
         {/* Info */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Music className="h-4 w-4" />
               Lançamento
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <span className="text-xs text-fg-muted">Título</span>
-              <p className="text-sm text-fg font-medium">{draft.title ?? "—"}</p>
+              <span className="text-fg-muted text-xs">Título</span>
+              <p className="text-fg text-sm font-medium">{draft.title ?? "—"}</p>
             </div>
             {draft.genres && (
               <div>
-                <span className="text-xs text-fg-muted">Gêneros</span>
-                <div className="flex gap-1 mt-1">
+                <span className="text-fg-muted text-xs">Gêneros</span>
+                <div className="mt-1 flex gap-1">
                   {draft.genres.map((g: string) => (
-                    <Badge key={g} variant="secondary" className="text-xs">{g}</Badge>
+                    <Badge key={g} variant="secondary" className="text-xs">
+                      {g}
+                    </Badge>
                   ))}
                 </div>
               </div>
             )}
             {draft.release_date && (
               <div>
-                <span className="text-xs text-fg-muted">Data de lançamento</span>
-                <p className="text-sm text-fg">{fmtDate(draft.release_date)}</p>
+                <span className="text-fg-muted text-xs">Data de lançamento</span>
+                <p className="text-fg text-sm">{fmtDate(draft.release_date)}</p>
               </div>
             )}
             <div>
-              <span className="text-xs text-fg-muted">Status</span>
-              <p className="text-sm text-fg">{(submission as any).status}</p>
+              <span className="text-fg-muted text-xs">Status</span>
+              <p className="text-fg text-sm">{(submission as any).status}</p>
             </div>
           </CardContent>
         </Card>
@@ -106,7 +107,7 @@ async function SubmissionDetail({ submissionId }: { submissionId: string }) {
         {artists.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <User className="h-4 w-4" />
                 Participantes ({artists.length})
               </CardTitle>
@@ -117,12 +118,13 @@ async function SubmissionDetail({ submissionId }: { submissionId: string }) {
                   <div key={i} className="flex items-center justify-between text-sm">
                     <div>
                       <span className="text-fg">{a.stage_name ?? a.input_name}</span>
-                      {a.legal_name && (
-                        <span className="text-fg-muted ml-1">({a.legal_name})</span>
-                      )}
+                      {a.legal_name && <span className="text-fg-muted ml-1">({a.legal_name})</span>}
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {a.billing_role === "primary" ? "Principal" : "Feat."}
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${billingRoleClasses(a.billing_role)}`}
+                    >
+                      {billingRoleLabel(a.billing_role)}
                     </Badge>
                   </div>
                 ))}
@@ -140,7 +142,9 @@ async function SubmissionDetail({ submissionId }: { submissionId: string }) {
             <CardContent>
               <div className="space-y-1">
                 {producers.map((p: any, i: number) => (
-                  <p key={i} className="text-sm text-fg">{p.name}</p>
+                  <p key={i} className="text-fg text-sm">
+                    {p.name}
+                  </p>
                 ))}
               </div>
             </CardContent>
@@ -156,16 +160,16 @@ export default async function InboxDetailPage({ params }: InboxDetailPageProps) 
   const submissionDetail = await SubmissionDetail({ submissionId: id });
 
   return (
-    <div className="p-8 max-w-[1400px]">
-      <div className="flex items-center gap-4 mb-8">
+    <div className="max-w-[1400px] p-8">
+      <div className="mb-8 flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/inbox">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-fg">Submissão</h1>
-          <p className="text-sm text-fg-muted mt-1">Detalhes da submissão pelo WhatsApp</p>
+          <h1 className="text-fg text-2xl font-bold">Submissão</h1>
+          <p className="text-fg-muted mt-1 text-sm">Detalhes da submissão pelo WhatsApp</p>
         </div>
       </div>
 

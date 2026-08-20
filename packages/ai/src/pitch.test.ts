@@ -132,6 +132,9 @@ describe("Grounded presentation requirements", () => {
     expect(prompt).toMatch(/maximo de 500 caracteres/i);
     expect(prompt).toMatch(/nao cite nomes de playlists/i);
     expect(prompt).toMatch(/nao inclua fontes|nao inclua avisos/i);
+    expect(prompt).toMatch(/431 caracteres|380 e 500 caracteres/i);
+    expect(prompt).toMatch(/tracao.*somente quando|somente.*tracao/i);
+    expect(prompt).toMatch(/feche.*relevancia editorial/i);
     expect(prompt).not.toMatch(/spotify|amazon music|apple music/i);
   });
 });
@@ -155,7 +158,7 @@ describe("Curator-focused presentation requirements", () => {
     expect(prompt).toMatch(/relevancia publica|tracao/i);
     expect(prompt).not.toContain("130 BPM");
     expect(prompt).not.toContain("F# minor");
-    expect(prompt).not.toMatch(/\btom\b|tonalidade/i);
     expect(prompt).not.toMatch(/energia 0\.82/i);
+    expect(prompt).toMatch(/nao escreva bpm|nao mencione bpm|nunca exponha.*bpm/i);
   });
 });

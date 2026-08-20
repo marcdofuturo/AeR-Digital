@@ -110,7 +110,7 @@ export function TrackMetadataForm({
           <Button
             type="button"
             size="sm"
-            variant="ghost"
+            variant={editing ? "cancel" : "edit"}
             disabled={saving || saved}
             onClick={() => {
               if (editing) {
@@ -124,7 +124,7 @@ export function TrackMetadataForm({
             {editing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
             {editing ? "Cancelar edição" : "Editar dados da faixa"}
           </Button>
-          <SaveButton size="sm" variant="outline" disabled={locked} savedLabel="Dados salvos">
+          <SaveButton size="sm" variant="success" disabled={locked} savedLabel="Dados salvos">
             Salvar dados da faixa
           </SaveButton>
         </div>

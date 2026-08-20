@@ -17,6 +17,10 @@ const productHardeningMigration = readFileSync(productHardeningMigrationPath, "u
   /\r\n/g,
   "\n",
 );
+const artistRolesMigrationPath = fileURLToPath(
+  new URL("../migrations/006_artist_roles_split_allocations.sql", import.meta.url),
+);
+const artistRolesMigration = readFileSync(artistRolesMigrationPath, "utf8").replace(/\r\n/g, "\n");
 
 describe("task zero migration security", () => {
   it("does not leave a permissive write policy on presentation jobs", () => {
@@ -98,5 +102,44 @@ describe("task zero migration security", () => {
 
   it("stores ECAD separately from ISWC and ISRC registration identifiers", () => {
     expect(productHardeningMigration).toContain("add column if not exists ecad_code text");
+  });
+
+  it("removes the distributor default and supports all three billing roles", () => {
+    expect(artistRolesMigration).toContain("alter column distributor drop default");
+    expect(artistRolesMigration).toMatch(
+      /update registrations[\s\S]*kind = 'distribuicao'[\s\S]*lower\(btrim\(entity\)\)/,
+    );
+    expect(artistRolesMigration).toContain("'principal', 'primary', 'featuring'");
+    expect(artistRolesMigration).toContain("when position = 1 then 'principal'");
+  });
+
+  it("secures nested split allocations and validates their parent total", () => {
+    expect(artistRolesMigration).toContain("create table if not exists split_allocations");
+    expect(artistRolesMigration).toContain(
+      "alter table split_allocations enable row level security",
+    );
+    expect(artistRolesMigration).toContain("total not in (0, 10000)");
+    expect(artistRolesMigration).toContain("beneficiary.tenant_id = p_tenant_id");
+    expect(artistRolesMigration).toContain(
+      "grant execute on function replace_split_allocations(uuid, uuid, text, uuid, jsonb) to service_role",
+    );
+  });
+
+  it("updates participant order and roles through a tenant-scoped service RPC", () => {
+    expect(artistRolesMigration).toContain("function replace_track_participant_credits(");
+    expect(artistRolesMigration).toContain("track.tenant_id = p_tenant_id");
+    expect(artistRolesMigration).toContain("item->>'billing_role' = 'principal'");
+    expect(artistRolesMigration).toContain(
+      "grant execute on function replace_track_participant_credits(uuid, uuid, jsonb) to service_role",
+    );
+  });
+
+  it("updates artist identity and primary contacts atomically", () => {
+    expect(artistRolesMigration).toContain("function save_artist_profile(");
+    expect(artistRolesMigration).toContain("artist.tenant_id = p_tenant_id");
+    expect(artistRolesMigration).toContain("contact.is_primary");
+    expect(artistRolesMigration).toContain(
+      "grant execute on function save_artist_profile(uuid, uuid, text, text, text, text, text)",
+    );
   });
 });

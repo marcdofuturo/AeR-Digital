@@ -1,12 +1,19 @@
 // ─── State Machine & Step Handlers ───────────────────────────
-import type { Step, Draft, StepHandler, HandlerContext, ResolvedArtist, ProducerRef } from "./types";
+import type {
+  Step,
+  Draft,
+  StepHandler,
+  HandlerContext,
+  ResolvedArtist,
+  ProducerRef,
+} from "./types";
 
-// ─── Assign roles (R3: 1-4 primary, 5+ featuring) ────────────
+// The first billed artist is principal; positions 2-4 are primary and 5+ are featuring.
 export function assignRoles(names: ResolvedArtist[]): ResolvedArtist[] {
   return names.map((a, i) => ({
     ...a,
     position: i + 1,
-    billing_role: (i + 1 <= 4 ? "primary" : "featuring") as "primary" | "featuring",
+    billing_role: defaultBillingRole(i + 1),
   }));
 }
 
@@ -16,12 +23,15 @@ const RAW_SEPARATORS = /\s*(?:,|;|\/|&|\bfeat\.?\b|\bft\.?\b|\s+e\s+|\s+com\s+)\
 export function splitNames(input: string): string[] {
   return input
     .split(RAW_SEPARATORS)
-    .map(s => s.replace(/^\d+[\).\-]+\s*/, "").trim())
-    .filter(s => s.length >= 1)
+    .map((s) => s.replace(/^\d+[\).\-]+\s*/, "").trim())
+    .filter((s) => s.length >= 1)
     .slice(0, 12);
 }
 
-export function parseAudioFilename(input: string): { title: string | null; participants: string[] } {
+export function parseAudioFilename(input: string): {
+  title: string | null;
+  participants: string[];
+} {
   const cleaned = input
     .replace(/^\[(?:AUDIO|DOCUMENT)\]\s*/i, "")
     .replace(/\.(wav|wave|mp3|flac|m4a|aac|ogg)$/i, "")
@@ -31,7 +41,10 @@ export function parseAudioFilename(input: string): { title: string | null; parti
 
   if (!cleaned || cleaned.startsWith("[")) return { title: null, participants: [] };
 
-  const dashParts = cleaned.split(/\s+-\s+/).map(part => part.trim()).filter(Boolean);
+  const dashParts = cleaned
+    .split(/\s+-\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
   if (dashParts.length >= 2) {
     return {
       participants: splitNames(dashParts[0]!),
@@ -47,7 +60,10 @@ export function parseMetadataCorrection(input: string): {
   participants: string[];
   roles: Array<{ name: string; role: string }>;
 } {
-  const lines = input.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const lines = input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
   let title: string | null = null;
   let participantText = "";
   let roleText = "";
@@ -66,50 +82,73 @@ export function parseMetadataCorrection(input: string): {
     title,
     participants: participantText ? splitNames(participantText) : [],
     roles: roleText
-      ? roleText.split(/[;|]/).map((part) => {
-          const [name, role] = part.split(/\s+-\s+|\s*:\s*/);
-          return { name: (name ?? "").trim(), role: (role ?? "").trim() };
-        }).filter((item) => item.name && item.role)
+      ? roleText
+          .split(/[;|]/)
+          .map((part) => {
+            const [name, role] = part.split(/\s+-\s+|\s*:\s*/);
+            return { name: (name ?? "").trim(), role: (role ?? "").trim() };
+          })
+          .filter((item) => item.name && item.role)
       : [],
   };
 }
 
 function normalizeText(value: string) {
-  return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function isAffirmative(input: string) {
   const value = normalizeText(input);
-  return value === "sim" || value === "ok" || value === "isso" || value === "certo" || value === "enviar" || value === "confirmo";
+  return (
+    value === "sim" ||
+    value === "ok" ||
+    value === "isso" ||
+    value === "certo" ||
+    value === "enviar" ||
+    value === "confirmo"
+  );
 }
 
 function isNegative(input: string) {
   const value = normalizeText(input);
-  return value === "nao" || value === "corrigir" || value.includes("corrige") || value.includes("errado");
+  return (
+    value === "nao" || value === "corrigir" || value.includes("corrige") || value.includes("errado")
+  );
 }
 
 type ArtistResolutionContext = Pick<HandlerContext, "tenant_id" | "db">;
 
 async function resolveArtists(ctx: ArtistResolutionContext, names: string[]) {
   const pending = new Map<string, Promise<ResolvedArtist>>();
-  const resolved = await Promise.all(names.map((name) => {
-    const key = normalizeText(name);
-    let artist = pending.get(key);
-    if (!artist) {
-      artist = ctx.db.findArtist(ctx.tenant_id, name).then(
-        (existing) => existing ?? ctx.db.createArtist(ctx.tenant_id, name),
-      );
-      pending.set(key, artist);
-    }
-    return artist;
-  }));
+  const resolved = await Promise.all(
+    names.map((name) => {
+      const key = normalizeText(name);
+      let artist = pending.get(key);
+      if (!artist) {
+        artist = ctx.db
+          .findArtist(ctx.tenant_id, name)
+          .then((existing) => existing ?? ctx.db.createArtist(ctx.tenant_id, name));
+        pending.set(key, artist);
+      }
+      return artist;
+    }),
+  );
   return assignRoles(resolved);
 }
 
 function formatMetadataReview(draft: Draft) {
   const artists = draft.artists ?? [];
   const lines = artists.length
-    ? artists.map((artist) => `${artist.position}. ${artist.stage_name} - ${artist.billing_role === "featuring" ? "feat." : "principal"}${artist.is_producer ? " / produtor" : ""}`).join("\n")
+    ? artists
+        .map(
+          (artist) =>
+            `${artist.position}. ${artist.stage_name} - ${billingRoleText(artist.billing_role)}${artist.is_producer ? " / produtor" : ""}`,
+        )
+        .join("\n")
     : "Participantes não identificados";
 
   return [
@@ -175,9 +214,12 @@ export async function completeUploadedMedia(
 }
 
 function finalReview(draft: Draft) {
-  const artists = (draft.artists ?? []).map((artist) =>
-    `${artist.position}. ${artist.stage_name} - ${artist.billing_role === "featuring" ? "feat." : "principal"}${artist.is_producer ? " / produtor" : ""}`
-  ).join("\n");
+  const artists = (draft.artists ?? [])
+    .map(
+      (artist) =>
+        `${artist.position}. ${artist.stage_name} - ${billingRoleText(artist.billing_role)}${artist.is_producer ? " / produtor" : ""}`,
+    )
+    .join("\n");
 
   return [
     "Revisão do envio:",
@@ -198,10 +240,33 @@ function finalReview(draft: Draft) {
 
 // ─── Genre list ──────────────────────────────────────────────
 export const GENEROS = [
-  "Funk", "Trap", "Rap", "Hip Hop", "Pagode", "Samba", "Sertanejo", "Forró",
-  "Piseiro", "Arrocha", "Brega Funk", "Funk Mandelão", "Funk Bruxaria",
-  "Pop", "MPB", "Rock", "Eletrônica", "House", "Tecno Melody", "Gospel",
-  "Reggae", "Axé", "Trap Funk", "Drill", "R&B", "Soul", "Bregadeira",
+  "Funk",
+  "Trap",
+  "Rap",
+  "Hip Hop",
+  "Pagode",
+  "Samba",
+  "Sertanejo",
+  "Forró",
+  "Piseiro",
+  "Arrocha",
+  "Brega Funk",
+  "Funk Mandelão",
+  "Funk Bruxaria",
+  "Pop",
+  "MPB",
+  "Rock",
+  "Eletrônica",
+  "House",
+  "Tecno Melody",
+  "Gospel",
+  "Reggae",
+  "Axé",
+  "Trap Funk",
+  "Drill",
+  "R&B",
+  "Soul",
+  "Bregadeira",
 ] as const;
 
 export function matchGenre(input: string): string | null {
@@ -214,13 +279,17 @@ export function matchGenre(input: string): string | null {
 }
 
 function levenshtein(a: string, b: string): number {
-  const m = a.length, n = b.length;
+  const m = a.length,
+    n = b.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
   for (let i = 0; i <= m; i++) dp[i]![0] = i;
   for (let j = 0; j <= n; j++) dp[0]![j] = j;
   for (let i = 1; i <= m; i++)
     for (let j = 1; j <= n; j++)
-      dp[i]![j] = a[i - 1] === b[j - 1] ? dp[i - 1]![j - 1]! : 1 + Math.min(dp[i - 1]![j]!, dp[i]![j - 1]!, dp[i - 1]![j - 1]!);
+      dp[i]![j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1]![j - 1]!
+          : 1 + Math.min(dp[i - 1]![j]!, dp[i]![j - 1]!, dp[i - 1]![j - 1]!);
   return dp[m]![n]!;
 }
 
@@ -236,7 +305,8 @@ export function parseReleaseDate(input: string): string | null {
   // dd/mm/yyyy, dd/mm/yy
   let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (m) {
-    const d = parseInt(m[1]!), mo = parseInt(m[2]!) - 1;
+    const d = parseInt(m[1]!),
+      mo = parseInt(m[2]!) - 1;
     let y = parseInt(m[3]!);
     if (y < 100) y += 2000;
     const dt = new Date(Date.UTC(y, mo, d));
@@ -246,7 +316,8 @@ export function parseReleaseDate(input: string): string | null {
   // dd/mm (assume next future)
   m = s.match(/^(\d{1,2})\/(\d{1,2})$/);
   if (m) {
-    const d = parseInt(m[1]!), mo = parseInt(m[2]!) - 1;
+    const d = parseInt(m[1]!),
+      mo = parseInt(m[2]!) - 1;
     const now = new Date();
     let y = now.getUTCFullYear();
     let dt = new Date(Date.UTC(y, mo, d));
@@ -261,23 +332,35 @@ export function parseReleaseDate(input: string): string | null {
 
 export const handlers: Record<Step, StepHandler> = {
   async ask_release_format(input, _draft, _ctx) {
-    const norm = input.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const norm = input
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
     if (norm.includes("album") || norm.includes("ep")) {
       return {
-        reply: "✅ Álbum/EP.\n\nQuantas faixas vão entrar neste envio?\n\nSe precisar corrigir, escreva *voltar*.",
+        reply:
+          "✅ Álbum/EP.\n\nQuantas faixas vão entrar neste envio?\n\nSe precisar corrigir, escreva *voltar*.",
         nextStep: "ask_album_track_count",
         draft: { release_format: "album" },
       };
     }
-    if (norm.includes("single") || norm.includes("musica") || norm.includes("faixa") || norm === "1") {
+    if (
+      norm.includes("single") ||
+      norm.includes("musica") ||
+      norm.includes("faixa") ||
+      norm === "1"
+    ) {
       return {
-        reply: "✅ Single.\n\n*2. Envie o áudio.*\nUse o link seguro: WAV PCM, estéreo, 16-bit e 44,1 kHz. Vou tentar reconhecer o título e os participantes pelo nome do arquivo.",
+        reply:
+          "✅ Single.\n\n*2. Envie o áudio.*\nUse o link seguro: WAV PCM, estéreo, 16-bit e 44,1 kHz. Vou tentar reconhecer o título e os participantes pelo nome do arquivo.",
         nextStep: "ask_audio",
         draft: { release_format: "single", album_track_count: 1, current_track_index: 1 },
       };
     }
     return {
-      reply: "É *single* ou *álbum/EP*?\n\nResponda com: Single ou Álbum.\n\nSe precisar corrigir, escreva *voltar*.",
+      reply:
+        "É *single* ou *álbum/EP*?\n\nResponda com: Single ou Álbum.\n\nSe precisar corrigir, escreva *voltar*.",
       nextStep: "ask_release_format",
       draft: {},
     };
@@ -287,7 +370,8 @@ export const handlers: Record<Step, StepHandler> = {
     const count = Number(input.replace(/\D+/g, ""));
     if (!Number.isInteger(count) || count < 1 || count > 60) {
       return {
-        reply: "Me diga a quantidade de faixas com um número entre 1 e 60.\n\nSe precisar corrigir, escreva *voltar*.",
+        reply:
+          "Me diga a quantidade de faixas com um número entre 1 e 60.\n\nSe precisar corrigir, escreva *voltar*.",
         nextStep: "ask_album_track_count",
         draft: {},
       };
@@ -311,7 +395,11 @@ export const handlers: Record<Step, StepHandler> = {
   async ask_artists(input, draft, ctx) {
     const names = splitNames(input);
     if (names.length === 0) {
-      return { reply: "Não entendi. Manda os nomes separados por vírgula.", nextStep: "ask_artists", draft: {} };
+      return {
+        reply: "Não entendi. Manda os nomes separados por vírgula.",
+        nextStep: "ask_artists",
+        draft: {},
+      };
     }
 
     const resolved: ResolvedArtist[] = [];
@@ -327,9 +415,9 @@ export const handlers: Record<Step, StepHandler> = {
 
     const positioned = assignRoles(resolved);
 
-    const lines = positioned.map((a, i) =>
-      `${i + 1}. ${a.stage_name}${a.match_score < 0.90 ? " ⚠️" : ""}`
-    ).join("\n");
+    const lines = positioned
+      .map((a, i) => `${i + 1}. ${a.stage_name}${a.match_score < 0.9 ? " ⚠️" : ""}`)
+      .join("\n");
 
     return {
       reply: `✅ Anotado:\n${lines}\n\n*3. Quem produziu a música?*\nSe for alguém que já tá na lista, é só falar o nome.`,
@@ -341,7 +429,8 @@ export const handlers: Record<Step, StepHandler> = {
   async confirm_file_metadata(input, draft, _ctx) {
     if (isAffirmative(input)) {
       return {
-        reply: "✅ Metadados confirmados.\n\n*4. Quem produziu a música?*\nSe o produtor já estiver na lista, é só falar o nome.",
+        reply:
+          "✅ Metadados confirmados.\n\n*4. Quem produziu a música?*\nSe o produtor já estiver na lista, é só falar o nome.",
         nextStep: "ask_producers",
         draft: {},
       };
@@ -374,10 +463,17 @@ export const handlers: Record<Step, StepHandler> = {
 
     const artists = await resolveArtists(ctx, parsed.participants);
     for (const role of parsed.roles) {
-      const found = artists.find((artist) => normalizeText(artist.stage_name) === normalizeText(role.name));
+      const found = artists.find(
+        (artist) => normalizeText(artist.stage_name) === normalizeText(role.name),
+      );
       if (!found) continue;
       const normalizedRole = normalizeText(role.role);
-      found.billing_role = normalizedRole.includes("feat") ? "featuring" : "primary";
+      found.billing_role =
+        found.position === 1
+          ? "principal"
+          : normalizedRole.includes("feat")
+            ? "featuring"
+            : "primary";
       found.is_producer = normalizedRole.includes("prod");
     }
 
@@ -397,17 +493,17 @@ export const handlers: Record<Step, StepHandler> = {
     const nextArtists = artists.map((artist) => ({ ...artist }));
 
     for (const name of names) {
-      const found = nextArtists.find(a => normalizeText(a.stage_name) === normalizeText(name));
+      const found = nextArtists.find((a) => normalizeText(a.stage_name) === normalizeText(name));
       if (found) {
         producers.push({ name, artist_id: found.id, position: found.position });
         found.is_producer = true;
       } else {
         const existing = await ctx.db.findArtist(ctx.tenant_id, name);
-        const created = existing ?? await ctx.db.createArtist(ctx.tenant_id, name);
+        const created = existing ?? (await ctx.db.createArtist(ctx.tenant_id, name));
         const producerArtist = {
           ...created,
           position: nextArtists.length + 1,
-          billing_role: (nextArtists.length + 1 <= 4 ? "primary" : "featuring") as "primary" | "featuring",
+          billing_role: defaultBillingRole(nextArtists.length + 1),
           is_producer: true,
           is_composer: true,
           is_performer: false,
@@ -424,7 +520,12 @@ export const handlers: Record<Step, StepHandler> = {
         reply: [
           `Incluí ${externalNames.map((name) => `*${name}*`).join(", ")} como produtor na lista:`,
           "",
-          nextArtists.map((artist) => `${artist.position}. ${artist.stage_name} - ${artist.billing_role === "featuring" ? "feat." : "principal"}${artist.is_producer ? " / produtor" : ""}`).join("\n"),
+          nextArtists
+            .map(
+              (artist) =>
+                `${artist.position}. ${artist.stage_name} - ${billingRoleText(artist.billing_role)}${artist.is_producer ? " / produtor" : ""}`,
+            )
+            .join("\n"),
           "",
           "confirma essa lista? Responda *SIM* para seguir ou *corrigir* para reenviar título/participantes.",
         ].join("\n"),
@@ -443,7 +544,8 @@ export const handlers: Record<Step, StepHandler> = {
   async confirm_external_producer(input, _draft, _ctx) {
     if (isAffirmative(input)) {
       return {
-        reply: "✅ Produtores confirmados!\n\n*5. Quais gêneros da música?* Pode escolher até 2.\nEx: Funk, Trap",
+        reply:
+          "✅ Produtores confirmados!\n\n*5. Quais gêneros da música?* Pode escolher até 2.\nEx: Funk, Trap",
         nextStep: "ask_genres",
         draft: { pending_external_producers: undefined },
       };
@@ -459,12 +561,13 @@ export const handlers: Record<Step, StepHandler> = {
   async ask_producer_position(input, draft, _ctx) {
     const producers = draft.producers ?? [];
     const idx = draft.producer_position_index ?? 0;
-    const unresolved = producers.filter(p => !p.artist_id && p.position === undefined);
+    const unresolved = producers.filter((p) => !p.artist_id && p.position === undefined);
     const current = unresolved[idx];
 
     if (!current) {
       return {
-        reply: "✅ Produtores anotados!\n\n*4. Quais os gêneros da música?* Pode escolher até 2.\nEx: Funk, Trap",
+        reply:
+          "✅ Produtores anotados!\n\n*4. Quais os gêneros da música?* Pode escolher até 2.\nEx: Funk, Trap",
         nextStep: "ask_genres",
         draft: { producers, producer_position_index: undefined },
       };
@@ -487,7 +590,8 @@ export const handlers: Record<Step, StepHandler> = {
       }
 
       return {
-        reply: "✅ Produtores anotados!\n\n*4. Quais os gêneros da música?* Pode escolher até 2.\nEx: Funk, Trap",
+        reply:
+          "✅ Produtores anotados!\n\n*4. Quais os gêneros da música?* Pode escolher até 2.\nEx: Funk, Trap",
         nextStep: "ask_genres",
         draft: { producers: [...producers], producer_position_index: undefined },
       };
@@ -508,7 +612,8 @@ export const handlers: Record<Step, StepHandler> = {
       }
 
       return {
-        reply: "✅ Produtores anotados!\n\n*4. Quais os gêneros da música?* Pode escolher até 2.\nEx: Funk, Trap",
+        reply:
+          "✅ Produtores anotados!\n\n*4. Quais os gêneros da música?* Pode escolher até 2.\nEx: Funk, Trap",
         nextStep: "ask_genres",
         draft: { producers: [...producers], producer_position_index: undefined },
       };
@@ -522,7 +627,10 @@ export const handlers: Record<Step, StepHandler> = {
   },
 
   async ask_genres(input, _draft, _ctx) {
-    const genres = input.split(/[,;\/]/).map(s => s.trim()).filter(Boolean);
+    const genres = input
+      .split(/[,;\/]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
     const matched: string[] = [];
     for (const g of genres) {
       const m = matchGenre(g);
@@ -533,7 +641,7 @@ export const handlers: Record<Step, StepHandler> = {
     if (selected.length === 0) {
       const opts = GENEROS.slice(0, 6);
       return {
-        reply: `Não reconheci. Escolhe até 2:\n${opts.map((g,i) => `${i+1}. ${g}`).join("\n")}`,
+        reply: `Não reconheci. Escolhe até 2:\n${opts.map((g, i) => `${i + 1}. ${g}`).join("\n")}`,
         nextStep: "ask_genres",
         draft: {},
       };
@@ -561,7 +669,7 @@ export const handlers: Record<Step, StepHandler> = {
     const d = new Date(date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const urgent = (d.getTime() - today.getTime()) < 3 * 86400000;
+    const urgent = d.getTime() - today.getTime() < 3 * 86400000;
 
     const nextDraft = { release_date: date, urgent };
     const displayDate = formatReleaseDateForMessage(date);
@@ -581,7 +689,8 @@ export const handlers: Record<Step, StepHandler> = {
       : [];
 
     return {
-      reply: "Perfeito! 🎧\n\n*3. Envie a capa.*\nManda como *ARQUIVO/DOCUMENTO* no clipe, não como foto, para manter a qualidade.\n\nQuadrada, entre 1600x1600 e 3000x3000px.",
+      reply:
+        "Perfeito! 🎧\n\n*3. Envie a capa.*\nManda como *ARQUIVO/DOCUMENTO* no clipe, não como foto, para manter a qualidade.\n\nQuadrada, entre 1600x1600 e 3000x3000px.",
       nextStep: "ask_cover",
       draft: {
         audio_url: media?.url ?? "received",
@@ -628,7 +737,8 @@ export const handlers: Record<Step, StepHandler> = {
       } catch (err) {
         console.error("Failed to create WhatsApp release:", err);
         return {
-          reply: "Nao consegui salvar esse envio no painel agora. Ja fiquei com a revisao aberta; responda *ENVIAR* de novo em alguns minutos ou chame o time da Audiolink.",
+          reply:
+            "Nao consegui salvar esse envio no painel agora. Ja fiquei com a revisao aberta; responda *ENVIAR* de novo em alguns minutos ou chame o time da Audiolink.",
           nextStep: "confirm",
           draft: {},
         };
@@ -654,10 +764,25 @@ export const handlers: Record<Step, StepHandler> = {
     if (t.includes("produtor"))
       return { reply: "Quem produziu a música?", nextStep: "ask_producers", draft: {} };
 
-    return { reply: "Não entendi. Responde *SIM* para enviar, ou me fala o que precisa mudar.", nextStep: "confirm", draft: {} };
+    return {
+      reply: "Não entendi. Responde *SIM* para enviar, ou me fala o que precisa mudar.",
+      nextStep: "confirm",
+      draft: {},
+    };
   },
 
   async done(_input, _draft, _ctx) {
     return { reply: "", nextStep: "done", draft: {} };
   },
 };
+
+function billingRoleText(role: ResolvedArtist["billing_role"]) {
+  if (role === "principal") return "principal";
+  if (role === "primary") return "primario";
+  return "feat.";
+}
+
+function defaultBillingRole(position: number): ResolvedArtist["billing_role"] {
+  if (position === 1) return "principal";
+  return position <= 4 ? "primary" : "featuring";
+}

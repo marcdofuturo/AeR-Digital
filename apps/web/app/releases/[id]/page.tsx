@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EditMetadataButton } from "@/components/forms/edit-metadata-button";
+import { ParticipantCreditsEditor } from "@/components/releases/participant-credits-editor";
 import { ReleaseMetadataForm } from "@/components/releases/release-metadata-form";
 import { TrackMetadataForm } from "@/components/releases/track-metadata-form";
 import {
@@ -17,6 +18,7 @@ import { KANBAN_STAGES, formatDaysInStage } from "@ar/ai/crm";
 import { fmtDate } from "@ar/shared";
 import { saveArtistMetadata } from "@/app/releases/actions";
 import { formatTrackDuration } from "@/lib/tracks/duration";
+import { billingRoleClasses, billingRoleLabel } from "@/lib/artists/billing-role";
 import { Calendar, Clock, Disc3, FileText, Users, Wrench } from "lucide-react";
 
 const STAGE_LABEL: Record<string, string> = {};
@@ -74,7 +76,7 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
               releaseDate: String(r.release_date ?? "").slice(0, 10),
               genrePrimary: r.genre_primary ?? "",
               genreSecondary: r.genre_secondary ?? "",
-              distributor: r.distributor ?? "Audiolink Brasil",
+              distributor: r.distributor ?? "",
               upc: r.upc ?? "",
               albumIdExt: r.album_id_ext ?? "",
             }}
@@ -153,7 +155,7 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
         </CardHeader>
         <CardContent>
           <div className="mb-4 grid gap-2 text-sm md:grid-cols-4">
-            <InfoTile label="Agregadora" value={r.distributor ?? "Audiolink Brasil"} />
+            <InfoTile label="Agregadora" value={r.distributor ?? "nao informada"} />
             <InfoTile label="UPC" value={r.upc ?? "a gerar"} mono />
             <InfoTile label="Álbum externo" value={r.album_id_ext ?? "a gerar"} mono />
             <InfoTile label="Copyright" value={copyright} />
@@ -196,99 +198,111 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
               {!track.track_participants?.length ? (
                 <p className="text-fg-muted text-sm">Nenhum participante cadastrado</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead>Nome artístico</TableHead>
-                      <TableHead>Nome Completo</TableHead>
-                      <TableHead>Código ECAD</TableHead>
-                      <TableHead>Papel</TableHead>
-                      <TableHead className="text-right">Salvar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[...(track.track_participants ?? [])]
-                      .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
-                      .map((tp: any) => {
-                        const artist = tp.artists ?? {};
-                        const needsData = !artist.legal_name || !artist.ecad_code;
-                        const formId = `artist-meta-${track.id}-${artist.id}`;
+                <div className="space-y-4">
+                  <ParticipantCreditsEditor
+                    releaseId={id}
+                    trackId={track.id}
+                    participants={(track.track_participants ?? []).map((tp: any) => ({
+                      artistId: tp.artist_id,
+                      stageName: tp.artists?.stage_name ?? "Artista",
+                      position: tp.position ?? 1,
+                      billingRole: tp.billing_role,
+                    }))}
+                  />
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead>Nome artístico</TableHead>
+                        <TableHead>Nome Completo</TableHead>
+                        <TableHead>Código ECAD</TableHead>
+                        <TableHead>Papel</TableHead>
+                        <TableHead className="text-right">Salvar</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[...(track.track_participants ?? [])]
+                        .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
+                        .map((tp: any) => {
+                          const artist = tp.artists ?? {};
+                          const needsData = !artist.legal_name || !artist.ecad_code;
+                          const formId = `artist-meta-${track.id}-${artist.id}`;
 
-                        return (
-                          <TableRow key={tp.id}>
-                            <TableCell className="text-fg-muted tabular-nums">
-                              {tp.position}
-                            </TableCell>
-                            <TableCell className="text-fg font-medium">
-                              {artist.stage_name ?? "Artista"}
-                            </TableCell>
-                            <TableCell>
-                              <input
-                                form={formId}
-                                name="legal_name"
-                                data-editable
-                                disabled
-                                defaultValue={artist.legal_name ?? ""}
-                                placeholder="Nome completo"
-                                className="border-border bg-surface text-fg w-40 rounded-md border px-2 py-1.5 text-xs"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <input
-                                form={formId}
-                                name="ecad_code"
-                                data-editable
-                                disabled
-                                defaultValue={artist.ecad_code ?? ""}
-                                placeholder="ECAD"
-                                className="border-border bg-surface text-fg w-28 rounded-md border px-2 py-1.5 text-xs"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                <Badge
-                                  variant={tp.billing_role === "primary" ? "default" : "secondary"}
-                                  className="text-[10px]"
-                                >
-                                  {tp.billing_role === "primary" ? "Principal" : "Feat."}
-                                </Badge>
-                                {tp.is_composer && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    Compositor
+                          return (
+                            <TableRow key={tp.id}>
+                              <TableCell className="text-fg-muted tabular-nums">
+                                {tp.position}
+                              </TableCell>
+                              <TableCell className="text-fg font-medium">
+                                {artist.stage_name ?? "Artista"}
+                              </TableCell>
+                              <TableCell>
+                                <input
+                                  form={formId}
+                                  name="legal_name"
+                                  data-editable
+                                  disabled
+                                  defaultValue={artist.legal_name ?? ""}
+                                  placeholder="Nome completo"
+                                  className="border-border bg-surface text-fg w-40 rounded-md border px-2 py-1.5 text-xs"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <input
+                                  form={formId}
+                                  name="ecad_code"
+                                  data-editable
+                                  disabled
+                                  defaultValue={artist.ecad_code ?? ""}
+                                  placeholder="ECAD"
+                                  className="border-border bg-surface text-fg w-28 rounded-md border px-2 py-1.5 text-xs"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1">
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] ${billingRoleClasses(tp.billing_role)}`}
+                                  >
+                                    {billingRoleLabel(tp.billing_role)}
                                   </Badge>
-                                )}
-                                {tp.is_performer && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    Intérprete
-                                  </Badge>
-                                )}
-                                {tp.is_producer && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    Produtor
-                                  </Badge>
-                                )}
-                                {needsData && (
-                                  <Badge variant="warning" className="text-[10px]">
-                                    Completar
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <form id={formId} action={saveArtistMetadata}>
-                                <input type="hidden" name="release_id" value={id} />
-                                <input type="hidden" name="artist_id" value={artist.id} />
-                                <div className="flex justify-end gap-2">
-                                  <EditMetadataButton formId={formId} />
+                                  {tp.is_composer && (
+                                    <Badge variant="outline" className="text-[10px]">
+                                      Compositor
+                                    </Badge>
+                                  )}
+                                  {tp.is_performer && (
+                                    <Badge variant="outline" className="text-[10px]">
+                                      Intérprete
+                                    </Badge>
+                                  )}
+                                  {tp.is_producer && (
+                                    <Badge variant="outline" className="text-[10px]">
+                                      Produtor
+                                    </Badge>
+                                  )}
+                                  {needsData && (
+                                    <Badge variant="warning" className="text-[10px]">
+                                      Completar
+                                    </Badge>
+                                  )}
                                 </div>
-                              </form>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </TableBody>
-                </Table>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <form id={formId} action={saveArtistMetadata}>
+                                  <input type="hidden" name="release_id" value={id} />
+                                  <input type="hidden" name="artist_id" value={artist.id} />
+                                  <div className="flex justify-end gap-2">
+                                    <EditMetadataButton formId={formId} />
+                                  </div>
+                                </form>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </div>
           ))}
@@ -337,8 +351,11 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                 <div key={p.id} className="border-border/50 bg-bg rounded-md border p-2 text-sm">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-fg font-medium">{p.stage_name}</span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {p.billing_role === "primary" ? "Principal" : "Feat."}
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${billingRoleClasses(p.billing_role)}`}
+                    >
+                      {billingRoleLabel(p.billing_role)}
                     </Badge>
                   </div>
                   <p className="text-fg-muted mt-1 truncate text-xs">{p.tracks.join(", ")}</p>

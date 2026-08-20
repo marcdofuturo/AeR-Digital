@@ -6,7 +6,12 @@ import { AI_CREDIT_COST, assertAiCredits } from "@/lib/ai/presentation";
 import { requireMembership } from "@/lib/auth/require-membership";
 import { persistAutomaticSplitsForTrack } from "@/lib/splits/persist";
 import type { Participant } from "@ar/splits";
-import type { ReleaseStage } from "@ar/shared";
+import {
+  defaultBillingRole,
+  normalizeBillingRoles,
+  type BillingRole,
+  type ReleaseStage,
+} from "@ar/shared";
 import { isRegistrationStatus } from "@/lib/registration-status";
 import { enqueuePresentationJob } from "@/lib/presentation/jobs";
 import { isUsablePresentationAudioUrl } from "@/lib/presentation/audio";
@@ -267,6 +272,13 @@ export async function saveRegistrationStatus(formData: FormData) {
       .eq("id", releaseId)
       .eq("tenant_id", tenantId);
     if (releaseError) throw new Error("Falha ao sincronizar distribuidora e UPC");
+
+    const { error: trackError } = await supabase
+      .from("tracks")
+      .update({ isrc: nullableString(formData.get("distribution_isrc")) })
+      .eq("id", trackId)
+      .eq("tenant_id", tenantId);
+    if (trackError) throw new Error("Falha ao sincronizar ISRC da distribuicao");
   }
 
   if (kind === "fonograma_ecad") {
@@ -316,7 +328,7 @@ export async function saveReleaseOverview(formData: FormData) {
     release_date: requiredString(formData.get("release_date"), "Data obrigatória"),
     genre_primary: nullableString(formData.get("genre_primary")),
     genre_secondary: nullableString(formData.get("genre_secondary")),
-    distributor: nullableString(formData.get("distributor")) ?? "Audiolink Brasil",
+    distributor: nullableString(formData.get("distributor")),
     upc: nullableString(formData.get("upc")),
     album_id_ext: nullableString(formData.get("album_id_ext")),
   };
@@ -558,6 +570,13 @@ export async function addTrackParticipant(formData: FormData) {
     ecadCode: nullableString(formData.get("ecad_code")),
   });
   const position = await nextParticipantPosition(supabase, tenantId, trackId);
+  const requestedRole = String(formData.get("billing_role") ?? "");
+  const billingRole =
+    position === 1
+      ? "principal"
+      : requestedRole === "primary" || requestedRole === "featuring"
+        ? requestedRole
+        : defaultBillingRole(position);
 
   const { error } = await supabase.from("track_participants").upsert(
     {
@@ -565,7 +584,7 @@ export async function addTrackParticipant(formData: FormData) {
       track_id: trackId,
       artist_id: artist.id,
       position,
-      billing_role: formData.get("billing_role") === "featuring" ? "featuring" : "primary",
+      billing_role: billingRole,
       is_composer: formData.get("is_composer") === "on",
       is_performer: formData.get("is_performer") === "on",
       is_producer: formData.get("is_producer") === "on",
@@ -589,6 +608,60 @@ export async function addTrackParticipant(formData: FormData) {
   });
   revalidateRelease(releaseId);
   revalidatePath(`/releases/${releaseId}/registros`);
+  revalidatePath(`/releases/${releaseId}/splits`);
+}
+
+export async function saveTrackParticipantCredits(formData: FormData) {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) throw new Error("Tenant nao encontrado");
+
+  const releaseId = String(formData.get("release_id") ?? "");
+  const trackId = String(formData.get("track_id") ?? "");
+  const count = Number(formData.get("participant_count") ?? 0);
+  if (!releaseId || !trackId || !Number.isInteger(count) || count < 1 || count > 100) {
+    throw new Error("Creditos invalidos");
+  }
+
+  const participants = normalizeBillingRoles(
+    Array.from({ length: count }, (_, index) => {
+      const artistId = String(formData.get(`artist_id_${index}`) ?? "").trim();
+      const position = Number(formData.get(`position_${index}`) ?? index + 1);
+      const rawRole = String(formData.get(`billing_role_${index}`) ?? "");
+      const billingRole: BillingRole =
+        rawRole === "principal" || rawRole === "primary" || rawRole === "featuring"
+          ? rawRole
+          : defaultBillingRole(position);
+      if (!artistId || !Number.isInteger(position)) throw new Error("Credito invalido");
+      return { artistId, position, billingRole };
+    }),
+  );
+
+  if (new Set(participants.map((participant) => participant.artistId)).size !== count) {
+    throw new Error("Artista duplicado nos creditos");
+  }
+
+  const supabase = createAdminClient();
+  await requireTenantTrack(supabase, tenantId, releaseId, trackId);
+  const { error } = await supabase.rpc("replace_track_participant_credits", {
+    p_tenant_id: tenantId,
+    p_track_id: trackId,
+    p_participants: participants.map((participant) => ({
+      artist_id: participant.artistId,
+      position: participant.position,
+      billing_role: participant.billingRole,
+    })),
+  });
+  if (error) throw new Error("Falha ao salvar ordem e papeis dos artistas");
+
+  await regenerateTrackSplits(supabase, tenantId, trackId);
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "track",
+    entityId: trackId,
+    action: "Ordem e papeis dos artistas alterados",
+    after: { participants },
+  });
+  revalidateRelease(releaseId);
   revalidatePath(`/releases/${releaseId}/splits`);
 }
 
@@ -668,6 +741,64 @@ export async function saveManualSplits(formData: FormData) {
     after: { scope, version, rows },
   });
 
+  revalidatePath(`/releases/${releaseId}/splits`);
+  revalidateRelease(releaseId);
+}
+
+export async function saveSplitAllocations(formData: FormData) {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) throw new Error("Tenant nao encontrado");
+
+  const releaseId = String(formData.get("release_id") ?? "");
+  const trackId = String(formData.get("track_id") ?? "");
+  const scope = String(formData.get("scope") ?? "") as SplitScope;
+  const parentArtistId = String(formData.get("parent_artist_id") ?? "");
+  const count = Number(formData.get("allocation_count") ?? 0);
+  if (
+    !releaseId ||
+    !trackId ||
+    !parentArtistId ||
+    !["obra", "fonograma", "digital"].includes(scope) ||
+    !Number.isInteger(count) ||
+    count < 0 ||
+    count > 100
+  ) {
+    throw new Error("Rateio interno invalido");
+  }
+
+  const allocations = Array.from({ length: count }, (_, index) => ({
+    beneficiary_artist_id: String(formData.get(`beneficiary_artist_id_${index}`) ?? "").trim(),
+    bps100: percentToBps(formData.get(`allocation_percent_${index}`)),
+  }));
+  if (allocations.some((allocation) => !allocation.beneficiary_artist_id)) {
+    throw new Error("Integrante invalido");
+  }
+  if (new Set(allocations.map((allocation) => allocation.beneficiary_artist_id)).size !== count) {
+    throw new Error("Integrante duplicado no rateio");
+  }
+  const total = allocations.reduce((sum, allocation) => sum + allocation.bps100, 0);
+  if (count > 0 && total !== 10_000) {
+    throw new Error(`Rateio interno soma ${(total / 100).toFixed(2)}%, esperado 100.00%`);
+  }
+
+  const supabase = createAdminClient();
+  await requireTenantTrack(supabase, tenantId, releaseId, trackId);
+  const { error } = await supabase.rpc("replace_split_allocations", {
+    p_tenant_id: tenantId,
+    p_track_id: trackId,
+    p_scope: scope,
+    p_parent_artist_id: parentArtistId,
+    p_allocations: allocations,
+  });
+  if (error) throw new Error("Falha ao salvar rateio interno");
+
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "split",
+    entityId: trackId,
+    action: "Rateio interno do artista alterado",
+    after: { scope, parent_artist_id: parentArtistId, allocations },
+  });
   revalidatePath(`/releases/${releaseId}/splits`);
   revalidateRelease(releaseId);
 }
@@ -1017,7 +1148,12 @@ async function loadTrackParticipants(
       id: tp.artist_id,
       stage_name: artist?.stage_name ?? "Participante",
       position: tp.position ?? 1,
-      billing_role: tp.billing_role === "featuring" ? "featuring" : "primary",
+      billing_role:
+        tp.billing_role === "principal"
+          ? "principal"
+          : tp.billing_role === "featuring"
+            ? "featuring"
+            : "primary",
       is_producer: Boolean(tp.is_producer),
       is_composer: true,
       is_performer: Boolean(tp.is_performer),

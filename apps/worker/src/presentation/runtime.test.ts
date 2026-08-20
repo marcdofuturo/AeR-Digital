@@ -195,7 +195,8 @@ describe("presentation runtime", () => {
               {
                 type: "text",
                 text: JSON.stringify({
-                  apresentacao: "Fonte: Spotify. Indicada para a playlist editorial X.",
+                  apresentacao:
+                    "Fonte: Spotify. Indicada para a playlist editorial X, com 130 BPM e tonalidade F# menor.",
                 }),
               },
             ],
@@ -224,7 +225,7 @@ describe("presentation runtime", () => {
 
     const result = await generatePresentation({ ANTHROPIC_API_KEY: "test-key" }, input);
 
-    expect(result.apresentacao).not.toMatch(/spotify|playlist|fonte/i);
+    expect(result.apresentacao).not.toMatch(/spotify|playlist|fonte|\bbpm\b|tonalidade/i);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     const repairRequest = JSON.parse(String(fetchMock.mock.calls[2]![1]?.body));
     expect(repairRequest.tools).toBeUndefined();

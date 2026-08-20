@@ -60,7 +60,7 @@ export function EditableActionForm({
             <Button
               type="reset"
               size="sm"
-              variant="ghost"
+              variant="cancel"
               disabled={saving || saved}
               onClick={() => setEditing(false)}
             >
@@ -69,7 +69,7 @@ export function EditableActionForm({
             </Button>
             <SaveButton
               size="sm"
-              variant="outline"
+              variant="success"
               savedLabel={savedLabel}
               disabled={saving || saved}
             >
@@ -77,7 +77,7 @@ export function EditableActionForm({
             </SaveButton>
           </>
         ) : (
-          <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(true)}>
+          <Button type="button" size="sm" variant="edit" onClick={() => setEditing(true)}>
             <Pencil className="h-4 w-4" />
             {editLabel}
           </Button>

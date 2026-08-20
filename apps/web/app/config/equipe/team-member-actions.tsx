@@ -65,13 +65,13 @@ export function TeamMemberActions({
         </select>
         {editingRole ? (
           <>
-            <Button type="reset" size="sm" variant="ghost" onClick={() => setEditingRole(false)}>
+            <Button type="reset" size="sm" variant="cancel" onClick={() => setEditingRole(false)}>
               <X className="h-4 w-4" />
               Cancelar
             </Button>
             <SaveButton
               size="sm"
-              variant="outline"
+              variant="success"
               resultStatus={updateState.status}
               pendingLabel="Salvando..."
               savedLabel="Permissao salva"
@@ -81,7 +81,7 @@ export function TeamMemberActions({
             </SaveButton>
           </>
         ) : (
-          <Button type="button" size="sm" variant="outline" onClick={() => setEditingRole(true)}>
+          <Button type="button" size="sm" variant="edit" onClick={() => setEditingRole(true)}>
             <Pencil className="h-4 w-4" />
             Editar permissao
           </Button>
@@ -118,7 +118,7 @@ export function TeamMemberActions({
               <p className="text-danger mb-3 text-sm">{removeState.message}</p>
             ) : null}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setRemoveOpen(false)}>
+              <Button type="button" variant="cancel" onClick={() => setRemoveOpen(false)}>
                 Cancelar
               </Button>
               <SaveButton

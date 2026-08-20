@@ -83,11 +83,12 @@ export function LabelSettingsForm({ tenant }: { tenant: Tenant }) {
       <div className="flex flex-wrap items-center gap-3 md:col-span-2">
         {editing ? (
           <>
-            <Button type="reset" variant="ghost" onClick={() => setEditing(false)}>
+            <Button type="reset" variant="cancel" onClick={() => setEditing(false)}>
               <X className="h-4 w-4" />
               Cancelar
             </Button>
             <SaveButton
+              variant="success"
               resultStatus={state.status}
               pendingLabel="Salvando selo..."
               savedLabel="Selo atualizado"
@@ -96,7 +97,7 @@ export function LabelSettingsForm({ tenant }: { tenant: Tenant }) {
             </SaveButton>
           </>
         ) : (
-          <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+          <Button type="button" variant="edit" onClick={() => setEditing(true)}>
             <Pencil className="h-4 w-4" />
             Editar dados do selo
           </Button>
