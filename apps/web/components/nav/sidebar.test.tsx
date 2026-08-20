@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Sidebar } from "./sidebar";
 
 const mockUsePathname = vi.fn();
@@ -21,6 +21,8 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 describe("Sidebar", () => {
+  afterEach(cleanup);
+
   beforeEach(() => {
     mockUsePathname.mockReturnValue("/releases");
     window.localStorage.clear();
