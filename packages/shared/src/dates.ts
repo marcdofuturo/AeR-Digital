@@ -7,7 +7,12 @@ export const TZ = "America/Sao_Paulo";
 
 /** Formata data ISO → dd/MM/yyyy em São Paulo */
 export function fmtDate(date: Date | string, fmt = "dd/MM/yyyy"): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const dateOnly = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date);
+  const d = dateOnly
+    ? fromZonedTime(`${date}T00:00:00`, TZ)
+    : typeof date === "string"
+      ? new Date(date)
+      : date;
   return formatTZ(toZonedTime(d, TZ), fmt, { timeZone: TZ });
 }
 
