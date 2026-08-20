@@ -1,22 +1,22 @@
 import { describe, it, expect } from "vitest";
-import { distributeEvenly, distributeByWeight, reconcile, fmt } from "./math";
+import { allocateParentShare, distributeEvenly, distributeByWeight, reconcile, fmt } from "./math";
 import type { SplitLine } from "./types";
 
 describe("distributeEvenly", () => {
   it("distributes 10000 between 2 items", () => {
     const result = distributeEvenly(["A", "B"], 10_000);
-    expect(result.map(r => r.bps100)).toEqual([5000, 5000]);
+    expect(result.map((r) => r.bps100)).toEqual([5000, 5000]);
   });
 
   it("distributes 10000 between 3 items", () => {
     const result = distributeEvenly(["A", "B", "C"], 10_000);
-    expect(result.map(r => r.bps100)).toEqual([3334, 3333, 3333]);
+    expect(result.map((r) => r.bps100)).toEqual([3334, 3333, 3333]);
     expect(result.reduce((s, r) => s + r.bps100, 0)).toBe(10_000);
   });
 
   it("distributes 10000 between 4 items", () => {
     const result = distributeEvenly(["A", "B", "C", "D"], 10_000);
-    expect(result.every(r => r.bps100 === 2500)).toBe(true);
+    expect(result.every((r) => r.bps100 === 2500)).toBe(true);
     expect(result.reduce((s, r) => s + r.bps100, 0)).toBe(10_000);
   });
 
@@ -27,7 +27,7 @@ describe("distributeEvenly", () => {
 
   it("handles zero pool", () => {
     const result = distributeEvenly(["A", "B"], 0);
-    expect(result.map(r => r.bps100)).toEqual([0, 0]);
+    expect(result.map((r) => r.bps100)).toEqual([0, 0]);
   });
 });
 
@@ -71,5 +71,29 @@ describe("fmt", () => {
     expect(fmt(4170)).toBe("41,70%");
     expect(fmt(1660)).toBe("16,60%");
     expect(fmt(10000)).toBe("100,00%");
+  });
+});
+
+describe("allocateParentShare", () => {
+  it("converts percentages inside a parent share without losing basis points", () => {
+    const result = allocateParentShare(1500, [
+      { beneficiaryId: "a", bps100: 1000 },
+      { beneficiaryId: "b", bps100: 9000 },
+    ]);
+
+    expect(result).toEqual([
+      { beneficiaryId: "a", bps100: 150 },
+      { beneficiaryId: "b", bps100: 1350 },
+    ]);
+    expect(result.reduce((sum, row) => sum + row.bps100, 0)).toBe(1500);
+  });
+
+  it("rejects an internal allocation that does not total 100 percent", () => {
+    expect(() =>
+      allocateParentShare(1500, [
+        { beneficiaryId: "a", bps100: 1000 },
+        { beneficiaryId: "b", bps100: 8000 },
+      ]),
+    ).toThrow(/100,00%/i);
   });
 });

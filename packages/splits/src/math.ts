@@ -9,13 +9,13 @@ export function distributeByWeight<T>(
   pool: number,
 ): { item: T; bps100: number }[] {
   if (items.length === 0 || pool === 0) {
-    return items.map(i => ({ item: i.item, bps100: 0 }));
+    return items.map((i) => ({ item: i.item, bps100: 0 }));
   }
 
   const totalW = items.reduce((s, i) => s + i.w, 0);
-  if (totalW === 0) return items.map(i => ({ item: i.item, bps100: 0 }));
+  if (totalW === 0) return items.map((i) => ({ item: i.item, bps100: 0 }));
 
-  const raw = items.map(i => (pool * i.w) / totalW);
+  const raw = items.map((i) => (pool * i.w) / totalW);
   const base = raw.map(Math.floor);
   const rest = pool - base.reduce((s, v) => s + v, 0);
 
@@ -32,12 +32,9 @@ export function distributeByWeight<T>(
 }
 
 /** Divisão igualitária entre items */
-export function distributeEvenly<T>(
-  items: T[],
-  pool: number,
-): { item: T; bps100: number }[] {
+export function distributeEvenly<T>(items: T[], pool: number): { item: T; bps100: number }[] {
   return distributeByWeight(
-    items.map(item => ({ item, w: 1 })),
+    items.map((item) => ({ item, w: 1 })),
     pool,
   );
 }
@@ -50,7 +47,7 @@ export function reconcile(lines: SplitLine[]): SplitLine[] {
   const maxIdx = lines.reduce((m, l, i) => (l.bps100 > lines[m]!.bps100 ? i : m), 0);
   lines[maxIdx]!.bps100 += TOTAL_BPS - sum;
 
-  if (lines.some(l => l.bps100 < 0)) {
+  if (lines.some((l) => l.bps100 < 0)) {
     throw new SplitError("Linha negativa detectada na reconciliação");
   }
   return lines;
@@ -64,4 +61,25 @@ export function fmt(bps: number): string {
 /** Peso de um participante para o rateio digital */
 export function digitalWeight(p: Participant, cfg: DigitalConfig): number {
   return p.billing_role === "featuring" ? cfg.weight_featuring : cfg.weight_primary;
+}
+
+export function allocateParentShare(
+  parentBps100: number,
+  allocations: Array<{ beneficiaryId: string; bps100: number }>,
+) {
+  const total = allocations.reduce((sum, allocation) => sum + allocation.bps100, 0);
+  if (total !== TOTAL_BPS) {
+    throw new SplitError("O rateio interno deve somar 100,00%");
+  }
+  if (parentBps100 < 0 || parentBps100 > TOTAL_BPS) {
+    throw new SplitError("Parcela do artista invalida");
+  }
+  if (allocations.some((allocation) => allocation.bps100 < 0)) {
+    throw new SplitError("Rateio interno negativo");
+  }
+
+  return distributeByWeight(
+    allocations.map((allocation) => ({ item: allocation.beneficiaryId, w: allocation.bps100 })),
+    parentBps100,
+  ).map(({ item, bps100 }) => ({ beneficiaryId: item, bps100 }));
 }

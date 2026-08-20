@@ -40,7 +40,7 @@ export function EditMetadataButton({ formId }: { formId: string }) {
         <Button
           type="reset"
           size="sm"
-          variant="ghost"
+          variant="cancel"
           disabled={pending}
           onClick={() => {
             document.querySelector<HTMLFormElement>(`form#${formId}`)?.reset();
@@ -51,7 +51,7 @@ export function EditMetadataButton({ formId }: { formId: string }) {
           <X className="h-4 w-4" />
           Cancelar
         </Button>
-        <SaveButton size="sm" variant="outline" savedLabel="Salvo">
+        <SaveButton size="sm" variant="success" savedLabel="Salvo">
           Salvar
         </SaveButton>
       </>
@@ -62,7 +62,7 @@ export function EditMetadataButton({ formId }: { formId: string }) {
     <Button
       type="button"
       size="sm"
-      variant="ghost"
+      variant="edit"
       onClick={() => {
         setFieldsDisabled(false);
         setEditing(true);

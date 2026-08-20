@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId } from "@/lib/tenant";
 import { regenerateAutomaticSplits, saveManualSplits } from "@/app/releases/actions";
+import { SplitAllocationEditor } from "@/components/releases/split-allocation-editor";
+import { getArtists } from "@/lib/data/artists";
 import { RefreshCcw } from "lucide-react";
 
 const SCOPE_LABELS: Record<string, string> = {
@@ -19,7 +21,7 @@ export default async function SplitsPage({ params }: { params: Promise<{ id: str
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return null;
 
-  const release = await getRelease(tenantId, id);
+  const [release, artists] = await Promise.all([getRelease(tenantId, id), getArtists(tenantId)]);
   if (!release) return null;
 
   const r = release as any;
@@ -29,6 +31,7 @@ export default async function SplitsPage({ params }: { params: Promise<{ id: str
     <div className="space-y-6">
       {tracks.map((track: any) => {
         const splits = track.splits ?? [];
+        const allocations = track.split_allocations ?? [];
         const artistById = new Map<string, string>(
           (track.track_participants ?? []).map((tp: any) => [
             String(tp.artist_id),
@@ -178,6 +181,39 @@ export default async function SplitsPage({ params }: { params: Promise<{ id: str
                               </div>
                             ))}
                           </EditableActionForm>
+                          <div className="space-y-2">
+                            {scopeSplits
+                              .filter(
+                                (line: any) => line.holder_type === "artist" && line.artist_id,
+                              )
+                              .map((line: any) => (
+                                <SplitAllocationEditor
+                                  key={`allocation-${line.artist_id}`}
+                                  releaseId={id}
+                                  trackId={track.id}
+                                  scope={scope}
+                                  parentArtistId={line.artist_id}
+                                  parentArtistName={
+                                    artistById.get(String(line.artist_id)) ?? "Artista"
+                                  }
+                                  parentBps100={line.bps100}
+                                  artists={(artists as any[]).map((artist) => ({
+                                    id: artist.id,
+                                    stageName: artist.stage_name,
+                                  }))}
+                                  allocations={allocations
+                                    .filter(
+                                      (allocation: any) =>
+                                        allocation.scope === scope &&
+                                        allocation.parent_artist_id === line.artist_id,
+                                    )
+                                    .map((allocation: any) => ({
+                                      beneficiaryId: allocation.beneficiary_artist_id,
+                                      bps100: allocation.bps100,
+                                    }))}
+                                />
+                              ))}
+                          </div>
                         </div>
                       )}
                     </TabsContent>

@@ -9,7 +9,8 @@ export async function getReleases(tenantId?: string) {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("releases")
-    .select(`
+    .select(
+      `
       *,
       tracks(
         id,
@@ -34,7 +35,8 @@ export async function getReleases(tenantId?: string) {
         status,
         authorization_recipients(status, name, email)
       )
-    `)
+    `,
+    )
     .eq("tenant_id", tid)
     .is("deleted_at", null)
     .order("release_date", { ascending: true });
@@ -46,7 +48,9 @@ export const getRelease = cache(async function getRelease(tenantId: string, rele
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("releases")
-    .select("*, tracks(*, track_participants(*, artists!inner(*)), registrations(*), splits(*), pitches(*), presentation_jobs(*)), authorizations(*, authorization_recipients(*))")
+    .select(
+      "*, tracks(*, track_participants(*, artists!inner(*)), registrations(*), splits(*), split_allocations(*), pitches(*), presentation_jobs(*)), authorizations(*, authorization_recipients(*))",
+    )
     .eq("tenant_id", tenantId)
     .eq("id", releaseId)
     .single();

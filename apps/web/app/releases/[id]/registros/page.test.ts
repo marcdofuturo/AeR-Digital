@@ -16,8 +16,9 @@ describe("registration guidance", () => {
   it("limits associations and distribution providers to the requested values", () => {
     const source = registrationSource();
 
-    expect(source).toContain('<option value="UBC">UBC</option>');
-    expect(source).toContain('<option value="Abramus">Abramus</option>');
+    expect(source).toContain(
+      'const ECAD_ASSOCIATIONS = ["Abramus", "Amar", "Assim", "Sbacem", "Sicam", "Socinpro", "UBC"]',
+    );
     expect(source).toContain('placeholder="Audiolink Brasil"');
     expect(source).not.toContain("Altafonte");
     expect(source).not.toContain("ONErpm");

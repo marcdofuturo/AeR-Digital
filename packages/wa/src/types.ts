@@ -53,7 +53,7 @@ export interface ResolvedArtist {
   stage_name: string;
   input_name: string;
   position: number;
-  billing_role: "primary" | "featuring";
+  billing_role: BillingRole;
   is_producer: boolean;
   is_composer: boolean;
   is_performer: boolean;
@@ -102,8 +102,6 @@ export interface StepResult {
 }
 
 // ─── Handler type ────────────────────────────────────────────
-export type StepHandler = (
-  input: string,
-  draft: Draft,
-  ctx: HandlerContext,
-) => Promise<StepResult>;
+export type BillingRole = "principal" | "primary" | "featuring";
+
+export type StepHandler = (input: string, draft: Draft, ctx: HandlerContext) => Promise<StepResult>;

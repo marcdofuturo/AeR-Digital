@@ -11,7 +11,7 @@ export interface SplitLine {
 export interface Participant {
   id: string;
   stage_name: string;
-  billing_role: "primary" | "featuring";
+  billing_role: "principal" | "primary" | "featuring";
   position: number;
   is_composer: boolean;
   is_producer: boolean;
