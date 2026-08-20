@@ -1,7 +1,7 @@
 import { buildSimpleDocx, type DocxBlock } from "./simple-docx";
-import { buildSimplePdf } from "./simple-pdf";
+import { buildAuthorizationTablePdf } from "./authorization-pdf";
 
-type SplitLine = {
+export type AuthorizationSplitLine = {
   scope?: string;
   holder_type: "artist" | "label";
   artist_id?: string | null;
@@ -10,14 +10,42 @@ type SplitLine = {
   version?: number;
 };
 
-type Participant = {
+export type AuthorizationParticipant = {
   artist_id?: string | null;
   position?: number | null;
-  artists?: {
-    id?: string;
-    stage_name?: string | null;
-    legal_name?: string | null;
-  } | null;
+  artists?: AuthorizationArtist | AuthorizationArtist[] | null;
+};
+
+type AuthorizationArtist = {
+  id?: string;
+  stage_name?: string | null;
+  legal_name?: string | null;
+};
+
+export type AuthorizationReleaseSource = {
+  id?: string;
+  title?: string | null;
+  release_date?: string | null;
+  distributor?: string | null;
+  upc?: string | null;
+  album_id_ext?: string | null;
+};
+
+export type AuthorizationTrackSource = {
+  id?: string;
+  title?: string | null;
+  isrc?: string | null;
+  track_participants?: AuthorizationParticipant[] | null;
+  splits?: AuthorizationSplitLine[] | null;
+};
+
+export type AuthorizationTenantSource = {
+  id?: string;
+  name?: string | null;
+  legal_name?: string | null;
+  responsible_name?: string | null;
+  representative_name?: string | null;
+  legal_representative?: string | null;
 };
 
 export type AuthorizationDocumentData = {
@@ -30,7 +58,6 @@ export type AuthorizationDocumentData = {
   distributor: string;
   isrc: string;
   albumId: string;
-  trackLink: string;
   splits: {
     obra: AuthorizationSplitRow[];
     fonograma: AuthorizationSplitRow[];
@@ -57,17 +84,19 @@ export function buildAuthorizationDocumentData({
   track,
   tenant,
 }: {
-  release: any;
-  track: any;
-  tenant: any;
+  release: AuthorizationReleaseSource;
+  track: AuthorizationTrackSource;
+  tenant: AuthorizationTenantSource | null;
 }): AuthorizationDocumentData {
   const labelName = cleanHumanText(tenant?.name ?? "Audiolink Brasil");
-  const participants = [...(track.track_participants ?? [])]
-    .sort((a: Participant, b: Participant) => Number(a.position ?? 0) - Number(b.position ?? 0));
+  const participants = [...(track.track_participants ?? [])].sort(
+    (a: AuthorizationParticipant, b: AuthorizationParticipant) =>
+      Number(a.position ?? 0) - Number(b.position ?? 0),
+  );
   const artistById = new Map<string, string>();
 
   for (const participant of participants) {
-    const artist = participant.artists ?? {};
+    const artist = participantArtist(participant) ?? {};
     if (participant.artist_id) {
       artistById.set(
         String(participant.artist_id),
@@ -77,7 +106,10 @@ export function buildAuthorizationDocumentData({
   }
 
   const artists = participants
-    .map((participant: Participant) => participant.artists?.stage_name || participant.artists?.legal_name)
+    .map((participant: AuthorizationParticipant) => {
+      const artist = participantArtist(participant);
+      return artist?.stage_name || artist?.legal_name;
+    })
     .filter((name): name is string => Boolean(name))
     .map((name: string) => cleanHumanText(name))
     .join(", ");
@@ -92,7 +124,6 @@ export function buildAuthorizationDocumentData({
     distributor: cleanHumanText(release.distributor ?? "Audiolink Brasil"),
     isrc: cleanHumanText(track.isrc ?? "a gerar"),
     albumId: cleanHumanText(release.album_id_ext ?? release.upc ?? "a gerar"),
-    trackLink: cleanHumanText(track.audio_url ?? ""),
     splits: {
       obra: splitRows(track.splits ?? [], "obra", artistById, labelName),
       fonograma: splitRows(track.splits ?? [], "fonograma", artistById, labelName),
@@ -101,7 +132,9 @@ export function buildAuthorizationDocumentData({
   };
 }
 
-export function buildAuthorizationSections(data: AuthorizationDocumentData): AuthorizationSection[] {
+export function buildAuthorizationSections(
+  data: AuthorizationDocumentData,
+): AuthorizationSection[] {
   return [
     { kind: "paragraph", text: "Olá, pessoal!" },
     { kind: "paragraph", text: "Espero que estejam bem." },
@@ -124,7 +157,6 @@ export function buildAuthorizationSections(data: AuthorizationDocumentData): Aut
         ["Agregadora:", data.distributor],
         ["ISRC:", data.isrc],
         ["ID do Álbum:", data.albumId],
-        ["Link da Faixa:", data.trackLink || "a inserir"],
       ],
     },
     { kind: "splitTable", title: "Obra", rows: data.splits.obra },
@@ -134,8 +166,14 @@ export function buildAuthorizationSections(data: AuthorizationDocumentData): Aut
       kind: "paragraph",
       text: "Caso todos estejam de acordo com o lançamento, por gentileza, responder este e-mail com a seguinte mensagem:",
     },
-    { kind: "paragraph", text: `"Eu, [NOME] sou responsável pelo [ARTISTA], autorizo este lançamento."` },
-    { kind: "paragraph", text: "Solicito também que seja preenchido o nosso formulário de cadastro:" },
+    {
+      kind: "paragraph",
+      text: `"Eu, [NOME] sou responsável pelo [ARTISTA], autorizo este lançamento."`,
+    },
+    {
+      kind: "paragraph",
+      text: "Solicito também que seja preenchido o nosso formulário de cadastro:",
+    },
     {
       kind: "list",
       items: [
@@ -149,13 +187,15 @@ export function buildAuthorizationSections(data: AuthorizationDocumentData): Aut
 }
 
 export function buildAuthorizationMarkdown(data: AuthorizationDocumentData) {
-  return buildAuthorizationSections(data).map((section) => {
-    if (section.kind === "paragraph") return section.text;
-    if (section.kind === "heading") return `**${section.text}**`;
-    if (section.kind === "kvTable") return tableMarkdown(section.rows);
-    if (section.kind === "splitTable") return splitSectionMarkdown(section.title, section.rows);
-    return section.items.map((item) => `* ${item}`).join("\n");
-  }).join("\n\n");
+  return buildAuthorizationSections(data)
+    .map((section) => {
+      if (section.kind === "paragraph") return section.text;
+      if (section.kind === "heading") return `**${section.text}**`;
+      if (section.kind === "kvTable") return tableMarkdown(section.rows);
+      if (section.kind === "splitTable") return splitSectionMarkdown(section.title, section.rows);
+      return section.items.map((item) => `* ${item}`).join("\n");
+    })
+    .join("\n\n");
 }
 
 export function buildAuthorizationDocx(data: AuthorizationDocumentData) {
@@ -163,7 +203,7 @@ export function buildAuthorizationDocx(data: AuthorizationDocumentData) {
 }
 
 export function buildAuthorizationPdf(data: AuthorizationDocumentData) {
-  return buildSimplePdf(buildPdfLines(data));
+  return buildAuthorizationTablePdf(buildAuthorizationSections(data));
 }
 
 function buildDocxBlocks(data: AuthorizationDocumentData): DocxBlock[] {
@@ -171,72 +211,44 @@ function buildDocxBlocks(data: AuthorizationDocumentData): DocxBlock[] {
     if (section.kind === "paragraph") return [{ kind: "paragraph", text: section.text }];
     if (section.kind === "heading") return [{ kind: "heading", text: section.text, level: 1 }];
     if (section.kind === "kvTable") return [{ kind: "table", rows: section.rows }];
-    if (section.kind === "splitTable") return [
-      { kind: "heading", text: section.title, level: 2 },
-      {
-        kind: "table",
-        rows: [
-          ["ID", "Artista", "Classe", "Participação (%)"],
-          ...section.rows.map((row) => [String(row.id), row.artist, row.role, row.percent]),
-          ["", "", "Total:", "100%"],
-        ],
-      },
-    ];
+    if (section.kind === "splitTable")
+      return [
+        { kind: "heading", text: section.title, level: 2 },
+        {
+          kind: "table",
+          rows: [
+            ["ID", "Artista", "Classe", "Participação (%)"],
+            ...section.rows.map((row) => [String(row.id), row.artist, row.role, row.percent]),
+            ["", "", "Total:", "100%"],
+          ],
+        },
+      ];
     return section.items.map((item) => ({ kind: "paragraph", text: `• ${item}` }));
   });
 }
 
-function buildPdfLines(data: AuthorizationDocumentData) {
-  const lines: Array<{ text: string; size?: number; bold?: boolean }> = [];
-  for (const section of buildAuthorizationSections(data)) {
-    if (section.kind === "paragraph") lines.push({ text: section.text }, { text: "" });
-    if (section.kind === "heading") lines.push({ text: section.text, size: 15, bold: true }, { text: "" });
-    if (section.kind === "kvTable") {
-      for (const row of section.rows) {
-        const field = row[0] ?? "";
-        const value = row[1] ?? "";
-        lines.push({ text: `${field.padEnd(21, " ")} ${value}` });
-      }
-      lines.push({ text: "" });
-    }
-    if (section.kind === "splitTable") {
-      lines.push({ text: section.title, bold: true });
-      lines.push({ text: "ID   Artista                         Classe                         Participação (%)", bold: true });
-      for (const row of section.rows) {
-        lines.push({
-          text: [
-            String(row.id).padEnd(4, " "),
-            row.artist.slice(0, 29).padEnd(31, " "),
-            row.role.slice(0, 30).padEnd(32, " "),
-            row.percent,
-          ].join(""),
-        });
-      }
-      lines.push({ text: "                                      Total:                         100%" });
-      lines.push({ text: "" });
-    }
-    if (section.kind === "list") {
-      for (const item of section.items) lines.push({ text: `• ${item}` });
-      lines.push({ text: "" });
-    }
-  }
-  return lines;
-}
-
-function splitRows(splits: SplitLine[], scope: string, artistById: Map<string, string>, labelName: string) {
+function splitRows(
+  splits: AuthorizationSplitLine[],
+  scope: string,
+  artistById: Map<string, string>,
+  labelName: string,
+) {
   const latest = latestSplits(splits, scope);
   return latest.map((line, index) => ({
     id: index + 1,
-    artist: line.holder_type === "label"
-      ? labelName
-      : artistById.get(String(line.artist_id)) ?? "Participante",
+    artist:
+      line.holder_type === "label"
+        ? labelName
+        : (artistById.get(String(line.artist_id)) ?? "Participante"),
     role: normalizeRole(line.role_label),
     percent: formatPercent(line.bps100),
   }));
 }
 
-function latestSplits(splits: SplitLine[], scope: string) {
-  const filtered = splits.filter((split) => split.scope === scope) as Array<SplitLine & { scope: string }>;
+function latestSplits(splits: AuthorizationSplitLine[], scope: string) {
+  const filtered = splits.filter((split) => split.scope === scope) as Array<
+    AuthorizationSplitLine & { scope: string }
+  >;
   if (!filtered.length) return [];
   const maxVersion = Math.max(...filtered.map((split) => Number(split.version ?? 1)));
   return filtered.filter((split) => Number(split.version ?? 1) === maxVersion);
@@ -261,14 +273,18 @@ function tableMarkdown(rows: string[][]) {
   ].join("\n");
 }
 
-function resolveRepresentativeName(tenant: any, labelName: string) {
+function participantArtist(participant: AuthorizationParticipant) {
+  return Array.isArray(participant.artists) ? participant.artists[0] : participant.artists;
+}
+
+function resolveRepresentativeName(tenant: AuthorizationTenantSource | null, labelName: string) {
   if (normalizeText(labelName) === "supertime digital") return "LucIA";
   return cleanHumanText(
-    tenant?.responsible_name
-      || tenant?.representative_name
-      || tenant?.legal_representative
-      || tenant?.legal_name
-      || labelName,
+    tenant?.responsible_name ||
+      tenant?.representative_name ||
+      tenant?.legal_representative ||
+      tenant?.legal_name ||
+      labelName,
   );
 }
 
@@ -278,7 +294,11 @@ function normalizeRole(role: string) {
 }
 
 function normalizeText(value: string) {
-  return cleanHumanText(value).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return cleanHumanText(value)
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function formatDate(value: string | null | undefined) {
@@ -295,11 +315,26 @@ function formatPercent(bps100: number) {
 function cleanHumanText(value: string) {
   let text = String(value);
   const replacements: Array<[string, string]> = [
-    ["Ã¡", "á"], ["Ã ", "à"], ["Ã¢", "â"], ["Ã£", "ã"],
-    ["Ã©", "é"], ["Ãª", "ê"], ["Ã­", "í"], ["Ã³", "ó"],
-    ["Ã´", "ô"], ["Ãµ", "õ"], ["Ãº", "ú"], ["Ã§", "ç"],
-    ["Ã", "Á"], ["Ã‰", "É"], ["Ã", "Í"], ["Ã“", "Ó"],
-    ["Ãš", "Ú"], ["Ã‡", "Ç"], ["Â©", "©"], ["Â·", "·"],
+    ["Ã¡", "á"],
+    ["Ã ", "à"],
+    ["Ã¢", "â"],
+    ["Ã£", "ã"],
+    ["Ã©", "é"],
+    ["Ãª", "ê"],
+    ["Ã­", "í"],
+    ["Ã³", "ó"],
+    ["Ã´", "ô"],
+    ["Ãµ", "õ"],
+    ["Ãº", "ú"],
+    ["Ã§", "ç"],
+    ["Ã", "Á"],
+    ["Ã‰", "É"],
+    ["Ã", "Í"],
+    ["Ã“", "Ó"],
+    ["Ãš", "Ú"],
+    ["Ã‡", "Ç"],
+    ["Â©", "©"],
+    ["Â·", "·"],
   ];
   for (const [bad, good] of replacements) text = text.split(bad).join(good);
   return text;

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/tenant", () => ({
@@ -70,7 +70,10 @@ describe("EquipeConfigPage", () => {
     expect(screen.getByText("Owner")).toBeVisible();
     expect(screen.getByRole("button", { name: /convidar membro/i })).toBeVisible();
     expect(screen.getByLabelText(/nivel de permissao/i)).toBeVisible();
+    expect(screen.getByLabelText(/permissao de analista/i)).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /editar permissao/i }));
     expect(screen.getByRole("button", { name: /salvar permissao/i })).toBeVisible();
+    expect(screen.getByLabelText(/permissao de analista/i)).toBeEnabled();
     expect(screen.getByRole("button", { name: /retirar acesso/i })).toBeVisible();
   });
 });

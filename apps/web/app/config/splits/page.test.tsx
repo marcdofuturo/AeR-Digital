@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/tenant", () => ({
@@ -24,7 +24,10 @@ describe("SplitsConfigPage", () => {
     expect(screen.getByRole("radio", { name: /percentual fixo/i })).toBeChecked();
     expect(screen.getByRole("radio", { name: /pro-rata automático/i })).toBeVisible();
     expect(screen.getByLabelText("Percentual do selo")).toHaveValue(30);
-    expect(screen.getByRole("button", { name: "Salvar configuração" })).toBeVisible();
+    expect(screen.getByLabelText("Percentual do selo")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /editar configuracao/i }));
+    expect(screen.getByRole("button", { name: /salvar configura/i })).toBeVisible();
+    expect(screen.getByLabelText("Percentual do selo")).toBeEnabled();
     expect(screen.getByText(/restante é distribuído pro-rata/i)).toBeVisible();
   });
 });

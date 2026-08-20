@@ -142,6 +142,39 @@ describe("presentation runtime", () => {
     expect(result.apresentacao.length).toBeLessThanOrEqual(500);
   });
 
+  it("sends the complete saved transcript to synthesis", async () => {
+    const transcriptMarker = "FIM_DA_TRANSCRICAO_COMPLETA";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            stop_reason: "end_turn",
+            content: [{ type: "text", text: "Pesquisa factual concluida." }],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            stop_reason: "end_turn",
+            content: [{ type: "text", text: JSON.stringify({ apresentacao: "Pitch final" }) }],
+          }),
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generatePresentation(
+      { ANTHROPIC_API_KEY: "test-key" },
+      { ...input, transcript: `${"trecho ".repeat(3_000)}${transcriptMarker}` },
+    );
+
+    const synthesisRequest = JSON.parse(String(fetchMock.mock.calls[1]![1]?.body));
+    expect(synthesisRequest.messages[0].content).toContain(transcriptMarker);
+  });
+
   it("repairs a noncompliant pitch without repeating research", async () => {
     const fetchMock = vi
       .fn()

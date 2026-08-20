@@ -35,7 +35,8 @@ describe("TrackMetadataForm", () => {
 
     expect(screen.getByLabelText("Faixa")).toBeEnabled();
     expect(screen.getByLabelText("ISRC")).toBeEnabled();
-    expect(screen.getByLabelText("Duração (segundos)")).toBeEnabled();
+    expect(screen.getByLabelText("Duração (MM:SS)")).toBeEnabled();
+    expect(screen.getByLabelText("Duração (MM:SS)")).toHaveValue("02:54");
     expect(screen.getByLabelText("BPM")).toBeEnabled();
     expect(screen.getByLabelText("Tom")).toBeEnabled();
     expect(screen.getByLabelText("Energia (0 a 1)")).toBeEnabled();

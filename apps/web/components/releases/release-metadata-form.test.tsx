@@ -23,6 +23,8 @@ describe("ReleaseMetadataForm", () => {
       />,
     );
 
+    expect(screen.getByLabelText("Data")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /editar visão geral/i }));
     fireEvent.change(screen.getByLabelText("Data"), { target: { value: "2026-09-20" } });
     fireEvent.click(screen.getByRole("button", { name: /salvar visão geral/i }));
 

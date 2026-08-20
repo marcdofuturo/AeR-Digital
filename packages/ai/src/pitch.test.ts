@@ -30,7 +30,10 @@ describe("Pitch prompt", () => {
     const prompt = buildPitchPrompt(mockCtx);
     expect(prompt).toContain("SE SOLTA");
     expect(prompt).toContain("Funk");
-    expect(prompt).toContain("130.5 BPM");
+    expect(prompt).toContain("Se solta, vai");
+    expect(prompt).not.toContain("130.5 BPM");
+    expect(prompt).not.toContain("F#");
+    expect(prompt).not.toMatch(/\btom\b|tonalidade/i);
     expect(prompt).toContain("500 caracteres");
     expect(prompt).toContain("SONORO");
     expect(prompt).toContain("NARRATIVO");
@@ -130,5 +133,29 @@ describe("Grounded presentation requirements", () => {
     expect(prompt).toMatch(/nao cite nomes de playlists/i);
     expect(prompt).toMatch(/nao inclua fontes|nao inclua avisos/i);
     expect(prompt).not.toMatch(/spotify|amazon music|apple music/i);
+  });
+});
+
+describe("Curator-focused presentation requirements", () => {
+  it("prioritizes lyric context and audience relevance without exposing BPM or key", () => {
+    const prompt = buildPresentationPrompt({
+      titulo: "Faixa Teste",
+      creditos: "Artista Um, Artista Dois",
+      generos: ["Funk"],
+      data: "2026-09-15",
+      bpm: 130,
+      key: "F# minor",
+      energy: 0.82,
+      transcript_sample: "uma letra sobre reencontro e liberdade",
+    });
+
+    expect(prompt).toMatch(/tema|contexto da letra/i);
+    expect(prompt).toMatch(/mood|sentimento/i);
+    expect(prompt).toMatch(/curador/i);
+    expect(prompt).toMatch(/relevancia publica|tracao/i);
+    expect(prompt).not.toContain("130 BPM");
+    expect(prompt).not.toContain("F# minor");
+    expect(prompt).not.toMatch(/\btom\b|tonalidade/i);
+    expect(prompt).not.toMatch(/energia 0\.82/i);
   });
 });

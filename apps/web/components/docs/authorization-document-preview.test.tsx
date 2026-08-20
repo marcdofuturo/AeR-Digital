@@ -12,7 +12,6 @@ const data = {
   distributor: "Audiolink Brasil",
   isrc: "BR-ABC-26-00001",
   albumId: "123",
-  trackLink: "https://example.com/audio.mp3",
   splits: { obra: [], fonograma: [], digital: [] },
 };
 

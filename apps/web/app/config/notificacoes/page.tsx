@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Bell } from "lucide-react";
-import { SaveButton } from "@/components/forms/save-button";
+import { EditableActionForm } from "@/components/forms/editable-action-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/server";
@@ -24,13 +24,20 @@ export default async function NotificationsPage({ searchParams }: NotificationsP
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-base">
           <Bell className="h-4 w-4" />
           Notificacoes
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={saveNotifications} className="space-y-4">
+        <EditableActionForm
+          action={saveNotifications}
+          className="space-y-4"
+          fieldsClassName="space-y-4"
+          editLabel="Editar notificacoes"
+          saveLabel="Salvar notificacoes"
+          savedLabel="Notificacoes salvas"
+        >
           <NumberField
             label="Intervalo de follow-up (dias)"
             name="reminder_interval_days"
@@ -63,11 +70,7 @@ export default async function NotificationsPage({ searchParams }: NotificationsP
               Configuracoes salvas.
             </p>
           ) : null}
-
-          <div className="flex justify-end">
-            <SaveButton pendingLabel="Salvando notificacoes...">Salvar notificacoes</SaveButton>
-          </div>
-        </form>
+        </EditableActionForm>
       </CardContent>
     </Card>
   );
@@ -88,10 +91,18 @@ function NumberField({
 }) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-fg mb-1">
+      <label htmlFor={name} className="text-fg mb-1 block text-sm font-medium">
         {label}
       </label>
-      <Input id={name} name={name} type="number" min={min} max={max} defaultValue={defaultValue} required />
+      <Input
+        id={name}
+        name={name}
+        type="number"
+        min={min}
+        max={max}
+        defaultValue={defaultValue}
+        required
+      />
     </div>
   );
 }

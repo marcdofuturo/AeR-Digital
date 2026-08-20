@@ -1,28 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { SaveButton } from "@/components/forms/save-button";
+import { RegistrationForm } from "@/components/releases/registration-form";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId, getTenant } from "@/lib/tenant";
-import { fmtDate } from "@ar/shared";
-import {
-  addTrackParticipant,
-  saveRegistrationStatus,
-  setReleaseStageFromForm,
-} from "@/app/releases/actions";
-import { AlertTriangle, CheckCheck, Clock, Plus, XCircle } from "lucide-react";
-import { normalizeRegistrationStatus } from "@/lib/registration-status";
-
-const REG_LABELS: Record<string, string> = {
-  obra_ecad: "Status da obra",
-  fonograma_ecad: "Status do fonograma",
-  distribuicao: "Distribuicao",
-};
-const STATUS_VARIANT: Record<string, "secondary" | "success" | "warning" | "danger"> = {
-  pendente: "secondary",
-  em_andamento: "warning",
-  concluido: "success",
-  rejeitado: "danger",
-};
+import { addTrackParticipant, setReleaseStageFromForm } from "@/app/releases/actions";
+import { Plus } from "lucide-react";
 const REGISTRATION_ORDER = ["obra_ecad", "fonograma_ecad", "distribuicao"];
 
 export default async function RegistrosPage({ params }: { params: Promise<{ id: string }> }) {
@@ -136,6 +118,9 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
                     trackId={track.id}
                     kind={kind}
                     registration={registrations[kind]}
+                    distributor={r.distributor ?? "Audiolink Brasil"}
+                    upc={r.upc ?? ""}
+                    isrc={track.isrc ?? ""}
                   />
                 ))}
               </div>
@@ -145,117 +130,6 @@ export default async function RegistrosPage({ params }: { params: Promise<{ id: 
       })}
     </div>
   );
-}
-
-function RegistrationForm({
-  releaseId,
-  trackId,
-  kind,
-  registration,
-}: {
-  releaseId: string;
-  trackId: string;
-  kind: string;
-  registration: any;
-}) {
-  const status = normalizeRegistrationStatus(registration?.status);
-  const isDistribution = kind === "distribuicao";
-  const externalLabel = kind === "obra_ecad" ? "ISWC" : kind === "fonograma_ecad" ? "ISRC" : "UPC";
-  return (
-    <form action={saveRegistrationStatus} className="border-border/50 bg-bg rounded-md border p-3">
-      <input type="hidden" name="release_id" value={releaseId} />
-      <input type="hidden" name="track_id" value={trackId} />
-      <input type="hidden" name="kind" value={kind} />
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <StatusIcon status={status} />
-          <div>
-            <p className="text-fg text-sm font-medium">{REG_LABELS[kind]}</p>
-            {kind === "obra_ecad" && status === "concluido" && registration?.due_at ? (
-              <p className="text-warning text-xs">
-                Verificar aceite/ISWC em {fmtDate(registration.due_at, "dd/MM/yyyy")}
-              </p>
-            ) : null}
-          </div>
-        </div>
-        <Badge variant={STATUS_VARIANT[status] ?? "secondary"} className="w-fit text-xs">
-          {status === "em_andamento" ? "em andamento" : status}
-        </Badge>
-      </div>
-      <div className="grid gap-3 md:grid-cols-5">
-        <label className="text-fg-muted text-xs">
-          Status
-          <select
-            name="status"
-            defaultValue={status}
-            className="border-border bg-surface text-fg mt-1 w-full rounded-md border px-2 py-2 text-sm"
-          >
-            <option value="pendente">Pendente</option>
-            <option value="em_andamento">Em andamento</option>
-            <option value="concluido">Concluido</option>
-            <option value="rejeitado">Rejeitado</option>
-          </select>
-        </label>
-        {isDistribution ? (
-          <label className="text-fg-muted text-xs">
-            Distribuidora
-            <input
-              name="entity"
-              value="Audiolink Brasil"
-              readOnly
-              className="border-border bg-surface text-fg mt-1 w-full rounded-md border px-2 py-2 text-sm"
-            />
-          </label>
-        ) : (
-          <label className="text-fg-muted text-xs">
-            Associacao
-            <select
-              name="entity"
-              defaultValue={registration?.entity === "Abramus" ? "Abramus" : "UBC"}
-              className="border-border bg-surface text-fg mt-1 w-full rounded-md border px-2 py-2 text-sm"
-            >
-              <option value="UBC">UBC</option>
-              <option value="Abramus">Abramus</option>
-            </select>
-          </label>
-        )}
-        <Field
-          name="external_id"
-          label={externalLabel}
-          defaultValue={registration?.external_id ?? ""}
-          placeholder={externalLabel}
-        />
-        {!isDistribution ? (
-          <Field
-            name="ecad_code"
-            label="Codigo ECAD"
-            defaultValue={registration?.ecad_code ?? ""}
-            placeholder="Codigo ECAD"
-          />
-        ) : (
-          <span />
-        )}
-        <Field
-          name="notes"
-          label="Observacao"
-          defaultValue={registration?.notes ?? ""}
-          placeholder="Detalhes do cadastro"
-        />
-      </div>
-      <div className="mt-3 flex justify-end">
-        <SaveButton size="sm" variant="outline">
-          Salvar
-        </SaveButton>
-      </div>
-    </form>
-  );
-}
-
-function StatusIcon({ status }: { status: string }) {
-  if (status === "concluido") return <CheckCheck className="text-success h-4 w-4" />;
-  if (status === "em_andamento") return <Clock className="text-warning h-4 w-4" />;
-  if (status === "rejeitado") return <XCircle className="text-danger h-4 w-4" />;
-  return <AlertTriangle className="text-fg-muted h-4 w-4" />;
 }
 
 function StageForm({

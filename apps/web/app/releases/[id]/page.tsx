@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { SaveButton } from "@/components/forms/save-button";
 import { EditMetadataButton } from "@/components/forms/edit-metadata-button";
 import { ReleaseMetadataForm } from "@/components/releases/release-metadata-form";
 import { TrackMetadataForm } from "@/components/releases/track-metadata-form";
@@ -17,6 +16,7 @@ import { getCurrentTenantId, getTenant } from "@/lib/tenant";
 import { KANBAN_STAGES, formatDaysInStage } from "@ar/ai/crm";
 import { fmtDate } from "@ar/shared";
 import { saveArtistMetadata } from "@/app/releases/actions";
+import { formatTrackDuration } from "@/lib/tracks/duration";
 import { Calendar, Clock, Disc3, FileText, Users, Wrench } from "lucide-react";
 
 const STAGE_LABEL: Record<string, string> = {};
@@ -126,8 +126,7 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                     <div className="mt-1 flex flex-wrap items-center gap-2">
                       {t.audio_duration_sec && (
                         <span className="text-fg-muted text-xs">
-                          {Math.floor(t.audio_duration_sec / 60)}:
-                          {String(t.audio_duration_sec % 60).padStart(2, "0")}
+                          {formatTrackDuration(t.audio_duration_sec)}
                         </span>
                       )}
                       {t.isrc && (
@@ -228,6 +227,8 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                               <input
                                 form={formId}
                                 name="legal_name"
+                                data-editable
+                                disabled
                                 defaultValue={artist.legal_name ?? ""}
                                 placeholder="Nome completo"
                                 className="border-border bg-surface text-fg w-40 rounded-md border px-2 py-1.5 text-xs"
@@ -237,6 +238,8 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                               <input
                                 form={formId}
                                 name="ecad_code"
+                                data-editable
+                                disabled
                                 defaultValue={artist.ecad_code ?? ""}
                                 placeholder="ECAD"
                                 className="border-border bg-surface text-fg w-28 rounded-md border px-2 py-1.5 text-xs"
@@ -278,9 +281,6 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                                 <input type="hidden" name="artist_id" value={artist.id} />
                                 <div className="flex justify-end gap-2">
                                   <EditMetadataButton formId={formId} />
-                                  <SaveButton size="sm" variant="outline" savedLabel="Salvo">
-                                    OK
-                                  </SaveButton>
                                 </div>
                               </form>
                             </TableCell>
