@@ -130,6 +130,25 @@ describe("authorization document", () => {
     expect(buildAuthorizationMarkdown(supertimeData)).toContain("Sou o LucIA");
   });
 
+  it("does not assume a distributor when the release has none", () => {
+    const documentData = buildAuthorizationDocumentData({
+      tenant: { name: "SuperTime Digital" },
+      release: {
+        title: "Teste",
+        release_date: "2026-09-20",
+        distributor: null,
+      },
+      track: {
+        title: "Teste",
+        track_participants: [],
+        splits: [],
+      },
+    });
+
+    expect(documentData.distributor).toBe("não informada");
+    expect(buildAuthorizationMarkdown(documentData)).toContain("não informada");
+  });
+
   it("builds a valid docx zip header", () => {
     const docx = buildAuthorizationDocx(data);
     expect(docx[0]).toBe(0x50);

@@ -121,7 +121,7 @@ export function buildAuthorizationDocumentData({
     trackTitle: cleanHumanText(track.title ?? release.title ?? "Faixa"),
     artists: artists || "Artistas não informados",
     releaseDate: formatDate(release.release_date),
-    distributor: cleanHumanText(release.distributor ?? "Audiolink Brasil"),
+    distributor: cleanHumanText(release.distributor ?? "não informada"),
     isrc: cleanHumanText(track.isrc ?? "a gerar"),
     albumId: cleanHumanText(release.album_id_ext ?? release.upc ?? "a gerar"),
     splits: {
