@@ -8,6 +8,7 @@ export async function enqueuePresentationJob(
     trackId: string;
     userId: string;
     userGuidance: string | null;
+    creditCost: number;
   },
 ) {
   const { data, error } = await client
@@ -18,12 +19,14 @@ export async function enqueuePresentationJob(
       track_id: input.trackId,
       created_by: input.userId,
       user_guidance: input.userGuidance,
+      credit_cost: input.creditCost,
       status: "queued",
     })
     .select("id")
     .single();
 
-  if (error?.code === "23505") throw new Error("Ja existe uma apresentacao em processamento para esta faixa");
+  if (error?.code === "23505")
+    throw new Error("Ja existe uma apresentacao em processamento para esta faixa");
   if (error || !data) throw new Error("Falha ao enfileirar a apresentacao");
   return data as { id: string };
 }

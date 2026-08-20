@@ -21,13 +21,18 @@ function isValidCnpj(value: string | null): boolean {
   if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) return false;
 
   const calculateDigit = (base: string, weights: number[]) => {
-    const sum = base.split("").reduce((total, digit, index) => total + Number(digit) * weights[index]!, 0);
+    const sum = base
+      .split("")
+      .reduce((total, digit, index) => total + Number(digit) * weights[index]!, 0);
     const remainder = sum % 11;
     return remainder < 2 ? 0 : 11 - remainder;
   };
 
   const first = calculateDigit(digits.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-  const second = calculateDigit(`${digits.slice(0, 12)}${first}`, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const second = calculateDigit(
+    `${digits.slice(0, 12)}${first}`,
+    [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2],
+  );
   return digits.endsWith(`${first}${second}`);
 }
 
@@ -35,6 +40,15 @@ export const teamInvitationSchema = z.object({
   full_name: z.string().trim().min(2, "Informe o nome").max(100),
   email: z.string().trim().email("Email invalido").max(200),
   role: z.enum(["ar", "financeiro", "viewer"]),
+});
+
+export const teamMemberAccessSchema = z.object({
+  user_id: z.string().uuid("Membro invalido"),
+  role: z.enum(["ar", "financeiro", "viewer"]),
+});
+
+export const teamMemberRemovalSchema = z.object({
+  user_id: z.string().uuid("Membro invalido"),
 });
 
 export const labelSettingsSchema = z.object({

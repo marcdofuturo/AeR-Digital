@@ -9,6 +9,7 @@ export type PresentationJob = {
   genres: string[];
   participants: string[];
   userGuidance: string | null;
+  cachedAnalysis: AudioAnalysis | null;
 };
 
 export type AudioAnalysis = {
@@ -50,19 +51,21 @@ export async function processNextPresentationJob(
   const job = await dependencies.claim();
   if (!job) return false;
 
-  let analysis: AudioAnalysis;
-  try {
-    analysis = await dependencies.analyze(job);
-  } catch {
-    await dependencies.fail(job, "Falha ao analisar o audio da faixa");
-    return true;
-  }
+  let analysis = job.cachedAnalysis;
+  if (!analysis) {
+    try {
+      analysis = await dependencies.analyze(job);
+    } catch {
+      await dependencies.fail(job, "Falha ao analisar o audio da faixa");
+      return true;
+    }
 
-  try {
-    await dependencies.saveAnalysis(job, analysis);
-  } catch {
-    await dependencies.fail(job, "Falha ao salvar a analise de audio");
-    return true;
+    try {
+      await dependencies.saveAnalysis(job, analysis);
+    } catch {
+      await dependencies.fail(job, "Falha ao salvar a analise de audio");
+      return true;
+    }
   }
 
   let result: PresentationResult;

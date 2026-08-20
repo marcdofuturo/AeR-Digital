@@ -44,14 +44,11 @@ export function TrackAudioUploadButton({
         size: file.size,
       });
       const { error } = await createClient()
-        .storage
-        .from(ticket.bucket)
+        .storage.from(ticket.bucket)
         .uploadToSignedUrl(ticket.path, ticket.token, file, { contentType });
       if (error) throw error;
 
-      const publicUrl = await completeTrackAudioUpload({ releaseId, trackId, path: ticket.path });
-      const audioUrlInput = inputRef.current?.form?.elements.namedItem("audio_url");
-      if (audioUrlInput instanceof HTMLInputElement) audioUrlInput.value = publicUrl;
+      await completeTrackAudioUpload({ releaseId, trackId, path: ticket.path });
       setStatus("success");
       router.refresh();
     } catch {
@@ -85,7 +82,7 @@ export function TrackAudioUploadButton({
         {status === "uploading" ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : status === "success" ? (
-          <CheckCircle2 className="h-4 w-4 text-success" />
+          <CheckCircle2 className="text-success h-4 w-4" />
         ) : (
           <RefreshCw className="h-4 w-4" />
         )}
@@ -96,7 +93,7 @@ export function TrackAudioUploadButton({
             : "Substituir áudio"}
       </Button>
       {errorMessage ? (
-        <p role="alert" className="max-w-64 text-right text-xs text-danger">
+        <p role="alert" className="text-danger max-w-64 text-right text-xs">
           {errorMessage}
         </p>
       ) : null}
