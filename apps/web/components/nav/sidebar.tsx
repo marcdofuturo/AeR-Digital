@@ -37,6 +37,13 @@ export function Sidebar() {
     setCollapsed(window.localStorage.getItem("ar-sidebar-collapsed") === "1");
   }, []);
 
+  useEffect(() => {
+    document.documentElement.style.setProperty("--app-sidebar-width", collapsed ? "5rem" : "16rem");
+    return () => {
+      document.documentElement.style.removeProperty("--app-sidebar-width");
+    };
+  }, [collapsed]);
+
   function toggleCollapsed() {
     setCollapsed((value) => {
       const next = !value;
@@ -46,23 +53,32 @@ export function Sidebar() {
   }
 
   const sidebarContent = (isCollapsed = false) => (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* Brand */}
-      <div className={cn("border-b border-border", isCollapsed ? "p-3" : "p-6")}>
-        <div className={cn("flex items-start gap-2", isCollapsed ? "justify-center" : "justify-between")}>
+      <div className={cn("border-border border-b", isCollapsed ? "p-3" : "p-6")}>
+        <div
+          className={cn(
+            "flex items-start gap-2",
+            isCollapsed ? "justify-center" : "justify-between",
+          )}
+        >
           {!isCollapsed && (
             <div className="min-w-0">
-              <Link href="/" className="text-lg font-bold tracking-tight" onClick={() => setOpen(false)}>
+              <Link
+                href="/"
+                className="text-lg font-bold tracking-tight"
+                onClick={() => setOpen(false)}
+              >
                 AeR Digital
               </Link>
-              <p className="text-xs text-fg-muted mt-1">Audiolink Brasil</p>
+              <p className="text-fg-muted mt-1 text-xs">Audiolink Brasil</p>
             </div>
           )}
           {isCollapsed && (
             <Link
               href="/"
               aria-label="AeR Digital"
-              className="grid h-9 w-9 place-items-center rounded-md bg-surface-2 text-sm font-bold text-fg"
+              className="bg-surface-2 text-fg grid h-9 w-9 place-items-center rounded-md text-sm font-bold"
               onClick={() => setOpen(false)}
             >
               AeR
@@ -87,7 +103,8 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className={cn("flex-1 space-y-1", isCollapsed ? "p-3" : "p-4")}>
         {NAV_ITEMS.map((item) => {
-          const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          const active =
+            pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           const link = (
             <Link
               key={item.href}
@@ -116,7 +133,7 @@ export function Sidebar() {
       </nav>
 
       {/* User */}
-      <div className={cn("border-t border-border", isCollapsed ? "p-3" : "p-4")}>
+      <div className={cn("border-border border-t", isCollapsed ? "p-3" : "p-4")}>
         <UserMenu collapsed={isCollapsed} />
       </div>
     </div>
@@ -127,7 +144,7 @@ export function Sidebar() {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "border-r border-border bg-surface flex-shrink-0 hidden md:flex flex-col transition-[width] duration-200",
+          "border-border bg-surface hidden flex-shrink-0 flex-col border-r transition-[width] duration-200 md:flex",
           collapsed ? "w-20" : "w-64",
         )}
       >
@@ -136,12 +153,12 @@ export function Sidebar() {
 
       {/* Mobile hamburger */}
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild className="md:hidden fixed top-4 left-4 z-40">
-          <Button variant="ghost" size="icon" className="bg-surface border border-border">
+        <SheetTrigger asChild className="fixed top-4 left-4 z-40 md:hidden">
+          <Button variant="ghost" size="icon" className="bg-surface border-border border">
             <Menu className="h-5 w-5" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-64 p-0 bg-surface border-r border-border">
+        <SheetContent side="left" className="bg-surface border-border w-64 border-r p-0">
           {sidebarContent(false)}
         </SheetContent>
       </Sheet>

@@ -72,6 +72,10 @@ describe("release details dialog", () => {
   it("opens release details when a kanban card is clicked", async () => {
     render(<KanbanBoard releases={[release]} />);
 
+    expect(
+      document.querySelector('[aria-label="Rolagem horizontal dos lancamentos"]'),
+    ).toBeInTheDocument();
+
     fireEvent.click(screen.getByText("Acordei feliz"));
 
     const dialog = screen.getByRole("dialog");
@@ -90,7 +94,10 @@ describe("release details dialog", () => {
     const dialog = screen.getByRole("dialog");
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText("1 pendente")).toBeInTheDocument();
-    expect(within(dialog).getByRole("link", { name: /abrir ficha completa/i })).toHaveAttribute("href", "/releases/release-1");
+    expect(within(dialog).getByRole("link", { name: /abrir ficha completa/i })).toHaveAttribute(
+      "href",
+      "/releases/release-1",
+    );
     await closeDialog(dialog);
   });
 

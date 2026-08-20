@@ -52,7 +52,8 @@ export class SpotifyClient {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: "Basic " + Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64"),
+        Authorization:
+          "Basic " + Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64"),
       },
       body: "grant_type=client_credentials",
     });
@@ -72,7 +73,9 @@ export class SpotifyClient {
   }
 
   async searchArtist(query: string, country = "BR"): Promise<SpotifyArtist | null> {
-    const data = await this.fetch(`search?q=${encodeURIComponent(query)}&type=artist&market=${country}&limit=1`);
+    const data = await this.fetch(
+      `search?q=${encodeURIComponent(query)}&type=artist&market=${country}&limit=1`,
+    );
     const item = data.artists?.items?.[0];
     if (!item) return null;
 
@@ -174,7 +177,10 @@ export interface PresentationContext {
 
 export function buildPitchPrompt(ctx: PitchContext): string {
   const audienceText = ctx.artistAudiences
-    .map(a => `${a.name}: ${a.followers.toLocaleString("pt-BR")} seguidores · ${a.genres.join("/")} · pop ${a.popularity} · relacionados: ${a.related.join(", ")}`)
+    .map(
+      (a) =>
+        `${a.name}: ${a.followers.toLocaleString("pt-BR")} seguidores · ${a.genres.join("/")} · pop ${a.popularity} · relacionados: ${a.related.join(", ")}`,
+    )
     .join("\n");
 
   return `Você escreve pitches para playlists editoriais brasileiras.
@@ -201,18 +207,21 @@ JSON: {"opcao_a":str,"opcao_b":str,"angulo_a":str,"angulo_b":str,
 }
 
 export function buildPresentationPrompt(ctx: PresentationContext): string {
-  const signal = [
-    ctx.bpm ? `${ctx.bpm} BPM` : null,
-    ctx.key ? `tom ${ctx.key}` : null,
-    ctx.energy != null ? `energia ${ctx.energy.toFixed(2)}/1.0` : null,
-  ].filter(Boolean).join(" · ") || "sinal de audio nao informado";
+  const signal =
+    [
+      ctx.bpm ? `${ctx.bpm} BPM` : null,
+      ctx.key ? `tom ${ctx.key}` : null,
+      ctx.energy != null ? `energia ${ctx.energy.toFixed(2)}/1.0` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || "sinal de audio nao informado";
 
   const improvement = ctx.userGuidance?.trim()
     ? `\nPEDIDO DO USUARIO PARA ESTA VERSAO:\n${ctx.userGuidance.trim()}\n`
     : "";
 
-  return `Voce escreve uma apresentação profissional para musicas brasileiras.
-Gere UMA apresentação curta, direta e comercial para a faixa abaixo.
+  return `Voce escreve pitching comercial de alto nivel para lancamentos brasileiros.
+Gere UMA apresentação persuasiva, concreta e pronta para vender a faixa a equipes editoriais.
 
 FAIXA: ${ctx.titulo}
 CREDITOS: ${ctx.creditos}
@@ -224,21 +233,25 @@ ${improvement}
 REGRAS
 - Antes de escrever, pesquise cada artista citado. Registre somente relevancia publica sustentada por fontes verificaveis.
 - Use a TRANSCRICAO COMPLETA para identificar tema, narrativa, mood/sentimento e imagens centrais; nao copie versos longos.
-- Descreva elementos sonoros concretos: andamento, energia, timbres, arranjo, voz, gancho e referencias de genero.
+- Construa o texto como os melhores pitchings da Audiolink: abra com faixa e artistas, conecte relevancia factual, descreva sonoridade/mood e feche com potencial comercial ou de circulacao.
+- Descreva elementos sonoros concretos: andamento, energia, timbres, arranjo, voz, gancho, ritmo e referencias de genero.
 - Inclua contexto cultural, cidade ou territorio apenas quando confirmado pela pesquisa ou pelos dados fornecidos.
-- Explique o plano de lancamento/marketing quando houver dados e indique o encaixe editorial em Spotify, Amazon Music e Apple Music.
-- Diferencie fatos verificados de inferencias musicais. Nao invente streams, seguidores, premios, playlists, imprensa, campanhas ou parcerias.
-- A apresentacao deve responder quem, o que, por que, quando, onde e como em linguagem persuasiva sem hype vazio.
-- Portugues brasileiro.
-- Maximo de 700 caracteres.
-- Pesquise os artistas citados e use somente sinais verificaveis de relevancia publica quando houver.
-- Nao invente streams, premios, playlists, parcerias ou numeros.
-- Explique o som, o momento da faixa e o encaixe comercial.
-- FORMATO JSON estrito: {"apresentacao":str,"avisos":[str],"fontes":[{"titulo":str,"url":str}]}`;
+- Para letras explicitas, venda ritmo, interpretacao, irreverencia, atmosfera e impacto cultural sem reproduzir trechos graficos.
+- Nao mencione violencia, coercao, risco juridico, classificacao etaria ou recomendacoes negativas no pitching; concentre-se em atributos musicais verdadeiros e comercialmente relevantes.
+- Nao cite nomes de playlists, plataformas, lojas, fontes, links ou observacoes.
+- Nao inclua avisos, ressalvas, notas metodologicas ou explicacoes sobre falta de dados.
+- Nao invente streams, seguidores, premios, imprensa, campanhas, parcerias ou numeros.
+- Portugues brasileiro natural, assertivo e sem hype vazio.
+- Maximo de 500 caracteres, contando espacos. Entregue preferencialmente entre 380 e 500 caracteres.
+- FORMATO JSON estrito: {"apresentacao":str}`;
 }
 
 /** Elegibility check */
-export function isEligibleForPitch(releaseDate: string, createdDate: string, minLeadDays: number): boolean {
+export function isEligibleForPitch(
+  releaseDate: string,
+  createdDate: string,
+  minLeadDays: number,
+): boolean {
   const release = new Date(releaseDate);
   const created = new Date(createdDate);
   const diffDays = (release.getTime() - created.getTime()) / 86400000;

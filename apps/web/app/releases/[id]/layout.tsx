@@ -30,28 +30,29 @@ export default async function ReleaseLayout({
   const stageLabel = STAGE_LABEL[r.stage] ?? r.stage;
 
   return (
-    <div className="p-8 max-w-[1600px]">
+    <div className="max-w-[1600px] p-4 pt-20 sm:p-8">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="mb-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild className="h-8 w-8">
             <Link href="/releases">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-fg truncate">{r.title}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant="outline" className="text-xs">{stageLabel}</Badge>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-fg truncate text-xl font-bold">{r.title}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {stageLabel}
+              </Badge>
               {r.genre_primary && (
-                <Badge variant="secondary" className="text-xs">{r.genre_primary}{r.genre_secondary ? ` / ${r.genre_secondary}` : ""}</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {r.genre_primary}
+                  {r.genre_secondary ? ` / ${r.genre_secondary}` : ""}
+                </Badge>
               )}
-              <span className="text-xs text-fg-muted">
-                {fmtDate(r.release_date)}
-              </span>
-              {r.upc && (
-                <span className="text-xs text-fg-muted font-mono">UPC: {r.upc}</span>
-              )}
+              <span className="text-fg-muted text-xs">{fmtDate(r.release_date)}</span>
+              {r.upc && <span className="text-fg-muted font-mono text-xs">UPC: {r.upc}</span>}
             </div>
           </div>
         </div>

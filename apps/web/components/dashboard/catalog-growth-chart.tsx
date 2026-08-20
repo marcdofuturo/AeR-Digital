@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface CatalogGrowthChartProps {
@@ -23,9 +15,7 @@ export function CatalogGrowthChart({ data }: CatalogGrowthChartProps) {
           <CardTitle className="text-base">Catálogo</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-fg-muted text-center py-12">
-            Nenhum lançamento ainda
-          </p>
+          <p className="text-fg-muted py-12 text-center text-sm">Nenhum lançamento ainda</p>
         </CardContent>
       </Card>
     );
@@ -58,6 +48,7 @@ export function CatalogGrowthChart({ data }: CatalogGrowthChartProps) {
               allowDecimals={false}
             />
             <Tooltip
+              cursor={false}
               contentStyle={{
                 backgroundColor: "#131316",
                 border: "1px solid #26262C",
@@ -78,8 +69,18 @@ function formatMonth(ym: string): string {
   const [year, month] = ym.split("-");
   if (!year || !month) return ym;
   const months = [
-    "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-    "Jul", "Ago", "Set", "Out", "Nov", "Dez",
+    "Jan",
+    "Fev",
+    "Mar",
+    "Abr",
+    "Mai",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Set",
+    "Out",
+    "Nov",
+    "Dez",
   ];
   return `${months[parseInt(month, 10) - 1]}/${year.slice(2)}`;
 }

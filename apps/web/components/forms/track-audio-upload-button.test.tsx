@@ -1,17 +1,14 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  createTrackAudioUpload,
-  completeTrackAudioUpload,
-  uploadToSignedUrl,
-  refresh,
-} = vi.hoisted(() => ({
-  createTrackAudioUpload: vi.fn(),
-  completeTrackAudioUpload: vi.fn(),
-  uploadToSignedUrl: vi.fn(),
-  refresh: vi.fn(),
-}));
+const { createTrackAudioUpload, completeTrackAudioUpload, uploadToSignedUrl, refresh } = vi.hoisted(
+  () => ({
+    createTrackAudioUpload: vi.fn(),
+    completeTrackAudioUpload: vi.fn(),
+    uploadToSignedUrl: vi.fn(),
+    refresh: vi.fn(),
+  }),
+);
 
 vi.mock("@/app/releases/actions", () => ({
   createTrackAudioUpload,
@@ -36,14 +33,15 @@ describe("TrackAudioUploadButton", () => {
       token: "signed-token",
     });
     uploadToSignedUrl.mockReset().mockResolvedValue({ error: null });
-    completeTrackAudioUpload.mockReset().mockResolvedValue("https://storage.example/audio-file.wav");
+    completeTrackAudioUpload
+      .mockReset()
+      .mockResolvedValue({ updatedAt: "2026-08-19T20:00:00.000Z" });
     refresh.mockReset();
   });
 
   it("uploads the file directly with a signed token before saving its path", async () => {
     const { container } = render(
       <form>
-        <input name="audio_url" defaultValue="received" />
         <TrackAudioUploadButton releaseId="release-1" trackId="track-1" />
       </form>,
     );
@@ -71,7 +69,6 @@ describe("TrackAudioUploadButton", () => {
       trackId: "track-1",
       path: "tenant-1/release-1/audio-file.wav",
     });
-    expect(screen.getByRole("textbox")).toHaveValue("https://storage.example/audio-file.wav");
     expect(screen.getByRole("button", { name: "Áudio enviado" })).toBeVisible();
   });
 

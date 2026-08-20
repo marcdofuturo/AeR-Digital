@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireMembership } from "@/lib/auth/require-membership";
 import type { ConfigActionState } from "./action-state";
-import { labelSettingsSchema, teamInvitationSchema } from "./schemas";
+import {
+  labelSettingsSchema,
+  teamInvitationSchema,
+  teamMemberAccessSchema,
+  teamMemberRemovalSchema,
+} from "./schemas";
 
 export async function inviteTeamMember(
   _previousState: ConfigActionState,
@@ -26,8 +31,10 @@ export async function inviteTeamMember(
     let userId = existingProfile?.id as string | undefined;
     let newlyInvitedUserId: string | undefined;
     if (!userId) {
-      const appUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL)
-        ?.replace(/\/$/, "");
+      const appUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL)?.replace(
+        /\/$/,
+        "",
+      );
       const options = {
         data: { full_name: parsed.data.full_name },
         ...(appUrl ? { redirectTo: `${appUrl}/auth/invite?next=/config/equipe` } : {}),
@@ -69,6 +76,64 @@ export async function inviteTeamMember(
     return { status: "success", message: "Convite enviado e acesso configurado." };
   } catch (error) {
     return actionFailure(error, "Nao foi possivel convidar o membro.");
+  }
+}
+
+export async function updateTeamMemberRole(
+  _previousState: ConfigActionState,
+  formData: FormData,
+): Promise<ConfigActionState> {
+  try {
+    const { tenantId, userId } = await requireMembership(["owner"]);
+    const parsed = teamMemberAccessSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return validationFailure(parsed.error.flatten().fieldErrors);
+    if (parsed.data.user_id === userId)
+      throw new Error("O proprietario nao pode alterar o proprio acesso");
+
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from("memberships")
+      .update({ role: parsed.data.role })
+      .eq("tenant_id", tenantId)
+      .eq("user_id", parsed.data.user_id)
+      .neq("role", "owner")
+      .select("id")
+      .single();
+    if (error) throw new Error("Membro nao encontrado ou protegido");
+
+    revalidatePath("/config/equipe");
+    return { status: "success", message: "Permissao atualizada." };
+  } catch (error) {
+    return actionFailure(error, "Nao foi possivel atualizar a permissao.");
+  }
+}
+
+export async function removeTeamMember(
+  _previousState: ConfigActionState,
+  formData: FormData,
+): Promise<ConfigActionState> {
+  try {
+    const { tenantId, userId } = await requireMembership(["owner"]);
+    const parsed = teamMemberRemovalSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return validationFailure(parsed.error.flatten().fieldErrors);
+    if (parsed.data.user_id === userId)
+      throw new Error("O proprietario nao pode remover o proprio acesso");
+
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from("memberships")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("user_id", parsed.data.user_id)
+      .neq("role", "owner")
+      .select("id")
+      .single();
+    if (error) throw new Error("Membro nao encontrado ou protegido");
+
+    revalidatePath("/config/equipe");
+    return { status: "success", message: "Acesso removido do selo." };
+  } catch (error) {
+    return actionFailure(error, "Nao foi possivel remover o acesso.");
   }
 }
 
@@ -121,7 +186,9 @@ function validationFailure(fieldErrors: Record<string, string[] | undefined>): C
     status: "error",
     message: "Revise os campos informados.",
     fieldErrors: Object.fromEntries(
-      Object.entries(fieldErrors).filter((entry): entry is [string, string[]] => Boolean(entry[1]?.length)),
+      Object.entries(fieldErrors).filter((entry): entry is [string, string[]] =>
+        Boolean(entry[1]?.length),
+      ),
     ),
   };
 }
