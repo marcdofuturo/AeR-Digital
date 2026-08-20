@@ -11,6 +11,7 @@ import { isRegistrationStatus } from "@/lib/registration-status";
 import { enqueuePresentationJob } from "@/lib/presentation/jobs";
 import { isUsablePresentationAudioUrl } from "@/lib/presentation/audio";
 import { recordUserActivity } from "@/lib/activity/log";
+import { parseTrackDuration } from "@/lib/tracks/duration";
 import {
   COVER_HEADER_BYTES,
   parseCoverMetadata,
@@ -225,12 +226,15 @@ export async function saveRegistrationStatus(formData: FormData) {
   if (!releaseId || !trackId || !REGISTRATION_KINDS.has(kind)) throw new Error("Registro inválido");
 
   const completed = status === "concluido";
+  const entity = nullableString(formData.get("entity"));
+  const externalId = nullableString(formData.get("external_id"));
   const dueAt =
     completed && kind === "obra_ecad"
       ? new Date(Date.now() + 45 * 86400000).toISOString()
       : nullableString(formData.get("due_at"));
 
   const supabase = createAdminClient();
+  await requireTenantTrack(supabase, tenantId, releaseId, trackId);
   const { error } = await supabase
     .from("registrations")
     .upsert(
@@ -239,8 +243,8 @@ export async function saveRegistrationStatus(formData: FormData) {
         track_id: trackId,
         kind,
         status,
-        entity: nullableString(formData.get("entity")),
-        external_id: nullableString(formData.get("external_id")),
+        entity,
+        external_id: externalId,
         ecad_code: nullableString(formData.get("ecad_code")),
         notes: nullableString(formData.get("notes")),
         due_at: dueAt,
@@ -256,6 +260,24 @@ export async function saveRegistrationStatus(formData: FormData) {
     throw new Error("Falha ao salvar registro");
   }
 
+  if (kind === "distribuicao") {
+    const { error: releaseError } = await supabase
+      .from("releases")
+      .update({ distributor: entity, upc: externalId })
+      .eq("id", releaseId)
+      .eq("tenant_id", tenantId);
+    if (releaseError) throw new Error("Falha ao sincronizar distribuidora e UPC");
+  }
+
+  if (kind === "fonograma_ecad") {
+    const { error: trackError } = await supabase
+      .from("tracks")
+      .update({ isrc: externalId })
+      .eq("id", trackId)
+      .eq("tenant_id", tenantId);
+    if (trackError) throw new Error("Falha ao sincronizar ISRC");
+  }
+
   await recordUserActivity(supabase, {
     tenantId,
     entityType: "registration",
@@ -264,8 +286,8 @@ export async function saveRegistrationStatus(formData: FormData) {
     after: {
       kind,
       status,
-      entity: nullableString(formData.get("entity")),
-      external_id: nullableString(formData.get("external_id")),
+      entity,
+      external_id: externalId,
       ecad_code: nullableString(formData.get("ecad_code")),
     },
   });
@@ -332,13 +354,15 @@ export async function saveTrackOverview(formData: FormData) {
   const trackId = String(formData.get("track_id") ?? "");
   if (!releaseId || !trackId) throw new Error("Faixa inválida");
 
+  const durationSeconds = parseTrackDuration(formData.get("audio_duration"));
   const supabase = createAdminClient();
+  await requireTenantTrack(supabase, tenantId, releaseId, trackId);
   const { error } = await supabase
     .from("tracks")
     .update({
       title: requiredString(formData.get("title"), "Título da faixa obrigatório"),
       isrc: nullableString(formData.get("isrc")),
-      audio_duration_sec: nullableNumber(formData.get("audio_duration_sec"), 0, 86_400),
+      audio_duration_sec: durationSeconds,
       audio_bpm: nullableNumber(formData.get("audio_bpm"), 0, 400),
       audio_key: nullableString(formData.get("audio_key")),
       audio_energy: nullableNumber(formData.get("audio_energy"), 0, 1),
@@ -361,7 +385,7 @@ export async function saveTrackOverview(formData: FormData) {
     after: {
       title: nullableString(formData.get("title")),
       isrc: nullableString(formData.get("isrc")),
-      audio_duration_sec: nullableNumber(formData.get("audio_duration_sec"), 0, 86_400),
+      audio_duration_sec: durationSeconds,
       audio_bpm: nullableNumber(formData.get("audio_bpm"), 0, 400),
       audio_key: nullableString(formData.get("audio_key")),
       audio_energy: nullableNumber(formData.get("audio_energy"), 0, 1),

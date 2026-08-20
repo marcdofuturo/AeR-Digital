@@ -4,6 +4,7 @@ import {
   buildAuthorizationDocx,
   buildAuthorizationMarkdown,
   buildAuthorizationPdf,
+  type AuthorizationTrackSource,
 } from "./authorization-document";
 
 describe("authorization document", () => {
@@ -28,17 +29,55 @@ describe("authorization document", () => {
         },
       ],
       splits: [
-        { scope: "obra", holder_type: "artist", artist_id: "a1", role_label: "Autor/compositor", bps100: 10000, version: 1 },
-        { scope: "fonograma", holder_type: "label", artist_id: null, role_label: "Produtor fonográfico", bps100: 4170, version: 1 },
-        { scope: "fonograma", holder_type: "artist", artist_id: "a1", role_label: "Intérprete", bps100: 5830, version: 1 },
-        { scope: "digital", holder_type: "label", artist_id: null, role_label: "Selo", bps100: 5000, version: 1 },
-        { scope: "digital", holder_type: "artist", artist_id: "a1", role_label: "Main Artist", bps100: 5000, version: 1 },
+        {
+          scope: "obra",
+          holder_type: "artist",
+          artist_id: "a1",
+          role_label: "Autor/compositor",
+          bps100: 10000,
+          version: 1,
+        },
+        {
+          scope: "fonograma",
+          holder_type: "label",
+          artist_id: null,
+          role_label: "Produtor fonográfico",
+          bps100: 4170,
+          version: 1,
+        },
+        {
+          scope: "fonograma",
+          holder_type: "artist",
+          artist_id: "a1",
+          role_label: "Intérprete",
+          bps100: 5830,
+          version: 1,
+        },
+        {
+          scope: "digital",
+          holder_type: "label",
+          artist_id: null,
+          role_label: "Selo",
+          bps100: 5000,
+          version: 1,
+        },
+        {
+          scope: "digital",
+          holder_type: "artist",
+          artist_id: "a1",
+          role_label: "Main Artist",
+          bps100: 5000,
+          version: 1,
+        },
       ],
-    },
+    } as AuthorizationTrackSource & { audio_url: string },
   });
 
   it("fills the release authorization markdown without mojibake", () => {
     const markdown = buildAuthorizationMarkdown(data);
+
+    expect(markdown).not.toContain("https://example.com/audio.mp3");
+    expect(markdown).not.toMatch(/Link da Faixa/i);
 
     expect(markdown).toContain("Autorização de Distribuição Digital");
     expect(markdown).toContain("Minha Música Incrível");
@@ -53,10 +92,21 @@ describe("authorization document", () => {
       track: {
         title: "Minha MÃºsica IncrÃ­vel",
         track_participants: [
-          { artist_id: "a1", position: 1, artists: { id: "a1", stage_name: "MC JoÃ£o", legal_name: "JoÃ£o Silva" } },
+          {
+            artist_id: "a1",
+            position: 1,
+            artists: { id: "a1", stage_name: "MC JoÃ£o", legal_name: "JoÃ£o Silva" },
+          },
         ],
         splits: [
-          { scope: "fonograma", holder_type: "label", artist_id: null, role_label: "Produtor fonogrÃ¡fico", bps100: 4170, version: 1 },
+          {
+            scope: "fonograma",
+            holder_type: "label",
+            artist_id: null,
+            role_label: "Produtor fonogrÃ¡fico",
+            bps100: 4170,
+            version: 1,
+          },
         ],
       },
     });
@@ -92,12 +142,14 @@ describe("authorization document", () => {
     expect(packageText).toContain("Total:");
   });
 
-  it("builds a valid pdf header with unicode content", () => {
+  it("builds a table-based PDF without exposing the storage URL", () => {
     const pdf = buildAuthorizationPdf(data);
     expect(pdf.subarray(0, 4).toString("ascii")).toBe("%PDF");
     expect(pdf.byteLength).toBeGreaterThan(1000);
     const source = pdf.toString("binary");
     expect(source).toContain("CPF) Tj");
     expect(source).toContain("Total:");
+    expect(source).toContain(" re S");
+    expect(source).not.toContain("https://example.com/audio.mp3");
   });
 });

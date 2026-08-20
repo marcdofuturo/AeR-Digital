@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Pencil, X } from "lucide-react";
 import { saveReleaseOverview } from "@/app/releases/actions";
 import { ReplaceFileButton } from "@/components/forms/replace-file-button";
 import { SaveButton } from "@/components/forms/save-button";
@@ -40,6 +41,10 @@ export function ReleaseMetadataForm({
   const confirmedDateRef = useRef(false);
   const [releaseDate, setReleaseDate] = useState(data.releaseDate);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const locked = !editing || saving || saved;
   const version = coverVersion ? `&v=${encodeURIComponent(coverVersion)}` : "";
   const previewUrl = `/api/releases/${encodeURIComponent(releaseId)}/media?kind=cover${version}`;
   const downloadUrl = `/api/releases/${encodeURIComponent(releaseId)}/media?kind=cover&download=1${version}`;
@@ -48,7 +53,19 @@ export function ReleaseMetadataForm({
     <>
       <form
         ref={formRef}
-        action={saveReleaseOverview}
+        action={async (formData) => {
+          setSaving(true);
+          try {
+            await saveReleaseOverview(formData);
+            setSaved(true);
+            window.setTimeout(() => {
+              setSaved(false);
+              setEditing(false);
+            }, 700);
+          } finally {
+            setSaving(false);
+          }
+        }}
         className="grid gap-3 md:grid-cols-4"
         onSubmit={(event) => {
           if (releaseDate === data.releaseDate || confirmedDateRef.current) {
@@ -60,13 +77,19 @@ export function ReleaseMetadataForm({
         }}
       >
         <input type="hidden" name="release_id" value={releaseId} />
-        <MetadataField name="title" label="Lançamento" defaultValue={data.title} />
+        <MetadataField
+          name="title"
+          label="Lançamento"
+          defaultValue={data.title}
+          disabled={locked}
+        />
         <label className="text-fg-muted text-xs">
           Data
           <input
             name="release_date"
             type="date"
             value={releaseDate}
+            disabled={locked}
             onChange={(event) => setReleaseDate(event.currentTarget.value)}
             onClick={(event) => {
               const picker = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
@@ -76,22 +99,34 @@ export function ReleaseMetadataForm({
                 /* Native click still opens the calendar. */
               }
             }}
-            className="border-border bg-surface text-fg mt-1 w-full rounded-md border px-2 py-2 text-sm"
+            className="border-border bg-surface text-fg mt-1 w-full rounded-md border px-2 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-65"
           />
         </label>
         <MetadataField
           name="genre_primary"
           label="Gênero principal"
           defaultValue={data.genrePrimary}
+          disabled={locked}
         />
         <MetadataField
           name="genre_secondary"
           label="Gênero secundário"
           defaultValue={data.genreSecondary}
+          disabled={locked}
         />
-        <MetadataField name="distributor" label="Agregadora" defaultValue={data.distributor} />
-        <MetadataField name="upc" label="UPC" defaultValue={data.upc} />
-        <MetadataField name="album_id_ext" label="ID do álbum" defaultValue={data.albumIdExt} />
+        <MetadataField
+          name="distributor"
+          label="Agregadora"
+          defaultValue={data.distributor}
+          disabled={locked}
+        />
+        <MetadataField name="upc" label="UPC" defaultValue={data.upc} disabled={locked} />
+        <MetadataField
+          name="album_id_ext"
+          label="ID do álbum"
+          defaultValue={data.albumIdExt}
+          disabled={locked}
+        />
 
         <div className="border-border/50 bg-bg flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 md:col-span-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -112,12 +147,38 @@ export function ReleaseMetadataForm({
             name="cover_file"
             accept="image/jpeg,image/png,image/webp"
             label="Substituir capa"
+            disabled={locked}
           />
         </div>
-        <div className="flex justify-end md:col-span-4">
-          <SaveButton size="sm" variant="outline">
-            Salvar visão geral
-          </SaveButton>
+        <div className="flex justify-end gap-2 md:col-span-4">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={saving || saved}
+            onClick={() => {
+              if (editing) {
+                formRef.current?.reset();
+                setReleaseDate(data.releaseDate);
+                setEditing(false);
+              } else {
+                setEditing(true);
+              }
+            }}
+          >
+            {editing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+            {editing ? "Cancelar edição" : "Editar visão geral"}
+          </Button>
+          {editing ? (
+            <SaveButton
+              size="sm"
+              variant="outline"
+              disabled={locked}
+              savedLabel="Visão geral salva"
+            >
+              Salvar visão geral
+            </SaveButton>
+          ) : null}
         </div>
       </form>
 
@@ -162,10 +223,12 @@ function MetadataField({
   name,
   label,
   defaultValue,
+  disabled,
 }: {
   name: string;
   label: string;
   defaultValue: string;
+  disabled: boolean;
 }) {
   return (
     <label className="text-fg-muted text-xs">
@@ -173,7 +236,8 @@ function MetadataField({
       <input
         name={name}
         defaultValue={defaultValue}
-        className="border-border bg-surface text-fg mt-1 w-full rounded-md border px-2 py-2 text-sm"
+        disabled={disabled}
+        className="border-border bg-surface text-fg mt-1 w-full rounded-md border px-2 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-65"
       />
     </label>
   );

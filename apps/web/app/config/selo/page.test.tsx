@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/tenant", () => ({
@@ -40,8 +40,13 @@ describe("SeloConfigPage", () => {
 
     expect(screen.getByLabelText(/^nome do selo$/i)).toHaveValue("Audiolink Brasil");
     expect(screen.getByLabelText(/responsavel/i)).toHaveValue("Marc");
+    expect(screen.getByLabelText(/^nome do selo$/i)).toBeDisabled();
+    expect(screen.getByLabelText(/codigo do selo/i)).toHaveValue("A7K9");
+    expect(screen.getByLabelText(/codigo do selo/i)).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /editar dados do selo/i }));
     expect(screen.getByRole("button", { name: /salvar dados do selo/i })).toBeVisible();
-    expect(screen.getByText("A7K9")).toBeVisible();
+    expect(screen.getByLabelText(/^nome do selo$/i)).toBeEnabled();
+    expect(screen.getByLabelText(/codigo do selo/i)).toBeDisabled();
     expect(screen.queryByRole("textbox", { name: /codigo de intake/i })).not.toBeInTheDocument();
   });
 });

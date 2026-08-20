@@ -267,7 +267,7 @@ export async function generatePresentation(
     bpm: input.bpm || null,
     key: input.key ? `${input.key} ${input.mode}` : null,
     energy: input.energy,
-    transcript_sample: input.transcript.slice(0, 16_000),
+    transcript_sample: input.transcript,
     userGuidance: input.userGuidance,
   });
 

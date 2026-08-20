@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getRelease } from "@/lib/data/releases";
-import { getCurrentTenantId, getTenant } from "@/lib/tenant";
+import { getCurrentTenantId } from "@/lib/tenant";
+import { getAuthorizationDocumentSource } from "@/lib/docs/authorization-document-source";
 import {
   buildAuthorizationDocumentData,
   buildAuthorizationDocx,
@@ -18,16 +18,18 @@ export async function GET(
   const tenantId = await getCurrentTenantId();
   if (!tenantId) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  const [release, tenant] = await Promise.all([getRelease(tenantId, id), getTenant()]);
-  if (!release) return NextResponse.json({ error: "Lançamento não encontrado" }, { status: 404 });
+  const source = await getAuthorizationDocumentSource({ tenantId, releaseId: id, authorizationId });
+  if (source.status === "authorization-not-found") {
+    return NextResponse.json({ error: "Autorização não encontrada" }, { status: 404 });
+  }
+  if (source.status === "release-not-found") {
+    return NextResponse.json({ error: "Lançamento não encontrado" }, { status: 404 });
+  }
+  if (source.status === "track-not-found") {
+    return NextResponse.json({ error: "Faixa não encontrada" }, { status: 404 });
+  }
 
-  const auth = ((release as any).authorizations ?? []).find((item: any) => item.id === authorizationId);
-  if (!auth) return NextResponse.json({ error: "Autorização não encontrada" }, { status: 404 });
-
-  const track = ((release as any).tracks ?? []).find((item: any) => item.id === auth.track_id);
-  if (!track) return NextResponse.json({ error: "Faixa não encontrada" }, { status: 404 });
-
-  const data = buildAuthorizationDocumentData({ release, track, tenant });
+  const data = buildAuthorizationDocumentData(source);
   const url = new URL(req.url);
   if (url.searchParams.get("format") === "md") {
     return new NextResponse(buildAuthorizationMarkdown(data), {
@@ -63,10 +65,12 @@ export async function GET(
 }
 
 function safeFilename(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/gi, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 80) || "faixa";
+  return (
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/gi, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 80) || "faixa"
+  );
 }

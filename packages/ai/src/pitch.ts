@@ -187,7 +187,6 @@ export function buildPitchPrompt(ctx: PitchContext): string {
 Escreve para um curador que lê 200 pitches por dia.
 
 FAIXA: ${ctx.titulo} · ${ctx.creditos} · ${ctx.generos.join(" / ")} · lança ${ctx.data}
-SINAL: ${ctx.bpm} BPM · tom ${ctx.key} · energia ${ctx.energy.toFixed(2)}/1.0 · gancho aos ${ctx.hook_at_sec}s
 LETRA (trecho): ${ctx.transcript_sample}
 AUDIÊNCIA:\n${audienceText}
 CATÁLOGO SIMILAR: ${ctx.catalogSimilar.join(", ") || "nenhum"}
@@ -195,11 +194,13 @@ CATÁLOGO SIMILAR: ${ctx.catalogSimilar.join(", ") || "nenhum"}
 REGRAS
 - Máx. 500 caracteres por opção (limite do Spotify for Artists).
 - Português brasileiro, direto. Zero adjetivo vazio ("incrível", "imperdível", "sensação"). Curador ignora hype.
-- Inclua: o que a faixa É sonoramente · por que agora · prova de tração se houver.
+- Entenda o contexto, o tema e o sentimento da letra; conecte isso à relevância editorial e à prova de tração, quando houver.
+- Não exponha dados técnicos do áudio, pontuações ou métricas internas de análise.
+- Não cite nomes de playlists; playlists_sugeridas deve ser sempre uma lista vazia.
 - NUNCA invente streams, playlist, prêmio ou parceria.
 
 DUAS OPÇÕES, ÂNGULOS DIFERENTES
-A) SONORO — produção, referências, encaixe de playlist
+A) SONORO — produção, referências e impacto editorial
 B) NARRATIVO — momento do artista, cena, audiência
 
 JSON: {"opcao_a":str,"opcao_b":str,"angulo_a":str,"angulo_b":str,
@@ -207,15 +208,6 @@ JSON: {"opcao_a":str,"opcao_b":str,"angulo_a":str,"angulo_b":str,
 }
 
 export function buildPresentationPrompt(ctx: PresentationContext): string {
-  const signal =
-    [
-      ctx.bpm ? `${ctx.bpm} BPM` : null,
-      ctx.key ? `tom ${ctx.key}` : null,
-      ctx.energy != null ? `energia ${ctx.energy.toFixed(2)}/1.0` : null,
-    ]
-      .filter(Boolean)
-      .join(" · ") || "sinal de audio nao informado";
-
   const improvement = ctx.userGuidance?.trim()
     ? `\nPEDIDO DO USUARIO PARA ESTA VERSAO:\n${ctx.userGuidance.trim()}\n`
     : "";
@@ -227,14 +219,15 @@ FAIXA: ${ctx.titulo}
 CREDITOS: ${ctx.creditos}
 GENEROS: ${ctx.generos.join(" / ") || "nao informado"}
 DATA DE LANCAMENTO: ${ctx.data}
-SINAL: ${signal}
 TRECHO/LETRA: ${ctx.transcript_sample || "nao informado"}
 ${improvement}
 REGRAS
-- Antes de escrever, pesquise cada artista citado. Registre somente relevancia publica sustentada por fontes verificaveis.
-- Use a TRANSCRICAO COMPLETA para identificar tema, narrativa, mood/sentimento e imagens centrais; nao copie versos longos.
-- Construa o texto como os melhores pitchings da Audiolink: abra com faixa e artistas, conecte relevancia factual, descreva sonoridade/mood e feche com potencial comercial ou de circulacao.
-- Descreva elementos sonoros concretos: andamento, energia, timbres, arranjo, voz, gancho, ritmo e referencias de genero.
+- Escreva para um curador com pouco tempo e convença pela especificidade, nao por adjetivos vazios.
+- Antes de escrever, pesquise cada artista citado. Use somente relevancia publica ou tracao sustentada por fontes verificaveis.
+- Use a TRANSCRICAO COMPLETA para entender o contexto da letra, tema, narrativa, mood/sentimento e imagens centrais; nao copie versos longos.
+- Siga a logica dos pitchings de referencia da Audiolink: apresente faixa e artistas, situe genero ou cena, conecte o tema da letra ao mood, destaque voz, beat, instrumentacao ou gancho quando forem perceptiveis e feche com relevancia editorial e potencial de circulacao.
+- Explique por que a faixa merece atencao editorial e pode conquistar ouvintes, sem pedir inclusao nem citar uma playlist especifica.
+- Nunca exponha dados tecnicos do audio, pontuacoes ou metricas internas de analise.
 - Inclua contexto cultural, cidade ou territorio apenas quando confirmado pela pesquisa ou pelos dados fornecidos.
 - Para letras explicitas, venda ritmo, interpretacao, irreverencia, atmosfera e impacto cultural sem reproduzir trechos graficos.
 - Nao mencione violencia, coercao, risco juridico, classificacao etaria ou recomendacoes negativas no pitching; concentre-se em atributos musicais verdadeiros e comercialmente relevantes.
