@@ -1,26 +1,31 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ReplaceFileButton } from "@/components/forms/replace-file-button";
-import { TrackAudioUploadButton } from "@/components/forms/track-audio-upload-button";
 import { SaveButton } from "@/components/forms/save-button";
 import { EditMetadataButton } from "@/components/forms/edit-metadata-button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ReleaseMetadataForm } from "@/components/releases/release-metadata-form";
+import { TrackMetadataForm } from "@/components/releases/track-metadata-form";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { getRelease } from "@/lib/data/releases";
 import { getCurrentTenantId, getTenant } from "@/lib/tenant";
 import { KANBAN_STAGES, formatDaysInStage } from "@ar/ai/crm";
 import { fmtDate } from "@ar/shared";
-import { saveArtistMetadata, saveReleaseOverview, saveTrackOverview } from "@/app/releases/actions";
-import { Calendar, Clock, Disc3, Download, Eye, FileText, Headphones, Image as ImageIcon, Users, Wrench } from "lucide-react";
+import { saveArtistMetadata } from "@/app/releases/actions";
+import { Calendar, Clock, Disc3, FileText, Users, Wrench } from "lucide-react";
 
 const STAGE_LABEL: Record<string, string> = {};
 for (const s of KANBAN_STAGES) STAGE_LABEL[s.id] = s.label;
 
-const REG_KINDS = ["obra_ecad", "fonograma_ecad", "isrc", "distribuicao"];
+const REG_KINDS = ["obra_ecad", "fonograma_ecad", "distribuicao"];
 const REG_LABELS: Record<string, string> = {
   obra_ecad: "Obra ECAD",
   fonograma_ecad: "Fonograma ECAD",
-  isrc: "ISRC",
   distribuicao: "Distribuição",
 };
 
@@ -62,79 +67,39 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
           <CardTitle className="text-base">Editar visão geral</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <form action={saveReleaseOverview} className="grid gap-3 md:grid-cols-4">
-            <input type="hidden" name="release_id" value={id} />
-            <OverviewField name="title" label="Lançamento" defaultValue={r.title ?? ""} />
-            <OverviewField name="release_date" label="Data" type="date" defaultValue={String(r.release_date ?? "").slice(0, 10)} />
-            <OverviewField name="genre_primary" label="Gênero principal" defaultValue={r.genre_primary ?? ""} />
-            <OverviewField name="genre_secondary" label="Gênero secundário" defaultValue={r.genre_secondary ?? ""} />
-            <OverviewField name="distributor" label="Agregadora" defaultValue={r.distributor ?? "Audiolink Brasil"} />
-            <OverviewField name="upc" label="UPC" defaultValue={r.upc ?? ""} />
-            <OverviewField name="album_id_ext" label="ID do álbum" defaultValue={r.album_id_ext ?? ""} />
-            <OverviewField name="cover_url" label="Capa JPEG URL" defaultValue={r.cover_url ?? ""} />
-            <div className="md:col-span-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/50 bg-bg p-3">
-              <div className="flex min-w-0 items-center gap-3">
-                {isUsableUrl(r.cover_url) ? (
-                  <img
-                    src={r.cover_url}
-                    alt={`Capa de ${r.title ?? "lançamento"}`}
-                    className="h-16 w-16 rounded-md border border-border object-cover"
-                  />
-                ) : (
-                  <div className="grid h-16 w-16 place-items-center rounded-md border border-dashed border-border text-fg-muted">
-                    <ImageIcon className="h-5 w-5" />
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-fg">Capa do lançamento</p>
-                  <p className="truncate text-xs text-fg-muted">{isUsableUrl(r.cover_url) ? r.cover_url : "Nenhuma capa cadastrada"}</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <MediaButton href={r.cover_url} label="Ver capa" icon="eye" />
-                <MediaButton href={r.cover_url} label="Baixar JPEG" icon="download" download />
-                <ReplaceFileButton name="cover_file" accept="image/jpeg,image/png,image/webp" label="Substituir capa" />
-              </div>
-            </div>
-            <div className="md:col-span-4 flex justify-end">
-              <SaveButton size="sm" variant="outline">Salvar visão geral</SaveButton>
-            </div>
-          </form>
+          <ReleaseMetadataForm
+            releaseId={id}
+            data={{
+              title: r.title ?? "",
+              releaseDate: String(r.release_date ?? "").slice(0, 10),
+              genrePrimary: r.genre_primary ?? "",
+              genreSecondary: r.genre_secondary ?? "",
+              distributor: r.distributor ?? "Audiolink Brasil",
+              upc: r.upc ?? "",
+              albumIdExt: r.album_id_ext ?? "",
+            }}
+            coverAvailable={isUsableUrl(r.cover_url)}
+            coverVersion={r.cover_updated_at}
+          />
 
           {tracks.map((track: any) => (
-            <form key={track.id} action={saveTrackOverview} className="grid gap-3 rounded-md border border-border/50 bg-bg p-3 md:grid-cols-5">
-              <input type="hidden" name="release_id" value={id} />
-              <input type="hidden" name="track_id" value={track.id} />
-              <OverviewField name="title" label="Faixa" defaultValue={track.title ?? ""} />
-              <OverviewField name="isrc" label="ISRC" defaultValue={track.isrc ?? ""} />
-              <OverviewField name="audio_url" label="Áudio MP3/WAV URL" defaultValue={track.audio_url ?? ""} />
-              <label className="flex items-center gap-2 self-end text-xs text-fg-muted">
-                <input type="checkbox" name="explicit" defaultChecked={Boolean(track.explicit)} className="accent-brand" />
-                Explícita
-              </label>
-              <SaveButton size="sm" variant="outline" className="self-end">Salvar faixa</SaveButton>
-              <div className="md:col-span-5 flex flex-col gap-3 rounded-md border border-border/40 bg-surface/60 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-md border border-border bg-bg text-fg-muted">
-                      <Headphones className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-fg">{track.title ?? "Faixa"}</p>
-                      <p className="truncate text-xs text-fg-muted">{isUsableUrl(track.audio_url) ? track.audio_url : "Nenhum áudio cadastrado"}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <MediaButton href={track.audio_url} label="Ouvir" icon="headphones" />
-                    <MediaButton href={track.audio_url} label="Baixar áudio" icon="download" download />
-                    <TrackAudioUploadButton releaseId={id} trackId={track.id} />
-                  </div>
-                </div>
-                {isUsableUrl(track.audio_url) && (
-                  <audio controls preload="none" src={track.audio_url} className="w-full" />
-                )}
-              </div>
-            </form>
+            <TrackMetadataForm
+              key={track.id}
+              releaseId={id}
+              track={{
+                id: track.id,
+                title: track.title ?? "",
+                isrc: track.isrc ?? "",
+                explicit: Boolean(track.explicit),
+                audioDurationSec: track.audio_duration_sec ?? null,
+                audioBpm: track.audio_bpm == null ? null : Number(track.audio_bpm),
+                audioKey: track.audio_key ?? "",
+                audioEnergy: track.audio_energy == null ? null : Number(track.audio_energy),
+                lyricsTranscript: track.lyrics_transcript ?? "",
+                audioAvailable: isUsableUrl(track.audio_url),
+                audioVersion: track.audio_updated_at ?? null,
+              }}
+            />
           ))}
         </CardContent>
       </Card>
@@ -148,21 +113,29 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
         </CardHeader>
         <CardContent>
           {tracks.length === 0 ? (
-            <p className="text-sm text-fg-muted">Nenhuma faixa cadastrada</p>
+            <p className="text-fg-muted text-sm">Nenhuma faixa cadastrada</p>
           ) : (
             <div className="space-y-3">
               {tracks.map((t: any) => (
-                <div key={t.id} className="flex items-center justify-between rounded-lg border border-border/50 bg-bg p-3">
+                <div
+                  key={t.id}
+                  className="border-border/50 bg-bg flex items-center justify-between rounded-lg border p-3"
+                >
                   <div>
-                    <p className="text-sm font-medium text-fg">{t.title}</p>
+                    <p className="text-fg text-sm font-medium">{t.title}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
                       {t.audio_duration_sec && (
-                        <span className="text-xs text-fg-muted">
-                          {Math.floor(t.audio_duration_sec / 60)}:{String(t.audio_duration_sec % 60).padStart(2, "0")}
+                        <span className="text-fg-muted text-xs">
+                          {Math.floor(t.audio_duration_sec / 60)}:
+                          {String(t.audio_duration_sec % 60).padStart(2, "0")}
                         </span>
                       )}
-                      {t.isrc && <span className="font-mono text-xs text-fg-muted">ISRC: {t.isrc}</span>}
-                      {t.audio_bpm && <span className="text-xs text-fg-muted">{t.audio_bpm} BPM</span>}
+                      {t.isrc && (
+                        <span className="text-fg-muted font-mono text-xs">ISRC: {t.isrc}</span>
+                      )}
+                      {t.audio_bpm && (
+                        <span className="text-fg-muted text-xs">{t.audio_bpm} BPM</span>
+                      )}
                     </div>
                   </div>
                   <Badge variant="outline" className="text-xs">
@@ -189,10 +162,13 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
 
           <div className="space-y-2">
             {distributionRows.map((row: any, index: number) => (
-              <div key={`${row.title}-${index}`} className="grid gap-2 rounded-md border border-border/50 bg-bg p-3 text-sm md:grid-cols-[1.5fr_1fr_1fr_auto] md:items-center">
-                <span className="font-medium text-fg">{row.title}</span>
-                <span className="font-mono text-xs text-fg-muted">ISRC: {row.isrc}</span>
-                <span className="text-xs text-fg-muted">{row.audio}</span>
+              <div
+                key={`${row.title}-${index}`}
+                className="border-border/50 bg-bg grid gap-2 rounded-md border p-3 text-sm md:grid-cols-[1.5fr_1fr_1fr_auto] md:items-center"
+              >
+                <span className="text-fg font-medium">{row.title}</span>
+                <span className="text-fg-muted font-mono text-xs">ISRC: {row.isrc}</span>
+                <span className="text-fg-muted text-xs">{row.audio}</span>
                 <Badge variant="outline" className="w-fit text-[10px]">
                   {row.participants} participantes
                 </Badge>
@@ -211,15 +187,15 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
         </CardHeader>
         <CardContent className="space-y-5">
           {tracks.map((track: any) => (
-            <div key={track.id} className="rounded-md border border-border/50 bg-bg p-3">
+            <div key={track.id} className="border-border/50 bg-bg rounded-md border p-3">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-fg">{track.title}</h3>
+                <h3 className="text-fg text-sm font-medium">{track.title}</h3>
                 <Badge variant="secondary" className="text-[10px]">
                   {track.track_participants?.length ?? 0} crédito(s)
                 </Badge>
               </div>
               {!track.track_participants?.length ? (
-                <p className="text-sm text-fg-muted">Nenhum participante cadastrado</p>
+                <p className="text-fg-muted text-sm">Nenhum participante cadastrado</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -242,15 +218,19 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
 
                         return (
                           <TableRow key={tp.id}>
-                            <TableCell className="tabular-nums text-fg-muted">{tp.position}</TableCell>
-                            <TableCell className="font-medium text-fg">{artist.stage_name ?? "Artista"}</TableCell>
+                            <TableCell className="text-fg-muted tabular-nums">
+                              {tp.position}
+                            </TableCell>
+                            <TableCell className="text-fg font-medium">
+                              {artist.stage_name ?? "Artista"}
+                            </TableCell>
                             <TableCell>
                               <input
                                 form={formId}
                                 name="legal_name"
                                 defaultValue={artist.legal_name ?? ""}
                                 placeholder="Nome completo"
-                                className="w-40 rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-fg"
+                                className="border-border bg-surface text-fg w-40 rounded-md border px-2 py-1.5 text-xs"
                               />
                             </TableCell>
                             <TableCell>
@@ -259,18 +239,37 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                                 name="ecad_code"
                                 defaultValue={artist.ecad_code ?? ""}
                                 placeholder="ECAD"
-                                className="w-28 rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-fg"
+                                className="border-border bg-surface text-fg w-28 rounded-md border px-2 py-1.5 text-xs"
                               />
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
-                                <Badge variant={tp.billing_role === "primary" ? "default" : "secondary"} className="text-[10px]">
+                                <Badge
+                                  variant={tp.billing_role === "primary" ? "default" : "secondary"}
+                                  className="text-[10px]"
+                                >
                                   {tp.billing_role === "primary" ? "Principal" : "Feat."}
                                 </Badge>
-                                {tp.is_composer && <Badge variant="outline" className="text-[10px]">Compositor</Badge>}
-                                {tp.is_performer && <Badge variant="outline" className="text-[10px]">Intérprete</Badge>}
-                                {tp.is_producer && <Badge variant="outline" className="text-[10px]">Produtor</Badge>}
-                                {needsData && <Badge variant="warning" className="text-[10px]">Completar</Badge>}
+                                {tp.is_composer && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    Compositor
+                                  </Badge>
+                                )}
+                                {tp.is_performer && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    Intérprete
+                                  </Badge>
+                                )}
+                                {tp.is_producer && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    Produtor
+                                  </Badge>
+                                )}
+                                {needsData && (
+                                  <Badge variant="warning" className="text-[10px]">
+                                    Completar
+                                  </Badge>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
@@ -279,7 +278,9 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                                 <input type="hidden" name="artist_id" value={artist.id} />
                                 <div className="flex justify-end gap-2">
                                   <EditMetadataButton formId={formId} />
-                                  <SaveButton size="sm" variant="outline" savedLabel="Salvo">OK</SaveButton>
+                                  <SaveButton size="sm" variant="outline" savedLabel="Salvo">
+                                    OK
+                                  </SaveButton>
                                 </div>
                               </form>
                             </TableCell>
@@ -301,21 +302,21 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm text-fg-muted">
+              <span className="text-fg-muted flex items-center gap-2 text-sm">
                 <Clock className="h-3.5 w-3.5" />
                 No estágio
               </span>
-              <span className="text-sm tabular-nums text-fg">{formatDaysInStage(daysInStage)}</span>
+              <span className="text-fg text-sm tabular-nums">{formatDaysInStage(daysInStage)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm text-fg-muted">
+              <span className="text-fg-muted flex items-center gap-2 text-sm">
                 <Calendar className="h-3.5 w-3.5" />
                 Lançamento
               </span>
-              <span className="text-sm text-fg">{fmtDate(r.release_date)}</span>
+              <span className="text-fg text-sm">{fmtDate(r.release_date)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-fg-muted">Etapa atual</span>
+              <span className="text-fg-muted text-sm">Etapa atual</span>
               <Badge variant="outline" className="text-[10px]">
                 {STAGE_LABEL[r.stage] ?? r.stage}
               </Badge>
@@ -333,14 +334,14 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
           <CardContent>
             <div className="space-y-2">
               {participants.map((p) => (
-                <div key={p.id} className="rounded-md border border-border/50 bg-bg p-2 text-sm">
+                <div key={p.id} className="border-border/50 bg-bg rounded-md border p-2 text-sm">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-fg">{p.stage_name}</span>
+                    <span className="text-fg font-medium">{p.stage_name}</span>
                     <Badge variant="outline" className="text-[10px]">
                       {p.billing_role === "primary" ? "Principal" : "Feat."}
                     </Badge>
                   </div>
-                  <p className="mt-1 truncate text-xs text-fg-muted">{p.tracks.join(", ")}</p>
+                  <p className="text-fg-muted mt-1 truncate text-xs">{p.tracks.join(", ")}</p>
                 </div>
               ))}
             </div>
@@ -360,9 +361,13 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
                 const reg = regByKind[kind];
                 const status = reg?.status ?? "pendente";
                 const variant =
-                  status === "concluido" ? "success" :
-                  status === "em_andamento" ? "warning" :
-                  status === "rejeitado" ? "danger" : "secondary";
+                  status === "concluido"
+                    ? "success"
+                    : status === "em_andamento"
+                      ? "warning"
+                      : status === "rejeitado"
+                        ? "danger"
+                        : "secondary";
                 return (
                   <div key={kind} className="flex items-center justify-between text-sm">
                     <span className="text-fg-muted">{REG_LABELS[kind]}</span>
@@ -384,7 +389,7 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-fg">{copyright}</p>
+            <p className="text-fg text-sm">{copyright}</p>
           </CardContent>
         </Card>
       </div>
@@ -392,69 +397,20 @@ export default async function ReleaseOverviewPage({ params }: { params: Promise<
   );
 }
 
-function InfoTile({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function InfoTile({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
-    <div className="rounded-md border border-border/50 bg-bg p-3">
-      <span className="text-xs text-fg-muted">{label}</span>
+    <div className="border-border/50 bg-bg rounded-md border p-3">
+      <span className="text-fg-muted text-xs">{label}</span>
       <p className={`${mono ? "font-mono" : ""} text-fg`}>{value}</p>
     </div>
-  );
-}
-
-function OverviewField({
-  name,
-  label,
-  defaultValue,
-  type = "text",
-}: {
-  name: string;
-  label: string;
-  defaultValue: string;
-  type?: string;
-}) {
-  return (
-    <label className="text-xs text-fg-muted">
-      {label}
-      <input
-        name={name}
-        type={type}
-        defaultValue={defaultValue}
-        className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-2 text-sm text-fg"
-      />
-    </label>
-  );
-}
-
-function MediaButton({
-  href,
-  label,
-  icon,
-  download = false,
-}: {
-  href?: string | null;
-  label: string;
-  icon: "eye" | "download" | "headphones";
-  download?: boolean;
-}) {
-  const enabled = isUsableUrl(href);
-  const Icon = icon === "eye" ? Eye : icon === "download" ? Download : Headphones;
-
-  if (!enabled) {
-    return (
-      <Button type="button" size="sm" variant="outline" disabled>
-        <Icon className="h-4 w-4" />
-        {label}
-      </Button>
-    );
-  }
-
-  return (
-    <Button asChild size="sm" variant="outline">
-      <a href={href ?? "#"} target="_blank" rel="noreferrer" download={download ? "" : undefined}>
-        <Icon className="h-4 w-4" />
-        {label}
-      </a>
-    </Button>
   );
 }
 
@@ -465,13 +421,16 @@ function isUsableUrl(value?: string | null) {
 }
 
 function collectParticipants(tracks: any[]) {
-  const participantMap = new Map<string, {
-    id: string;
-    stage_name: string;
-    billing_role: string;
-    position: number;
-    tracks: string[];
-  }>();
+  const participantMap = new Map<
+    string,
+    {
+      id: string;
+      stage_name: string;
+      billing_role: string;
+      position: number;
+      tracks: string[];
+    }
+  >();
 
   for (const track of tracks) {
     for (const tp of track.track_participants ?? []) {

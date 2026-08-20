@@ -2,13 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { assertAiCredits } from "@/lib/ai/presentation";
+import { AI_CREDIT_COST, assertAiCredits } from "@/lib/ai/presentation";
 import { requireMembership } from "@/lib/auth/require-membership";
 import { persistAutomaticSplitsForTrack } from "@/lib/splits/persist";
 import type { Participant } from "@ar/splits";
 import type { ReleaseStage } from "@ar/shared";
 import { isRegistrationStatus } from "@/lib/registration-status";
 import { enqueuePresentationJob } from "@/lib/presentation/jobs";
+import { recordUserActivity } from "@/lib/activity/log";
+import {
+  COVER_HEADER_BYTES,
+  parseCoverMetadata,
+  validateCoverMetadata,
+} from "@/lib/media/media-contract";
 
 type SplitScope = "obra" | "fonograma" | "digital";
 
@@ -58,6 +64,14 @@ export async function updateReleaseStage(releaseId: string, newStage: ReleaseSta
     throw new Error("Falha ao mover lançamento");
   }
 
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "release",
+    entityId: releaseId,
+    action: "Etapa do lancamento alterada",
+    after: { stage: newStage },
+  });
+
   revalidatePath("/releases");
   revalidateRelease(releaseId);
 }
@@ -100,6 +114,14 @@ export async function markAuthorizationRecipientApproved(formData: FormData) {
     await refreshAuthorizationStatus(supabase, tenantId, updated.authorization_id);
   }
 
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "authorization",
+    entityId: releaseId,
+    action: "Autorizacao marcada como aprovada",
+    after: { recipient_id: recipientId, status: "aprovado" },
+  });
+
   revalidatePath(`/releases/${releaseId}/autorizacao`);
   revalidateRelease(releaseId);
 }
@@ -120,11 +142,12 @@ export async function setAuthorizationRecipientStatus(formData: FormData) {
     .update({
       status,
       responded_at: status === "pendente" ? null : new Date().toISOString(),
-      response_raw: status === "aprovado"
-        ? "Marcado manualmente como OK no painel"
-        : status === "recusado"
-          ? "Marcado manualmente como recusado no painel"
-          : null,
+      response_raw:
+        status === "aprovado"
+          ? "Marcado manualmente como OK no painel"
+          : status === "recusado"
+            ? "Marcado manualmente como recusado no painel"
+            : null,
       response_class: status === "pendente" ? null : undefined,
     })
     .eq("id", recipientId)
@@ -140,6 +163,14 @@ export async function setAuthorizationRecipientStatus(formData: FormData) {
   if (updated?.authorization_id) {
     await refreshAuthorizationStatus(supabase, tenantId, updated.authorization_id);
   }
+
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "authorization",
+    entityId: releaseId,
+    action: "Status de autorizacao alterado",
+    after: { recipient_id: recipientId, status },
+  });
 
   revalidatePath(`/releases/${releaseId}/autorizacao`);
   revalidateRelease(releaseId);
@@ -169,6 +200,14 @@ export async function saveAuthorizationRecipientEmail(formData: FormData) {
     throw new Error("Falha ao salvar email de autorização");
   }
 
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "authorization",
+    entityId: releaseId,
+    action: "Email de autorizacao alterado",
+    after: { recipient_id: recipientId, email },
+  });
+
   revalidatePath(`/releases/${releaseId}/autorizacao`);
   revalidateRelease(releaseId);
 }
@@ -185,9 +224,10 @@ export async function saveRegistrationStatus(formData: FormData) {
   if (!releaseId || !trackId || !REGISTRATION_KINDS.has(kind)) throw new Error("Registro inválido");
 
   const completed = status === "concluido";
-  const dueAt = completed && kind === "obra_ecad"
-    ? new Date(Date.now() + 45 * 86400000).toISOString()
-    : nullableString(formData.get("due_at"));
+  const dueAt =
+    completed && kind === "obra_ecad"
+      ? new Date(Date.now() + 45 * 86400000).toISOString()
+      : nullableString(formData.get("due_at"));
 
   const supabase = createAdminClient();
   const { error } = await supabase
@@ -200,6 +240,7 @@ export async function saveRegistrationStatus(formData: FormData) {
         status,
         entity: nullableString(formData.get("entity")),
         external_id: nullableString(formData.get("external_id")),
+        ecad_code: nullableString(formData.get("ecad_code")),
         notes: nullableString(formData.get("notes")),
         due_at: dueAt,
         completed_at: completed ? new Date().toISOString() : null,
@@ -213,6 +254,20 @@ export async function saveRegistrationStatus(formData: FormData) {
     console.error("Failed to save registration:", error);
     throw new Error("Falha ao salvar registro");
   }
+
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "registration",
+    entityId: trackId,
+    action: "Registro da faixa alterado",
+    after: {
+      kind,
+      status,
+      entity: nullableString(formData.get("entity")),
+      external_id: nullableString(formData.get("external_id")),
+      ecad_code: nullableString(formData.get("ecad_code")),
+    },
+  });
 
   revalidatePath(`/releases/${releaseId}/registros`);
   revalidateRelease(releaseId);
@@ -233,18 +288,23 @@ export async function saveReleaseOverview(formData: FormData) {
     kind: "cover",
   });
 
+  const updates: Record<string, unknown> = {
+    title: requiredString(formData.get("title"), "Título obrigatório"),
+    release_date: requiredString(formData.get("release_date"), "Data obrigatória"),
+    genre_primary: nullableString(formData.get("genre_primary")),
+    genre_secondary: nullableString(formData.get("genre_secondary")),
+    distributor: nullableString(formData.get("distributor")) ?? "Audiolink Brasil",
+    upc: nullableString(formData.get("upc")),
+    album_id_ext: nullableString(formData.get("album_id_ext")),
+  };
+  if (uploadedCoverUrl) {
+    updates.cover_url = uploadedCoverUrl;
+    updates.cover_updated_at = new Date().toISOString();
+  }
+
   const { error } = await supabase
     .from("releases")
-    .update({
-      title: requiredString(formData.get("title"), "Título obrigatório"),
-      release_date: requiredString(formData.get("release_date"), "Data obrigatória"),
-      genre_primary: nullableString(formData.get("genre_primary")),
-      genre_secondary: nullableString(formData.get("genre_secondary")),
-      distributor: nullableString(formData.get("distributor")) ?? "Audiolink Brasil",
-      upc: nullableString(formData.get("upc")),
-      album_id_ext: nullableString(formData.get("album_id_ext")),
-      cover_url: uploadedCoverUrl ?? nullableString(formData.get("cover_url")),
-    })
+    .update(updates)
     .eq("id", releaseId)
     .eq("tenant_id", tenantId);
 
@@ -253,6 +313,13 @@ export async function saveReleaseOverview(formData: FormData) {
     throw new Error("Falha ao salvar visão geral");
   }
 
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "release",
+    entityId: releaseId,
+    action: "Visao geral do lancamento alterada",
+    after: updates,
+  });
   revalidateRelease(releaseId);
 }
 
@@ -265,19 +332,16 @@ export async function saveTrackOverview(formData: FormData) {
   if (!releaseId || !trackId) throw new Error("Faixa inválida");
 
   const supabase = createAdminClient();
-  const uploadedAudioUrl = await uploadReleaseAsset(supabase, {
-    tenantId,
-    releaseId,
-    file: formData.get("audio_file"),
-    kind: "audio",
-  });
-
   const { error } = await supabase
     .from("tracks")
     .update({
       title: requiredString(formData.get("title"), "Título da faixa obrigatório"),
       isrc: nullableString(formData.get("isrc")),
-      audio_url: uploadedAudioUrl ?? nullableString(formData.get("audio_url")),
+      audio_duration_sec: nullableNumber(formData.get("audio_duration_sec"), 0, 86_400),
+      audio_bpm: nullableNumber(formData.get("audio_bpm"), 0, 400),
+      audio_key: nullableString(formData.get("audio_key")),
+      audio_energy: nullableNumber(formData.get("audio_energy"), 0, 1),
+      lyrics_transcript: nullableString(formData.get("lyrics_transcript")),
       explicit: formData.get("explicit") === "on",
     })
     .eq("id", trackId)
@@ -287,6 +351,23 @@ export async function saveTrackOverview(formData: FormData) {
     console.error("Failed to save track overview:", error);
     throw new Error("Falha ao salvar faixa");
   }
+
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "track",
+    entityId: trackId,
+    action: "Dados da faixa alterados",
+    after: {
+      title: nullableString(formData.get("title")),
+      isrc: nullableString(formData.get("isrc")),
+      audio_duration_sec: nullableNumber(formData.get("audio_duration_sec"), 0, 86_400),
+      audio_bpm: nullableNumber(formData.get("audio_bpm"), 0, 400),
+      audio_key: nullableString(formData.get("audio_key")),
+      audio_energy: nullableNumber(formData.get("audio_energy"), 0, 1),
+      lyrics_transcript: nullableString(formData.get("lyrics_transcript")),
+      explicit: formData.get("explicit") === "on",
+    },
+  });
 
   revalidateRelease(releaseId);
 }
@@ -304,7 +385,9 @@ export async function createTrackAudioUpload(input: TrackAudioUploadRequest) {
   const supabase = createAdminClient();
   await requireTenantTrack(supabase, tenantId, releaseId, trackId);
 
-  const { error: bucketError } = await supabase.storage.createBucket(RELEASE_ASSETS_BUCKET, { public: true });
+  const { error: bucketError } = await supabase.storage.createBucket(RELEASE_ASSETS_BUCKET, {
+    public: true,
+  });
   if (bucketError && !isExistingBucketError(bucketError)) {
     throw new Error("Falha ao preparar armazenamento de áudio");
   }
@@ -333,7 +416,7 @@ export async function completeTrackAudioUpload(input: CompleteTrackAudioUploadRe
   if (!fileName || fileName.includes("/")) throw new Error("Caminho de áudio inválido");
 
   const supabase = createAdminClient();
-  await requireTenantTrack(supabase, tenantId, releaseId, trackId);
+  const track = await requireTenantTrack(supabase, tenantId, releaseId, trackId);
   const storage = supabase.storage.from(RELEASE_ASSETS_BUCKET);
   const { data: objectInfo, error: infoError } = await storage.info(path);
   if (infoError || !objectInfo) {
@@ -345,19 +428,30 @@ export async function completeTrackAudioUpload(input: CompleteTrackAudioUploadRe
     objectInfo.contentType ?? objectInfo.metadata?.mimetype ?? "",
   ).toLowerCase();
   if (
-    !Number.isFinite(uploadedSize)
-    || uploadedSize <= 0
-    || uploadedSize > MAX_AUDIO_UPLOAD_BYTES
-    || !AUDIO_CONTENT_TYPES.has(uploadedContentType)
+    !Number.isFinite(uploadedSize) ||
+    uploadedSize <= 0 ||
+    uploadedSize > MAX_AUDIO_UPLOAD_BYTES ||
+    !AUDIO_CONTENT_TYPES.has(uploadedContentType)
   ) {
     await storage.remove([path]);
     throw new Error("Arquivo de áudio enviado é inválido");
   }
 
   const { data: publicData } = storage.getPublicUrl(path);
+  const updatedAt = new Date().toISOString();
   const { error: updateError } = await supabase
     .from("tracks")
-    .update({ audio_url: publicData.publicUrl })
+    .update({
+      audio_url: publicData.publicUrl,
+      audio_updated_at: updatedAt,
+      audio_analysis: null,
+      audio_analysis_source_url: null,
+      audio_bpm: null,
+      audio_duration_sec: null,
+      audio_energy: null,
+      audio_key: null,
+      lyrics_transcript: null,
+    })
     .eq("tenant_id", tenantId)
     .eq("release_id", releaseId)
     .eq("id", trackId)
@@ -365,8 +459,22 @@ export async function completeTrackAudioUpload(input: CompleteTrackAudioUploadRe
     .single();
   if (updateError) throw new Error("Falha ao salvar áudio da faixa");
 
+  const oldPath = storagePathFromPublicUrl(track.audio_url);
+  if (oldPath && oldPath !== path) {
+    await storage.remove([oldPath]);
+  }
+
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "track",
+    entityId: trackId,
+    action: "Audio da faixa substituido",
+    before: { audio_url: track.audio_url },
+    after: { audio_url: publicData.publicUrl, audio_updated_at: updatedAt },
+  });
+
   revalidateRelease(releaseId);
-  return publicData.publicUrl;
+  return { updatedAt };
 }
 
 export async function saveArtistMetadata(formData: FormData) {
@@ -393,6 +501,17 @@ export async function saveArtistMetadata(formData: FormData) {
     throw new Error("Falha ao salvar dados do artista");
   }
 
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "artist",
+    entityId: releaseId,
+    action: "Dados do artista alterados",
+    after: {
+      artist_id: artistId,
+      legal_name: nullableString(formData.get("legal_name")),
+      ecad_code: nullableString(formData.get("ecad_code")),
+    },
+  });
   revalidateRelease(releaseId);
   revalidatePath("/artists");
   revalidatePath(`/artists/${artistId}`);
@@ -415,22 +534,20 @@ export async function addTrackParticipant(formData: FormData) {
   });
   const position = await nextParticipantPosition(supabase, tenantId, trackId);
 
-  const { error } = await supabase
-    .from("track_participants")
-    .upsert(
-      {
-        tenant_id: tenantId,
-        track_id: trackId,
-        artist_id: artist.id,
-        position,
-        billing_role: formData.get("billing_role") === "featuring" ? "featuring" : "primary",
-        is_composer: formData.get("is_composer") === "on",
-        is_performer: formData.get("is_performer") === "on",
-        is_producer: formData.get("is_producer") === "on",
-        hidden_from_billing: false,
-      },
-      { onConflict: "track_id,artist_id" },
-    );
+  const { error } = await supabase.from("track_participants").upsert(
+    {
+      tenant_id: tenantId,
+      track_id: trackId,
+      artist_id: artist.id,
+      position,
+      billing_role: formData.get("billing_role") === "featuring" ? "featuring" : "primary",
+      is_composer: formData.get("is_composer") === "on",
+      is_performer: formData.get("is_performer") === "on",
+      is_producer: formData.get("is_producer") === "on",
+      hidden_from_billing: false,
+    },
+    { onConflict: "track_id,artist_id" },
+  );
 
   if (error) {
     console.error("Failed to add track participant:", error);
@@ -438,6 +555,13 @@ export async function addTrackParticipant(formData: FormData) {
   }
 
   await regenerateTrackSplits(supabase, tenantId, trackId);
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "track",
+    entityId: trackId,
+    action: "Participante adicionado ou atualizado",
+    after: { artist_id: artist.id, stage_name: stageName },
+  });
   revalidateRelease(releaseId);
   revalidatePath(`/releases/${releaseId}/registros`);
   revalidatePath(`/releases/${releaseId}/splits`);
@@ -454,6 +578,14 @@ export async function regenerateAutomaticSplits(formData: FormData) {
   const supabase = createAdminClient();
   await regenerateTrackSplits(supabase, tenantId, trackId);
 
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "split",
+    entityId: trackId,
+    action: "Divisoes automaticas recalculadas",
+    after: { mode: "automatico" },
+  });
+
   revalidatePath(`/releases/${releaseId}/splits`);
   revalidateRelease(releaseId);
 }
@@ -466,7 +598,12 @@ export async function saveManualSplits(formData: FormData) {
   const trackId = String(formData.get("track_id") ?? "");
   const scope = String(formData.get("scope") ?? "") as SplitScope;
   const lineCount = Number(formData.get("line_count") ?? 0);
-  if (!releaseId || !trackId || !["obra", "fonograma", "digital"].includes(scope) || lineCount < 1) {
+  if (
+    !releaseId ||
+    !trackId ||
+    !["obra", "fonograma", "digital"].includes(scope) ||
+    lineCount < 1
+  ) {
     throw new Error("Split inválido");
   }
 
@@ -486,18 +623,25 @@ export async function saveManualSplits(formData: FormData) {
   });
 
   const total = rows.reduce((sum, row) => sum + row.bps100, 0);
-  if (total !== 10_000) throw new Error(`Split soma ${(total / 100).toFixed(2)}%, esperado 100.00%`);
+  if (total !== 10_000)
+    throw new Error(`Split soma ${(total / 100).toFixed(2)}%, esperado 100.00%`);
 
   const supabase = createAdminClient();
   const version = await nextSplitVersion(supabase, tenantId, trackId, scope);
-  const { error } = await supabase
-    .from("splits")
-    .insert(rows.map((row) => ({ ...row, version })));
+  const { error } = await supabase.from("splits").insert(rows.map((row) => ({ ...row, version })));
 
   if (error) {
     console.error("Failed to save manual splits:", error);
     throw new Error("Falha ao salvar split manual");
   }
+
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "split",
+    entityId: trackId,
+    action: "Divisoes manuais alteradas",
+    after: { scope, version, rows },
+  });
 
   revalidatePath(`/releases/${releaseId}/splits`);
   revalidateRelease(releaseId);
@@ -512,17 +656,33 @@ export async function generatePresentationForTrack(formData: FormData) {
   if (!releaseId || !trackId) throw new Error("Faixa inválida");
 
   const supabase = createAdminClient();
-  const [{ count: generatedCount }, { count: activeJobCount }, { data: track, error: trackError }] = await Promise.all([
-    supabase.from("pitches").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
-    supabase.from("presentation_jobs").select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId).in("status", ["queued", "processing"]),
-    supabase.from("tracks").select("id, audio_url")
-      .eq("tenant_id", tenantId).eq("release_id", releaseId).eq("id", trackId).single(),
-  ]);
+  const [generatedUsage, activeUsage, trackPitchUsage, { data: track, error: trackError }] =
+    await Promise.all([
+      supabase.from("pitches").select("credit_cost").eq("tenant_id", tenantId),
+      supabase
+        .from("presentation_jobs")
+        .select("credit_cost")
+        .eq("tenant_id", tenantId)
+        .in("status", ["queued", "processing"]),
+      supabase
+        .from("pitches")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("track_id", trackId),
+      supabase
+        .from("tracks")
+        .select("id, audio_url")
+        .eq("tenant_id", tenantId)
+        .eq("release_id", releaseId)
+        .eq("id", trackId)
+        .single(),
+    ]);
 
-  assertAiCredits((generatedCount ?? 0) + (activeJobCount ?? 0));
   if (trackError || !track) throw new Error("Faixa não encontrada");
   if (!track.audio_url) throw new Error("Envie o arquivo de áudio antes de gerar a apresentação");
+  const creditCost = (trackPitchUsage.count ?? 0) >= 2 ? AI_CREDIT_COST : 0;
+  const usedCredits = sumCreditCost(generatedUsage.data) + sumCreditCost(activeUsage.data);
+  if (creditCost > 0) assertAiCredits(usedCredits);
 
   await enqueuePresentationJob(supabase, {
     tenantId,
@@ -530,6 +690,15 @@ export async function generatePresentationForTrack(formData: FormData) {
     trackId,
     userId,
     userGuidance,
+    creditCost,
+  });
+
+  await recordUserActivity(supabase, {
+    tenantId,
+    entityType: "track",
+    entityId: trackId,
+    action: "Geracao de apresentacao solicitada",
+    after: { credit_cost: creditCost },
   });
 
   revalidatePath(`/releases/${releaseId}/pitch`);
@@ -544,7 +713,8 @@ export async function ensureReleaseAuthorizationChecklist(tenantId: string, rele
 
   const { data: release, error } = await supabase
     .from("releases")
-    .select(`
+    .select(
+      `
       id,
       title,
       tracks(
@@ -556,7 +726,8 @@ export async function ensureReleaseAuthorizationChecklist(tenantId: string, rele
           artists(id, stage_name, legal_name, artist_contacts(kind, value, is_primary))
         )
       )
-    `)
+    `,
+    )
     .eq("tenant_id", tenantId)
     .eq("id", releaseId)
     .single();
@@ -567,17 +738,28 @@ export async function ensureReleaseAuthorizationChecklist(tenantId: string, rele
   }
 
   for (const track of release.tracks ?? []) {
-    const participants = [...(track.track_participants ?? [])].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+    const participants = [...(track.track_participants ?? [])].sort(
+      (a: any, b: any) => (a.position ?? 0) - (b.position ?? 0),
+    );
     if (!participants.length) continue;
 
-    const authorization = await ensureAuthorization(supabase, tenantId, releaseId, release.title, track, participants);
+    const authorization = await ensureAuthorization(
+      supabase,
+      tenantId,
+      releaseId,
+      release.title,
+      track,
+      participants,
+    );
     const { data: existing } = await supabase
       .from("authorization_recipients")
       .select("id, artist_id, name, email, status, responded_at")
       .eq("tenant_id", tenantId)
       .eq("authorization_id", authorization.id);
 
-    const existingArtistIds = new Set((existing ?? []).map((recipient: any) => recipient.artist_id).filter(Boolean));
+    const existingArtistIds = new Set(
+      (existing ?? []).map((recipient: any) => recipient.artist_id).filter(Boolean),
+    );
     const ensuredRecipients = [...(existing ?? [])];
     const recipientsToInsert = participants
       .filter((tp: any) => tp.artist_id && !existingArtistIds.has(tp.artist_id))
@@ -618,7 +800,11 @@ export async function ensureReleaseAuthorizationChecklist(tenantId: string, rele
   return ensuredAuthorizations;
 }
 
-async function refreshAuthorizationStatus(supabase: any, tenantId: string, authorizationId: string) {
+async function refreshAuthorizationStatus(
+  supabase: any,
+  tenantId: string,
+  authorizationId: string,
+) {
   const { data } = await supabase
     .from("authorization_recipients")
     .select("status")
@@ -640,7 +826,8 @@ async function refreshAuthorizationStatus(supabase: any, tenantId: string, autho
     .from("authorizations")
     .update({
       status: nextStatus,
-      resolved_at: nextStatus === "aprovado" || nextStatus === "recusado" ? new Date().toISOString() : null,
+      resolved_at:
+        nextStatus === "aprovado" || nextStatus === "recusado" ? new Date().toISOString() : null,
     })
     .eq("tenant_id", tenantId)
     .eq("id", authorizationId);
@@ -768,11 +955,7 @@ async function regenerateTrackSplits(supabase: any, tenantId: string, trackId: s
 }
 
 async function loadTenantName(supabase: any, tenantId: string) {
-  const { data } = await supabase
-    .from("tenants")
-    .select("name")
-    .eq("id", tenantId)
-    .single();
+  const { data } = await supabase.from("tenants").select("name").eq("id", tenantId).single();
 
   return data?.name ?? "Audiolink Brasil";
 }
@@ -787,10 +970,16 @@ async function loadSplitSettings(supabase: any, tenantId: string) {
   return data;
 }
 
-async function loadTrackParticipants(supabase: any, tenantId: string, trackId: string): Promise<Participant[]> {
+async function loadTrackParticipants(
+  supabase: any,
+  tenantId: string,
+  trackId: string,
+): Promise<Participant[]> {
   const { data } = await supabase
     .from("track_participants")
-    .select("artist_id, position, billing_role, is_producer, is_composer, is_performer, hidden_from_billing, artists(id, stage_name)")
+    .select(
+      "artist_id, position, billing_role, is_producer, is_composer, is_performer, hidden_from_billing, artists(id, stage_name)",
+    )
     .eq("tenant_id", tenantId)
     .eq("track_id", trackId)
     .order("position", { ascending: true });
@@ -810,7 +999,12 @@ async function loadTrackParticipants(supabase: any, tenantId: string, trackId: s
   });
 }
 
-async function nextSplitVersion(supabase: any, tenantId: string, trackId: string, scope: SplitScope) {
+async function nextSplitVersion(
+  supabase: any,
+  tenantId: string,
+  trackId: string,
+  scope: SplitScope,
+) {
   const { data } = await supabase
     .from("splits")
     .select("version")
@@ -829,7 +1023,9 @@ function pickPrimaryEmail(contacts: any[]) {
 }
 
 function randomReplyToken() {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
 }
 
 function percentToBps(value: FormDataEntryValue | null) {
@@ -841,6 +1037,22 @@ function percentToBps(value: FormDataEntryValue | null) {
 function nullableString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
   return text.length ? text : null;
+}
+
+function nullableNumber(value: FormDataEntryValue | null, min: number, max: number) {
+  const text = String(value ?? "")
+    .trim()
+    .replace(",", ".");
+  if (!text) return null;
+  const parsed = Number(text);
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+    throw new Error(`Valor numérico deve estar entre ${min} e ${max}`);
+  }
+  return parsed;
+}
+
+function sumCreditCost(rows: Array<{ credit_cost?: number | null }> | null) {
+  return (rows ?? []).reduce((total, row) => total + Number(row.credit_cost ?? 0), 0);
 }
 
 function requiredString(value: FormDataEntryValue | null, message: string) {
@@ -857,25 +1069,42 @@ async function requireTenantTrack(
 ) {
   const { data, error } = await supabase
     .from("tracks")
-    .select("id")
+    .select("id, audio_url")
     .eq("tenant_id", tenantId)
     .eq("release_id", releaseId)
     .eq("id", trackId)
     .single();
 
   if (error || !data) throw new Error("Faixa não encontrada");
+  return data;
+}
+
+function storagePathFromPublicUrl(value?: string | null) {
+  if (!value || !process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
+  try {
+    const url = new URL(value);
+    const supabase = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);
+    const prefix = "/storage/v1/object/public/release-assets/";
+    if (url.origin !== supabase.origin || !url.pathname.startsWith(prefix)) return null;
+    const path = decodeURIComponent(url.pathname.slice(prefix.length));
+    return path && !path.includes("..") ? path : null;
+  } catch {
+    return null;
+  }
 }
 
 function isExistingBucketError(error: unknown) {
   if (!error || typeof error !== "object") return false;
   const details = error as Record<string, unknown>;
   const message = typeof details.message === "string" ? details.message.toLowerCase() : "";
-  return details.status === 409
-    || details.statusCode === "409"
-    || details.code === "BucketAlreadyExists"
-    || details.code === "ResourceAlreadyExists"
-    || message.includes("already exists")
-    || message.includes("duplicate");
+  return (
+    details.status === 409 ||
+    details.statusCode === "409" ||
+    details.code === "BucketAlreadyExists" ||
+    details.code === "ResourceAlreadyExists" ||
+    message.includes("already exists") ||
+    message.includes("duplicate")
+  );
 }
 
 async function uploadReleaseAsset(
@@ -894,11 +1123,17 @@ async function uploadReleaseAsset(
 ) {
   if (!(file instanceof File) || file.size === 0) return null;
 
-  const allowed = kind === "cover"
-    ? ["image/jpeg", "image/png", "image/webp"]
-    : ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/wave"];
+  const allowed =
+    kind === "cover"
+      ? ["image/jpeg", "image/png", "image/webp"]
+      : ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/wave"];
   if (file.type && !allowed.includes(file.type)) {
     throw new Error(kind === "cover" ? "Formato de capa inválido" : "Formato de áudio inválido");
+  }
+
+  if (kind === "cover") {
+    const header = new Uint8Array(await file.slice(0, COVER_HEADER_BYTES).arrayBuffer());
+    validateCoverMetadata(parseCoverMetadata(header));
   }
 
   const bucket = "release-assets";
@@ -911,14 +1146,19 @@ async function uploadReleaseAsset(
     upsert: false,
   });
 
-  if (error) throw new Error(`Falha ao enviar ${kind === "cover" ? "capa" : "áudio"}: ${error.message}`);
+  if (error)
+    throw new Error(`Falha ao enviar ${kind === "cover" ? "capa" : "áudio"}: ${error.message}`);
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 }
 
 function fileExtension(name: string, type: string, kind: "cover" | "audio") {
-  const fromName = name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const fromName = name
+    .split(".")
+    .pop()
+    ?.toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
   if (fromName && fromName.length <= 5) return fromName;
   if (type === "image/png") return "png";
   if (type === "image/webp") return "webp";

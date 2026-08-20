@@ -15,6 +15,8 @@ vi.mock("@/lib/auth/require-membership", () => ({
 
 vi.mock("../actions", () => ({
   inviteTeamMember: vi.fn(),
+  updateTeamMemberRole: vi.fn(),
+  removeTeamMember: vi.fn(),
   INITIAL_CONFIG_ACTION_STATE: { status: "idle", message: "" },
 }));
 
@@ -36,11 +38,18 @@ vi.mock("@/lib/supabase/admin", () => ({
           data: [
             {
               id: "membership-1",
+              user_id: "user-1",
               role: "owner",
               profiles: {
                 full_name: "Marc Audiolink Brasil",
                 email: "marc@audiolinkbrasil.com",
               },
+            },
+            {
+              id: "membership-2",
+              user_id: "4e2f09f6-40e5-4991-9fe4-4468566b56f2",
+              role: "viewer",
+              profiles: { full_name: "Analista", email: "analista@example.com" },
             },
           ],
         }),
@@ -55,11 +64,13 @@ describe("EquipeConfigPage", () => {
   it("renders tenant members using the admin metadata query", async () => {
     render(await EquipeConfigPage());
 
-    expect(screen.getByText("Equipe (1)")).toBeVisible();
+    expect(screen.getByText("Equipe (2)")).toBeVisible();
     expect(screen.getByText("Marc Audiolink Brasil")).toBeVisible();
     expect(screen.getByText("marc@audiolinkbrasil.com")).toBeVisible();
     expect(screen.getByText("Owner")).toBeVisible();
     expect(screen.getByRole("button", { name: /convidar membro/i })).toBeVisible();
     expect(screen.getByLabelText(/nivel de permissao/i)).toBeVisible();
+    expect(screen.getByRole("button", { name: /salvar permissao/i })).toBeVisible();
+    expect(screen.getByRole("button", { name: /retirar acesso/i })).toBeVisible();
   });
 });

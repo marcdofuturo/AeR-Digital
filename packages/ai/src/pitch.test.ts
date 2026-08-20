@@ -15,7 +15,13 @@ describe("Pitch prompt", () => {
     hook_at_sec: 45.2,
     transcript_sample: "Se solta, vai, não para não...",
     artistAudiences: [
-      { name: "MC GH", followers: 50000, genres: ["funk"], popularity: 65, related: ["MC Jacaré", "Kaverinha"] },
+      {
+        name: "MC GH",
+        followers: 50000,
+        genres: ["funk"],
+        popularity: 65,
+        related: ["MC Jacaré", "Kaverinha"],
+      },
     ],
     catalogSimilar: ["SE SOLTA", "VRAU"],
   };
@@ -62,9 +68,17 @@ describe("Pitch eligibility", () => {
 describe("Character limit", () => {
   it("prompt mentions 500 character limit for Spotify", () => {
     const prompt = buildPitchPrompt({
-      titulo: "X", creditos: "Y", generos: ["Funk"], data: "2027-01-01",
-      bpm: 100, key: "C", energy: 0.5, hook_at_sec: 10,
-      transcript_sample: "test", artistAudiences: [], catalogSimilar: [],
+      titulo: "X",
+      creditos: "Y",
+      generos: ["Funk"],
+      data: "2027-01-01",
+      bpm: 100,
+      key: "C",
+      energy: 0.5,
+      hook_at_sec: 10,
+      transcript_sample: "test",
+      artistAudiences: [],
+      catalogSimilar: [],
     });
     expect(prompt).toContain("500");
     expect(prompt).toContain("caracteres");
@@ -110,9 +124,11 @@ describe("Grounded presentation requirements", () => {
     expect(prompt).toMatch(/transcricao completa/i);
     expect(prompt).toMatch(/mood|sentimento/i);
     expect(prompt).toMatch(/contexto cultural|cidade|territorio/i);
-    expect(prompt).toMatch(/plano de lancamento|marketing/i);
-    expect(prompt).toMatch(/spotify|amazon music|apple music/i);
+    expect(prompt).toMatch(/potencial comercial|circulacao/i);
     expect(prompt).toMatch(/nao invente/i);
-    expect(prompt).toContain('"fontes"');
+    expect(prompt).toMatch(/maximo de 500 caracteres/i);
+    expect(prompt).toMatch(/nao cite nomes de playlists/i);
+    expect(prompt).toMatch(/nao inclua fontes|nao inclua avisos/i);
+    expect(prompt).not.toMatch(/spotify|amazon music|apple music/i);
   });
 });

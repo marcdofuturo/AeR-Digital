@@ -7,6 +7,8 @@ const listUsers = vi.fn();
 const deleteUser = vi.fn();
 const profileUpsert = vi.fn();
 const membershipUpsert = vi.fn();
+const membershipUpdate = vi.fn();
+const membershipDelete = vi.fn();
 const tenantUpdate = vi.fn();
 
 vi.mock("@/lib/auth/require-membership", () => ({ requireMembership }));
@@ -18,16 +20,27 @@ vi.mock("@/lib/supabase/admin", () => ({
       if (table === "profiles") {
         return {
           select: vi.fn(() => ({
-            ilike: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })),
+            ilike: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
           })),
           upsert: profileUpsert,
         };
       }
-      if (table === "memberships") return { upsert: membershipUpsert };
+      if (table === "memberships")
+        return {
+          upsert: membershipUpsert,
+          update: membershipUpdate,
+          delete: membershipDelete,
+        };
       if (table === "tenants") {
         return {
           update: tenantUpdate.mockReturnValue({
-            eq: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: { id: "tenant-1" }, error: null }) })) })),
+            eq: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: { id: "tenant-1" }, error: null }),
+              })),
+            })),
           }),
         };
       }
@@ -44,11 +57,28 @@ describe("configuration actions", () => {
       tenantId: "tenant-1",
       role: "owner",
     });
-    inviteUserByEmail.mockReset().mockResolvedValue({ data: { user: { id: "user-2" } }, error: null });
+    inviteUserByEmail
+      .mockReset()
+      .mockResolvedValue({ data: { user: { id: "user-2" } }, error: null });
     listUsers.mockReset().mockResolvedValue({ data: { users: [] }, error: null });
     deleteUser.mockReset().mockResolvedValue({ error: null });
     profileUpsert.mockReset().mockResolvedValue({ error: null });
     membershipUpsert.mockReset().mockResolvedValue({ error: null });
+    const terminal = {
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({ data: { id: "membership-2" }, error: null }),
+      })),
+    };
+    membershipUpdate
+      .mockReset()
+      .mockReturnValue({
+        eq: vi.fn(() => ({ eq: vi.fn(() => ({ neq: vi.fn(() => terminal) })) })),
+      });
+    membershipDelete
+      .mockReset()
+      .mockReturnValue({
+        eq: vi.fn(() => ({ eq: vi.fn(() => ({ neq: vi.fn(() => terminal) })) })),
+      });
     tenantUpdate.mockClear();
   });
 
@@ -65,7 +95,9 @@ describe("configuration actions", () => {
     formData.set("role", "ar");
 
     const { inviteTeamMember } = await import("./actions");
-    await expect(inviteTeamMember({ status: "idle", message: "" }, formData)).resolves.toMatchObject({
+    await expect(
+      inviteTeamMember({ status: "idle", message: "" }, formData),
+    ).resolves.toMatchObject({
       status: "success",
     });
     expect(requireMembership).toHaveBeenCalledWith(["owner"]);
@@ -90,19 +122,26 @@ describe("configuration actions", () => {
     formData.set("intake_code", "DO-NOT-CHANGE");
 
     const { updateLabelSettings } = await import("./actions");
-    await expect(updateLabelSettings({ status: "idle", message: "" }, formData)).resolves.toMatchObject({
+    await expect(
+      updateLabelSettings({ status: "idle", message: "" }, formData),
+    ).resolves.toMatchObject({
       status: "success",
     });
     expect(requireMembership).toHaveBeenCalledWith(["owner"]);
-    expect(tenantUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      name: "Audiolink Atualizado",
-      responsible_name: "Marc",
-    }));
+    expect(tenantUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Audiolink Atualizado",
+        responsible_name: "Marc",
+      }),
+    );
     expect(tenantUpdate.mock.calls[0]?.[0]).not.toHaveProperty("intake_code");
   });
 
   it("recovers an existing Auth user left without a profile", async () => {
-    inviteUserByEmail.mockResolvedValue({ data: { user: null }, error: new Error("already exists") });
+    inviteUserByEmail.mockResolvedValue({
+      data: { user: null },
+      error: new Error("already exists"),
+    });
     listUsers.mockResolvedValue({
       data: { users: [{ id: "orphan-user", email: "novo@example.com" }] },
       error: null,
@@ -113,7 +152,9 @@ describe("configuration actions", () => {
     formData.set("role", "viewer");
 
     const { inviteTeamMember } = await import("./actions");
-    await expect(inviteTeamMember({ status: "idle", message: "" }, formData)).resolves.toMatchObject({
+    await expect(
+      inviteTeamMember({ status: "idle", message: "" }, formData),
+    ).resolves.toMatchObject({
       status: "success",
     });
     expect(membershipUpsert).toHaveBeenCalledWith(
@@ -130,7 +171,9 @@ describe("configuration actions", () => {
     formData.set("role", "ar");
 
     const { inviteTeamMember } = await import("./actions");
-    await expect(inviteTeamMember({ status: "idle", message: "" }, formData)).resolves.toMatchObject({
+    await expect(
+      inviteTeamMember({ status: "idle", message: "" }, formData),
+    ).resolves.toMatchObject({
       status: "error",
     });
     expect(deleteUser).toHaveBeenCalledWith("user-2");
@@ -140,19 +183,51 @@ describe("configuration actions", () => {
     const formData = new FormData();
     formData.set("name", "Audiolink Atualizado");
     for (const field of [
-      "legal_name", "cnpj", "logo_url", "responsible_name", "contact_email", "contact_phone",
-    ]) formData.set(field, "");
+      "legal_name",
+      "cnpj",
+      "logo_url",
+      "responsible_name",
+      "contact_email",
+      "contact_phone",
+    ])
+      formData.set(field, "");
 
     const { updateLabelSettings } = await import("./actions");
     await updateLabelSettings({ status: "idle", message: "" }, formData);
 
-    expect(tenantUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      legal_name: null,
-      cnpj: null,
-      logo_url: null,
-      responsible_name: null,
-      contact_email: null,
-      contact_phone: null,
-    }));
+    expect(tenantUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        legal_name: null,
+        cnpj: null,
+        logo_url: null,
+        responsible_name: null,
+        contact_email: null,
+        contact_phone: null,
+      }),
+    );
+  });
+
+  it("updates a delegated member role in the current tenant", async () => {
+    const formData = new FormData();
+    formData.set("user_id", "4e2f09f6-40e5-4991-9fe4-4468566b56f2");
+    formData.set("role", "viewer");
+
+    const { updateTeamMemberRole } = await import("./actions");
+    await expect(
+      updateTeamMemberRole({ status: "idle", message: "" }, formData),
+    ).resolves.toMatchObject({ status: "success" });
+    expect(membershipUpdate).toHaveBeenCalledWith({ role: "viewer" });
+  });
+
+  it("revokes a delegated member without deleting the Auth account", async () => {
+    const formData = new FormData();
+    formData.set("user_id", "4e2f09f6-40e5-4991-9fe4-4468566b56f2");
+
+    const { removeTeamMember } = await import("./actions");
+    await expect(
+      removeTeamMember({ status: "idle", message: "" }, formData),
+    ).resolves.toMatchObject({ status: "success" });
+    expect(membershipDelete).toHaveBeenCalled();
+    expect(deleteUser).not.toHaveBeenCalled();
   });
 });

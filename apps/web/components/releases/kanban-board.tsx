@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DndContext,
   closestCorners,
@@ -26,10 +26,30 @@ export function KanbanBoard({ releases }: Props) {
   const [activeCard, setActiveCard] = useState<KanbanCardData | null>(null);
   const [selectedCard, setSelectedCard] = useState<KanbanCardData | null>(null);
   const suppressOpenRef = useRef(false);
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  const bottomScrollRef = useRef<HTMLDivElement>(null);
+  const [scrollWidth, setScrollWidth] = useState(1);
+  const [hasOverflow, setHasOverflow] = useState(false);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  );
+  useEffect(() => {
+    const board = boardScrollRef.current;
+    if (!board) return undefined;
+    const measure = () => {
+      setScrollWidth(Math.max(1, board.scrollWidth));
+      setHasOverflow(board.scrollWidth > board.clientWidth + 1);
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(board);
+    if (board.firstElementChild) observer?.observe(board.firstElementChild);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [releases]);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const columns = KANBAN_STAGES.map((stage) => ({
     ...stage,
@@ -86,20 +106,44 @@ export function KanbanBoard({ releases }: Props) {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="flex gap-3 overflow-x-auto pb-4">
-          {columns.map((col) => (
-            <KanbanColumn key={col.id} id={col.id} label={col.label} count={col.cards.length}>
-              {col.cards.map((card) => (
-                <KanbanCard key={card.id} card={card} onOpenRelease={handleOpenRelease} />
-              ))}
-            </KanbanColumn>
-          ))}
+        <div
+          ref={boardScrollRef}
+          className="[scrollbar-width:none] overflow-x-auto pb-12 [&::-webkit-scrollbar]:hidden"
+          onScroll={(event) => {
+            if (bottomScrollRef.current)
+              bottomScrollRef.current.scrollLeft = event.currentTarget.scrollLeft;
+          }}
+        >
+          <div className="flex w-max gap-3">
+            {columns.map((col) => (
+              <KanbanColumn key={col.id} id={col.id} label={col.label} count={col.cards.length}>
+                {col.cards.map((card) => (
+                  <KanbanCard key={card.id} card={card} onOpenRelease={handleOpenRelease} />
+                ))}
+              </KanbanColumn>
+            ))}
+          </div>
         </div>
 
-        <DragOverlay>
-          {activeCard ? <KanbanCard card={activeCard} /> : null}
-        </DragOverlay>
+        <DragOverlay>{activeCard ? <KanbanCard card={activeCard} /> : null}</DragOverlay>
       </DndContext>
+
+      <div
+        className={`border-border bg-bg/95 fixed right-0 bottom-0 left-0 z-30 border-t px-3 py-2 backdrop-blur md:left-[var(--app-sidebar-width)] ${hasOverflow ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        aria-hidden={!hasOverflow}
+      >
+        <div
+          ref={bottomScrollRef}
+          aria-label="Rolagem horizontal dos lancamentos"
+          className="h-4 overflow-x-auto overflow-y-hidden"
+          onScroll={(event) => {
+            if (boardScrollRef.current)
+              boardScrollRef.current.scrollLeft = event.currentTarget.scrollLeft;
+          }}
+        >
+          <div style={{ width: scrollWidth, height: 1 }} />
+        </div>
+      </div>
 
       <ReleaseDetailsDialog
         release={selectedCard}

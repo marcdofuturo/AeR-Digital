@@ -70,9 +70,7 @@ async function ReleasesContent({ view, stage }: { view: string; stage?: string }
       ? Math.floor((Date.now() - new Date(r.stage_since).getTime()) / 86400000)
       : 0;
     const trackParticipants = (r.tracks ?? []).flatMap((track) => track.track_participants ?? []);
-    const artists = trackParticipants
-      .map((tp) => tp.artists?.stage_name)
-      .filter(Boolean);
+    const artists = trackParticipants.map((tp) => tp.artists?.stage_name).filter(Boolean);
     const tracks = (r.tracks ?? []).map((track) => {
       const participants = [...(track.track_participants ?? [])]
         .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
@@ -92,7 +90,9 @@ async function ReleasesContent({ view, stage }: { view: string; stage?: string }
       };
     });
     const registrations = (r.tracks ?? []).flatMap((track) => track.registrations ?? []);
-    const authorizationRecipients = (r.authorizations ?? []).flatMap((auth) => auth.authorization_recipients ?? []);
+    const authorizationRecipients = (r.authorizations ?? []).flatMap(
+      (auth) => auth.authorization_recipients ?? [],
+    );
     const authorizationTotal = authorizationRecipients.length;
     const registrationTotal = registrations.length;
 
@@ -114,15 +114,23 @@ async function ReleasesContent({ view, stage }: { view: string; stage?: string }
       tracks,
       authorizations: {
         total: authorizationTotal,
-        approved: authorizationRecipients.filter((recipient) => recipient.status === "aprovado").length,
-        pending: authorizationRecipients.filter((recipient) => !["aprovado", "recusado"].includes(recipient.status ?? "")).length,
-        rejected: authorizationRecipients.filter((recipient) => recipient.status === "recusado").length,
+        approved: authorizationRecipients.filter((recipient) => recipient.status === "aprovado")
+          .length,
+        pending: authorizationRecipients.filter(
+          (recipient) => !["aprovado", "recusado"].includes(recipient.status ?? ""),
+        ).length,
+        rejected: authorizationRecipients.filter((recipient) => recipient.status === "recusado")
+          .length,
       },
       registrations: {
         total: registrationTotal,
-        completed: registrations.filter((registration) => registration.status === "concluido").length,
-        pending: registrations.filter((registration) => !["concluido", "rejeitado", "na"].includes(registration.status ?? "")).length,
-        rejected: registrations.filter((registration) => registration.status === "rejeitado").length,
+        completed: registrations.filter((registration) => registration.status === "concluido")
+          .length,
+        pending: registrations.filter(
+          (registration) => !["concluido", "rejeitado", "na"].includes(registration.status ?? ""),
+        ).length,
+        rejected: registrations.filter((registration) => registration.status === "rejeitado")
+          .length,
       },
     };
   });
@@ -131,11 +139,11 @@ async function ReleasesContent({ view, stage }: { view: string; stage?: string }
     return (
       <Card>
         <CardContent className="p-12 text-center">
-          <div className="flex justify-center mb-3">
-            <Inbox className="h-10 w-10 text-fg-muted" />
+          <div className="mb-3 flex justify-center">
+            <Inbox className="text-fg-muted h-10 w-10" />
           </div>
           <p className="text-fg-muted mb-1">Nenhum lançamento no pipeline</p>
-          <p className="text-sm text-fg-muted mb-4">
+          <p className="text-fg-muted mb-4 text-sm">
             Os lançamentos enviados pelo WhatsApp ou convertidos pelo inbox aparecerão aqui.
           </p>
         </CardContent>
@@ -147,35 +155,33 @@ async function ReleasesContent({ view, stage }: { view: string; stage?: string }
     return <ReleasesTable releases={cards} />;
   }
 
-  return (
-    <div className="overflow-x-auto">
-      <KanbanBoard releases={cards} />
-    </div>
-  );
+  return <KanbanBoard releases={cards} />;
 }
 
 export default async function ReleasesPage({ searchParams }: ReleasesPageProps) {
   const { view, stage } = await searchParams;
   const isTable = view === "table";
-  const selectedStageLabel = stage ? STAGE_LABEL[stage] ?? stage : null;
+  const selectedStageLabel = stage ? (STAGE_LABEL[stage] ?? stage) : null;
   const releasesContent = await ReleasesContent({ view: view ?? "kanban", stage });
 
   return (
-    <div className="p-8 max-w-full">
+    <div className="max-w-full p-4 pt-20 pb-16 sm:p-8 sm:pb-16">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-fg">Lançamentos</h1>
-          <p className="text-sm text-fg-muted mt-1">
-            {selectedStageLabel ? `Filtrando: ${selectedStageLabel}` : "Pipeline de gerenciamento de lançamentos"}
+          <h1 className="text-fg text-2xl font-bold">Lançamentos</h1>
+          <p className="text-fg-muted mt-1 text-sm">
+            {selectedStageLabel
+              ? `Filtrando: ${selectedStageLabel}`
+              : "Pipeline de gerenciamento de lançamentos"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* View toggle */}
-          <div className="flex bg-surface border border-border rounded-md p-0.5 mr-2">
+          <div className="bg-surface border-border mr-2 flex rounded-md border p-0.5">
             <Link
               href={stage ? `/releases?stage=${stage}` : "/releases"}
-              className={`p-1.5 rounded-sm transition-colors ${
+              className={`rounded-sm p-1.5 transition-colors ${
                 !isTable ? "bg-surface-2 text-fg" : "text-fg-muted hover:text-fg"
               }`}
             >
@@ -183,7 +189,7 @@ export default async function ReleasesPage({ searchParams }: ReleasesPageProps) 
             </Link>
             <Link
               href={stage ? `/releases?view=table&stage=${stage}` : "/releases?view=table"}
-              className={`p-1.5 rounded-sm transition-colors ${
+              className={`rounded-sm p-1.5 transition-colors ${
                 isTable ? "bg-surface-2 text-fg" : "text-fg-muted hover:text-fg"
               }`}
             >
@@ -201,14 +207,12 @@ export default async function ReleasesPage({ searchParams }: ReleasesPageProps) 
       </div>
 
       {/* Stage legend */}
-      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+      <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-2">
         {KANBAN_STAGES.map((s, i) => (
-          <div key={s.id} className="flex items-center gap-1.5 text-xs text-fg-muted shrink-0">
-            <span className="w-2 h-2 rounded-full bg-brand/60" />
+          <div key={s.id} className="text-fg-muted flex shrink-0 items-center gap-1.5 text-xs">
+            <span className="bg-brand/60 h-2 w-2 rounded-full" />
             {s.label}
-            {i < KANBAN_STAGES.length - 1 && (
-              <span className="text-border mx-1">→</span>
-            )}
+            {i < KANBAN_STAGES.length - 1 && <span className="text-border mx-1">→</span>}
           </div>
         ))}
       </div>
